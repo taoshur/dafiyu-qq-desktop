@@ -1,0 +1,42 @@
+'use strict';
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('dafiyu', {
+  info: () => ipcRenderer.invoke('app:info'),
+  snapshot: () => ipcRenderer.invoke('health:snapshot'),
+  logsList: () => ipcRenderer.invoke('logs:list'),
+  logsTail: (payload) => ipcRenderer.invoke('logs:tail', payload),
+  configSummary: () => ipcRenderer.invoke('config:summary'),
+  serviceAction: (payload) => ipcRenderer.invoke('services:action', payload),
+  backups: () => ipcRenderer.invoke('backups:list'),
+  backupCreate: () => ipcRenderer.invoke('backups:create'),
+  backupVerify: (dir) => ipcRenderer.invoke('backups:verify', { dir }),
+  backupRestoreDrill: (dir) => ipcRenderer.invoke('backups:restore-drill', { dir }),
+  embedShow: (service) => ipcRenderer.invoke('embed:show', { service }),
+  embedBounds: (rect) => ipcRenderer.invoke('embed:bounds', { rect }),
+  embedHide: () => ipcRenderer.invoke('embed:hide'),
+  embedState: () => ipcRenderer.invoke('embed:state'),
+  settingsGet: () => ipcRenderer.invoke('settings:get'),
+  settingsSave: (payload) => ipcRenderer.invoke('settings:save', payload),
+  controlState: () => ipcRenderer.invoke('control:state'),
+  controlSetEnabled: (enabled) => ipcRenderer.invoke('control:set-enabled', { enabled }),
+  controlStart: (id, env = {}) => ipcRenderer.invoke('control:start', { id, env }),
+  controlStop: (id, force = false, confirmBusy = false) => ipcRenderer.invoke('control:stop', { id, force, confirmBusy }),
+  setupStatus: () => ipcRenderer.invoke('setup:status'),
+  controlPreflight: () => ipcRenderer.invoke('control:preflight'),
+  controlRecoverSentinel: () => ipcRenderer.invoke('control:recover-sentinel'),
+  controlStartOriginal: () => ipcRenderer.invoke('control:start-original'),
+  startupInfo: () => ipcRenderer.invoke('startup:info'),
+  recoveryStatus: () => ipcRenderer.invoke('recovery:status'),
+  watchdogStatus: () => ipcRenderer.invoke('watchdog:status'),
+  startupStatus: () => ipcRenderer.invoke('startup:status'),
+  autostartStatus: () => ipcRenderer.invoke('autostart:status'),
+  autostartRegister: () => ipcRenderer.invoke('autostart:register', { confirm: true }),
+  autostartUnregister: () => ipcRenderer.invoke('autostart:unregister', { confirm: true }),
+  memoryStatus: (mode) => ipcRenderer.invoke('memory:status', { mode }),
+  memoryList: (payload) => ipcRenderer.invoke('memory:list', payload),
+  memoryCandidate: (payload) => ipcRenderer.invoke('memory:candidate', payload),
+  memoryInitTest: () => ipcRenderer.invoke('memory:test-init', { confirm: true }),
+  memoryReview: (payload) => ipcRenderer.invoke('memory:review', payload)
+});

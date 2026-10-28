@@ -1,0 +1,62 @@
+{
+  "name": "dafiyu-desktop",
+  "version": "0.1.0",
+  "description": "大肥鱼 QQ 机器人桌面控制台",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "node scripts/start.js",
+    "test": "node --test",
+    "capture": "node scripts/capture-ui.js",
+    "build": "electron-builder --win nsis --x64",
+    "pack": "electron-builder --dir"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "private": true,
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.dafiyu.controlcenter",
+    "productName": "Dafiyu Control Center",
+    "copyright": "Copyright © 2026 Dafiyu",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "deepseek-chan.png",
+      "README.md",
+      "package.json",
+      "build/icon.ico"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Dafiyu-Control-Center-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Dafiyu Control Center",
+      "include": "build/installer.nsh"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "electronVersion": "45.0.0"
+  }
+}

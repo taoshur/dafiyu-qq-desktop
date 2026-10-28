@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+cache/
+.pnpm-store/
+
+# build outputs
+dist/
+out/
+release/
+*.exe
+*.blockmap
+*.7z
+
+# local artifacts and private screenshots
+artifacts/
+screenshots/
+*.log
+
+# runtime/user data
+state/
+config/
+backups/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+console-token
+.env
+.env.*
+*.pem
+*.key
+
+# editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# test/coverage
+coverage/
+.nyc_output/
+*.tap
