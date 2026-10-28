@@ -30,19 +30,6 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - qq-bridge 控制台令牌只由主进程从 `state/console-token` 注入，不进入 URL、不写日志
 - 不包含任何 API Key、QQ 登录态、聊天记录或生产配置
 
-### SnowLuma 许可提醒
-
-SnowLuma 本体采用源码可见、非商业许可，**不是 OSI 开源**，且其 EULA 对
-「并入第三方安装包、通过自动化脚本部署」有额外限制。本仓库不包含、也不分发
-SnowLuma 的源码或二进制，但桌面控制台提供可选的启动/停止按钮；这可能落入其
-许可的额外限制范围。
-
-- 使用/分发前请阅读 [SnowLuma LICENSE](https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE)
-- 如要做公开发布或商业/托管部署，请先向 SnowLuma 作者确认是否需要额外授权
-- 如果你希望采用最保守的合规版本，可以只保留状态检测，移除 SnowLuma 启停按钮
-
-以上是工程提示，不构成法律意见。
-
 ## 环境要求
 
 - Windows 11 x64
@@ -134,9 +121,11 @@ docs/           构建、首次登录、接管检查表
 ## 开源前必须确认
 
 - 仓库中的 `deepseek-chan.png`、`src/renderer/assets/deepseek-chan.png` 和 `build/icon.ico` 是**中性占位图**，不是原项目角色素材。请确认你拥有角色图片/图标的再分发权利后再替换。
-- SnowLuma、DSH 的许可证不允许直接再分发；本仓库只通过外部路径调用。
+- SnowLuma、DSH 需由使用者自行获取，本仓库不随附它们的源码或二进制。
 - qq-bridge 若使用 MIT 之外的许可证，请以其仓库为准。
 
 ## License
 
 代码以 [MIT](LICENSE) 发布。第三方依赖、角色素材和外部服务各自的许可证不在此授权范围内。
+
+SnowLuma 授权申请信模板：[docs/SNOWLUMA-PERMISSION-REQUEST.md](docs/SNOWLUMA-PERMISSION-REQUEST.md)
