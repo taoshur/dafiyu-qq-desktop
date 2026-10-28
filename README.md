@@ -2,6 +2,9 @@
 
 Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bridge + DeepSeek Harness（DSH）** 三件套。
 
+> 本项目是基于 [Derpyu520/qq-bridge](https://github.com/Derpyu520/qq-bridge) 的二次创作，不是 qq-bridge 官方项目。
+> 上游代码与文档以 MIT 许可发布；本仓库保留其版权与许可声明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 > 这不是机器人本体，也不包含 SnowLuma、qq-bridge、DSH 的源码或账号。
 > 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 只读浏览、服务网页内嵌和首次设置向导。
 
@@ -26,6 +29,19 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - 生产 Memory 库只读；候选审核只写隔离测试库
 - qq-bridge 控制台令牌只由主进程从 `state/console-token` 注入，不进入 URL、不写日志
 - 不包含任何 API Key、QQ 登录态、聊天记录或生产配置
+
+### SnowLuma 许可提醒
+
+SnowLuma 本体采用源码可见、非商业许可，**不是 OSI 开源**，且其 EULA 对
+「并入第三方安装包、通过自动化脚本部署」有额外限制。本仓库不包含、也不分发
+SnowLuma 的源码或二进制，但桌面控制台提供可选的启动/停止按钮；这可能落入其
+许可的额外限制范围。
+
+- 使用/分发前请阅读 [SnowLuma LICENSE](https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE)
+- 如要做公开发布或商业/托管部署，请先向 SnowLuma 作者确认是否需要额外授权
+- 如果你希望采用最保守的合规版本，可以只保留状态检测，移除 SnowLuma 启停按钮
+
+以上是工程提示，不构成法律意见。
 
 ## 环境要求
 

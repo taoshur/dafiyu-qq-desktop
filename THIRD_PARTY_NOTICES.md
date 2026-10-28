@@ -1,0 +1,67 @@
+# Third-Party Notices
+
+## qq-bridge
+
+This project is a derivative work /二次创作 based on:
+
+- **qq-bridge**: https://github.com/Derpyu520/qq-bridge
+- Copyright (c) 2026 Derpyu520 and qq-bridge / QSH contributors
+- License: MIT (upstream `LICENSE`)
+
+The upstream MIT notice is reproduced below:
+
+```text
+MIT License
+
+Copyright (c) 2026 Derpyu520 and qq-bridge / QSH contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Upstream also lists third-party components (DSH, `@snowluma/*`, SnowLuma,
+MCP SDK, etc.) that are **not** covered by qq-bridge's MIT license. Read the
+upstream `LICENSE` and the respective projects' licenses before use.
+
+## SnowLuma
+
+- Upstream: https://github.com/SnowLuma/SnowLuma
+- This repository does **not** bundle SnowLuma source or binaries.
+- SnowLuma uses a source-available, non-commercial license; its EULA may restrict
+  automated deployment/start/stop and redistribution.
+- The desktop control center offers optional start/stop controls. Verify the
+  license and obtain any required permission before publishing or deploying.
+
+## DeepSeek Harness (DSH)
+
+- Upstream: https://github.com/deepseek-ai/deepseek-harness
+- This repository does not bundle DSH; it is an external application.
+- Refer to the upstream repository/package licenses.
+
+## Electron / electron-builder
+
+- Electron: MIT
+- electron-builder: MIT
+- See `node_modules` package licenses for transitive dependencies.
+
+## Artwork
+
+`deepseek-chan.png`, `src/renderer/assets/deepseek-chan.png`, and
+`build/icon.ico` in this repository are neutral placeholder artwork generated
+for this project. They are not the original character artwork. Replace them
+only with assets you have the right to redistribute.

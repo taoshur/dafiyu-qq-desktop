@@ -2,6 +2,11 @@ MIT License
 
 Copyright (c) 2026 Dafiyu Control Center contributors
 
+This project is based on / derived from qq-bridge
+(https://github.com/Derpyu520/qq-bridge), Copyright (c) 2026 Derpyu520
+and qq-bridge / QSH contributors, also under the MIT License.
+See THIRD_PARTY_NOTICES.md for the upstream notice and third-party boundaries.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
