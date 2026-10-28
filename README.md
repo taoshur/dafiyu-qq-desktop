@@ -128,4 +128,3 @@ docs/           构建、首次登录、接管检查表
 
 代码以 [MIT](LICENSE) 发布。第三方依赖、角色素材和外部服务各自的许可证不在此授权范围内。
 
-SnowLuma 授权申请信模板：[docs/SNOWLUMA-PERMISSION-REQUEST.md](docs/SNOWLUMA-PERMISSION-REQUEST.md)
