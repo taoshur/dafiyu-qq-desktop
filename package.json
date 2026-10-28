@@ -5,7 +5,7 @@
   "main": "src/main/index.js",
   "scripts": {
     "start": "node scripts/start.js",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "capture": "node scripts/capture-ui.js",
     "build": "electron-builder --win nsis --x64",
     "pack": "electron-builder --dir"
