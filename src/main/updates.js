@@ -234,7 +234,19 @@ function createUpdateManager({ currentVersion, paths, log = () => {}, journal = 
     }
   }
 
-  return { check, downloadAndRun, status };
+  async function cancel() {
+    if (!task || ['completed', 'failed', 'cancelled'].includes(task.status)) {
+      return { ok: false, reason: '没有可取消的更新任务' };
+    }
+    try { controller?.abort(); } catch { /* ignore */ }
+    task.status = 'cancelled';
+    task.error = '已取消';
+    task.finishedAt = Date.now();
+    recordJournal(true);
+    return { ok: true, task: status() };
+  }
+
+  return { check, downloadAndRun, status, cancel };
 }
 
 module.exports = { checkForUpdates, normalizeRelease, compareVersion, createUpdateManager, isAllowedDownloadHost };

@@ -11,13 +11,20 @@ const { getIntent } = require('./stop-intent');
 const { createUpdateManager } = require('./updates');
 const { createInstallManager } = require('./install-task');
 const { createTaskJournal } = require('./domain/tasks/journal');
+const { createTaskService } = require('./domain/tasks/service');
 const { tcpProbe } = require('./health');
 const { createIpcRouter } = require('./ipc/router');
 const { createServiceSupervisor } = require('./domain/services/supervisor');
+const { createStructuredLogger } = require('./core/logger');
 
 
 function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart = false, embed = null, log }) {
-  const router = createIpcRouter({ ipcMain, log });
+  const structured = createStructuredLogger({ file: path.join(paths.logDir, 'structured.jsonl') });
+  const structuredLog = (source, message) => {
+    log(source, message);
+    structured.write('info', 'main', { source, message });
+  };
+  const router = createIpcRouter({ ipcMain, log: structuredLog });
   let cached = { at: 0, value: null };
   const controlStateDir = path.join(paths.configDir, '..', 'state');
   const controller = createController({ stateDir: controlStateDir, getSettings, log });
@@ -26,6 +33,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const taskJournal = createTaskJournal({ file: path.join(paths.stateDir, 'tasks.json') });
   const installManager = createInstallManager({ paths, getSettings, log, component: 'bridge', journal: taskJournal });
   const updateManager = createUpdateManager({ currentVersion: require('../../package.json').version, paths, log, journal: taskJournal });
+  const taskService = createTaskService({ installManager, updateManager, journal: taskJournal });
   const autostart = createAutostart({
     stateFile: path.join(controlStateDir, 'autostart.json'),
     exePath: process.execPath,
@@ -87,9 +95,9 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const { registerBackupHandlers } = require('./ipc/handlers/backups');
   const { registerStartupHandlers } = require('./ipc/handlers/startup');
   registerSystemHandlers(router, { paths, getSettings, cache: cached });
-  registerUpdateHandlers(router, { updateManager });
+  registerUpdateHandlers(router, { taskService });
   registerBilibiliHandlers(router, { paths, getSettings });
-  registerInstallHandlers(router, { installManager, log });
+  registerInstallHandlers(router, { taskService, log });
   registerEmbedHandlers(router, { embed, log });
   registerClipboardHandlers(router);
   registerControlHandlers(router, { paths, getSettings, setSettings, controller: supervisor, log });

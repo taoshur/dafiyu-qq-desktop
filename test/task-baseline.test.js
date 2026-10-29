@@ -72,3 +72,28 @@ test('Shared task journal keeps install/update metadata and survives corruption'
   journal.record({ id: 'update-2', kind: 'update', status: 'failed', error: 'x' });
   assert.equal(journal.get('update-2').status, 'failed');
 });
+
+
+test('Unified task service enforces one active install/update task', async () => {
+  const { createTaskService } = require('../src/main/domain/tasks/service');
+  let installActive = false;
+  const installManager = {
+    status: () => (installActive ? { status: 'downloading', kind: 'install' } : null),
+    start: () => { installActive = true; return { ok: true, task: { status: 'downloading' } }; },
+    cancel: async () => { installActive = false; return { ok: true }; }
+  };
+  const updateManager = {
+    status: () => null,
+    check: async () => ({ ok: true }),
+    downloadAndRun: async () => ({ ok: true, task: { status: 'downloading' } }),
+    cancel: async () => ({ ok: true })
+  };
+  const service = createTaskService({ installManager, updateManager, journal: null });
+  assert.equal(service.startInstall({ confirmed: true }).ok, true);
+  assert.equal(service.status().active, 'install');
+  const blocked = await service.startUpdate();
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.reason, /已有安装/);
+  await service.cancel();
+  assert.equal(service.status().active, null);
+});
