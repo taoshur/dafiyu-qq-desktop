@@ -32,7 +32,9 @@
       "deepseek-chan.png",
       "README.md",
       "package.json",
-      "build/icon.ico"
+      "build/icon.ico",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "win": {
       "target": [
