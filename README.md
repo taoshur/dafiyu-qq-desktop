@@ -19,7 +19,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
   577C2EFA14375E065CAC116806AEA04B60BDB0EC53CD2E96B7939372B5DDF40A
   ```
 
-> 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
+> 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置DSH。
 
 ## 功能
 
