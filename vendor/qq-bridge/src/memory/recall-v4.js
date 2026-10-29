@@ -32,6 +32,19 @@ function lexicalScore(row, type, queryTokens) {
   return clamp(hits / Math.max(1, Math.min(queryTokens.length, 12)));
 }
 
+export function recordRecallDiagnostics(db, diagnostics) {
+  if (!diagnostics) return;
+  ensureRecallSchema(db);
+  try {
+    db.prepare(`INSERT INTO memory_recall_diagnostics
+      (at, conv_hash, query_hash, candidate_count, selected_ids, tokens, filters)
+      VALUES(?,?,?,?,?,?,?)`).run(
+      diagnostics.at, diagnostics.convHash, diagnostics.queryHash, diagnostics.candidateCount,
+      JSON.stringify(diagnostics.selectedIds || []), Number(diagnostics.tokens) || 0, JSON.stringify(diagnostics.filters || {})
+    );
+  } catch { /* diagnostics must never break recall */ }
+}
+
 export function ensureRecallSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS memory_recall_diagnostics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,13 +149,7 @@ export function recallMemoryV4(db, {
       budgetTokens
     }
   };
-  try {
-    db.prepare(`INSERT INTO memory_recall_diagnostics
-      (at, conv_hash, query_hash, candidate_count, selected_ids, tokens, filters)
-      VALUES(?,?,?,?,?,?,?)`).run(
-      diagnostics.at, diagnostics.convHash, diagnostics.queryHash, diagnostics.candidateCount,
-      JSON.stringify(diagnostics.selectedIds), 0, JSON.stringify(diagnostics.filters)
-    );
-  } catch { /* diagnostics must never break recall */ }
+  // Persist only after the caller applies the real token budget; otherwise
+  // the row would claim candidates that were never injected.
   return { picked, scored, diagnostics };
 }

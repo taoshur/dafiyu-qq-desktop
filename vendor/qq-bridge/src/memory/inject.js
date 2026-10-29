@@ -22,6 +22,7 @@ export function memoryInjection({ convKey, st, fallback }) {
       convKey: String(convKey),
       speakerQqs: q.speakerQqs,
       text: q.text,
+      latestText: q.latestText,
       budgetTokens: Number(cfg.injectBudgetTokens) || 600,
       selfQq: cfg.selfQq || null
     });

@@ -50,6 +50,9 @@ test('V4 recall returns time-relevant event before unrelated facts', () => {
   assert.ok(result.diagnostics.selectedIds.length >= 1);
   const log = db.prepare('SELECT COUNT(*) c FROM memory_recall_diagnostics').get();
   assert.ok(Number(log.c) >= 1);
+  const row = db.prepare('SELECT selected_ids, tokens FROM memory_recall_diagnostics ORDER BY id DESC LIMIT 1').get();
+  assert.equal(Number(row.tokens), result.tokens);
+  assert.deepEqual(JSON.parse(row.selected_ids), result.diagnostics.selectedIds);
 });
 
 test('Lifecycle decays low-importance rows and protects important facts', () => {
@@ -99,4 +102,22 @@ test('candidate TTL accepts ttlDays contract', () => {
   const judge = classifyCandidate({ kind: 'fact', category: 'plan', ttlDays: 3, certainty: 'stated', confidence: 0.8 }, { convKey: 'group:1' });
   assert.ok(judge.expiresAt >= now + 2.9 * 86400000);
   assert.ok(judge.expiresAt <= now + 3.1 * 86400000);
+});
+
+
+test('latest message wins over older relative date expressions', () => {
+  const { buildQueryFromState } = require('../vendor/qq-bridge/src/memory/retrieve.js');
+  const q = buildQueryFromState({ recentMessages: [
+    { text: '昨天去公园', userId: '1' },
+    { text: '今天吃了火锅', userId: '1' }
+  ] });
+  assert.equal(q.latestText, '今天吃了火锅');
+  assert.match(q.text, /昨天去公园/);
+});
+
+
+test('Memory DB sets WAL and busy_timeout for desktop/bridge coexistence', () => {
+  const { db } = fixture();
+  assert.equal(Number(db.prepare('PRAGMA busy_timeout').get().timeout), 8000);
+  assert.equal(String(db.prepare('PRAGMA journal_mode').get().journal_mode).toLowerCase(), 'wal');
 });

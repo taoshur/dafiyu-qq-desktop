@@ -7,7 +7,7 @@
  */
 import { searchMemory } from './db.js';
 import { parseTimeRange } from './time-range.js';
-import { recallMemoryV4 } from './recall-v4.js';
+import { recallMemoryV4, recordRecallDiagnostics } from './recall-v4.js';
 import { sweepLifecycle, touchRecalled, lifecycleConfig } from './lifecycle.js';
 
 export const DEFAULT_BUDGET = 600; // tokens
@@ -57,12 +57,15 @@ export function retrieveMemoryForPrompt(db, {
   convKey = 'global',
   speakerQqs = [],
   text = '',
+  latestText = '',
   budgetTokens = DEFAULT_BUDGET,
   limit = 10,
   now = Date.now(),
   selfQq = null
 } = {}) {
-  const timeRange = parseTimeRange(text, now);
+  // Current message wins over older quoted/context messages when both contain
+  // relative dates such as “昨天” and “今天”.
+  const timeRange = parseTimeRange(latestText, now) || parseTimeRange(text, now);
   const cfg = globalThis.__MEMORY_CONF__ || {};
   const useV4 = cfg.recallV4 !== false;
   let picked = [];
@@ -134,7 +137,11 @@ export function retrieveMemoryForPrompt(db, {
   }
 
   if (!lines.length) return { text: '', tokens: 0, hits: 0, facts: 0, events: 0, range: timeRange, diagnostics: recallDiagnostics };
-  if (recallDiagnostics) recallDiagnostics.tokens = tokens;
+  if (recallDiagnostics) {
+    recallDiagnostics.tokens = tokens;
+    recallDiagnostics.selectedIds = used.map((item) => `${item.type}:${item.row.id}`);
+    try { recordRecallDiagnostics(db, recallDiagnostics); } catch { /* diagnostics must not break retrieval */ }
+  }
   return {
     text: '【相关记忆】\n' + lines.join('\n'),
     tokens,
@@ -158,12 +165,14 @@ export function buildQueryFromState(st, { limitSpeakers = 4, textLimit = 260 } =
     const text = m?.text || m?.plain;
     if (text) texts.push(String(text));
   }
-  const latestText = texts.slice(-3).join(' '); // 保留最近三条，避免只有一句“还记得吗”没有主题
+  const latestText = texts.length ? texts[texts.length - 1] : '';
+  const recentText = texts.slice(-3).join(' ');
   const topicText = Array.isArray(st?.activeTopics)
     ? st.activeTopics.slice(-3).map((t) => t?.text || '').join(' ')
     : '';
   return {
     speakerQqs: qqs.slice(0, limitSpeakers),
-    text: `${latestText} ${topicText}`.slice(0, textLimit)
+    latestText,
+    text: `${recentText} ${topicText}`.slice(0, textLimit)
   };
 }

@@ -19,6 +19,7 @@ const SCHEMA = `
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous = NORMAL;
 PRAGMA foreign_keys = ON;
+PRAGMA busy_timeout = 8000;
 
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
@@ -317,7 +318,7 @@ export function searchMemory(db, { convKey = 'global', qqs = [], text = '', limi
     const rows = db.prepare(`SELECT id, happened_at FROM events
       WHERE happened_at BETWEEN ? AND ? AND happened_at IS NOT NULL AND time_precision != 'unknown'
         AND ${visFilter} AND (scope='global' OR scope=?)
-      ORDER BY happened_at DESC LIMIT 60`).all(timeRange.from, timeRange.to, convKey);
+      ORDER BY happened_at DESC LIMIT ?`).all(timeRange.from, timeRange.to, convKey, Math.max(60, Number(limit) * 4));
     for (const r of rows) bump('event', r.id, 2.5);
   }
 
@@ -329,7 +330,7 @@ export function searchMemory(db, { convKey = 'global', qqs = [], text = '', limi
       : [`%"${String(qq)}"%`, convKey];
     const rows = db.prepare(`SELECT id FROM events
       WHERE participants LIKE ? ${rangeClause} AND ${visFilter} AND (scope='global' OR scope=?)
-      ORDER BY happened_at DESC LIMIT 40`).all(...params);
+      ORDER BY happened_at DESC LIMIT ?`).all(...params, Math.max(40, Number(limit) * 3));
     for (const r of rows) bump('event', r.id, 2);
   }
 
@@ -338,8 +339,8 @@ export function searchMemory(db, { convKey = 'global', qqs = [], text = '', limi
   if (tokens.length) {
     const ph = tokens.map(() => '?').join(',');
     const rows = db.prepare(`SELECT ref_type, ref_id, COUNT(*) AS hits FROM memory_tokens
-      WHERE token IN (${ph}) GROUP BY ref_type, ref_id ORDER BY hits DESC LIMIT 80`)
-      .all(...tokens);
+      WHERE token IN (${ph}) GROUP BY ref_type, ref_id ORDER BY hits DESC LIMIT ?`)
+      .all(...tokens, Math.max(80, Number(limit) * 6));
     for (const r of rows) bump(r.ref_type, r.ref_id, Number(r.hits) * 1.5);
   }
 
