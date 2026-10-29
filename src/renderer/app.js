@@ -34,6 +34,7 @@ const state = {
     error: null
   },
   memoryOverview: null,
+  bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
@@ -62,6 +63,7 @@ const PAGE_META = {
   env: ['环境检查', '启动前先确认运行时、配置与数据目录'],
   config: ['配置', '默认只读；令牌与凭据不会显示在这里'],
   memory: ['长期记忆', '大肥鱼记住的人和事；真实记忆只读，练习副本可审核'],
+  bilibili: ['B站活动', '大肥鱼在 B 站看了什么；本机台账，不上传'],
   backups: ['数据备份', 'SQLite 一致性快照 + manifest 校验'],
   about: ['关于', '大肥鱼桌面控制台 · 第三阶段（服务控制）']
 };
@@ -997,6 +999,110 @@ function memoryTimePrecisionLabel(precision) {
   return precision || '—';
 }
 
+function fmtBiliDuration(seconds) {
+  const total = Number(seconds);
+  if (!Number.isFinite(total) || total <= 0) return '—';
+  const mins = Math.floor(total / 60);
+  const secs = Math.floor(total % 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
+function fmtBiliView(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n >= 10000) return `${(n / 10000).toFixed(1)} 万播放`;
+  return `${n} 播放`;
+}
+
+function biliKindLabel(kind) {
+  if (kind === 'info') return '看了视频';
+  if (kind === 'subtitle') return '读了字幕';
+  return kind || '活动';
+}
+
+function biliPromptText(watchLog = '') {
+  const repoRoot = String(watchLog || '').replace(/[\\/]state[\\/]bili-watch\.jsonl$/i, '') || '<qq-bridge 路径>';
+  return `你是我的 Windows 部署助手。我要让“大肥鱼”在 DeepSeek Harness 里能刷 B 站。
+
+当前环境：
+- qq-bridge 已安装在：${repoRoot}
+- B 站 MCP 工具在：${repoRoot}\\tools\\bilibili-mcp
+- 我需要让大肥鱼能搜索视频、看热门/排行、读视频详情和字幕，并在控制中心看到观看台账。
+
+请按以下规则帮我：
+1. 先检查 Python 3.10+、qq-bridge 的 tools/bilibili-mcp/requirements.txt 和现有 DSH profile，不要覆盖已有 MCP 配置。
+2. 需要安装依赖时，在 qq-bridge 下创建独立 venv（如 tools/bili-venv），不要用系统 Python 污染环境。
+3. 在 DSH 的 cordis.patch.yml 里增加/修正 bilibili MCP server，指向 mcp_server.py，并设置 BILI_MCP_TOOLS；修改前备份。
+4. 不要向我索要 B站 cookie、SESSDATA 或扫码内容；登录二维码由我自己扫。
+5. 不要修改 B站 MCP 的源码，不要上传凭据或聊天记录。
+6. 配置完成后重启 DSH，让我先测试 bili_hot_videos / bili_search；再测试 bili_login 扫码和 bili_check_credential。
+7. 如果无法直接修改，请给出可复制的命令和配置片段，并说明回滚方式。
+
+不要假装已经完成；每一步都以实际检测结果为准。`;
+}
+
+function biliPage() {
+  const b = state.bili;
+  if (b.error) return `<div class="notice danger">B站活动读取失败：${esc(b.error)}</div>`;
+  const s = b.status;
+  if (!s) return '<div class="log-empty" style="padding:30px">正在读取 B 站活动…</div>';
+  const entries = s.entries || [];
+  const rows = entries.map((item) => {
+    const meta = [item.author, fmtBiliDuration(item.duration), fmtBiliView(item.view)].filter(Boolean).join(' · ');
+    return `<tr>
+      <td>${esc(fmtTime(item.at))}</td>
+      <td><span class="tag">${esc(biliKindLabel(item.kind))}</span></td>
+      <td><b>${esc(item.title || '（无标题）')}</b><span class="memory-detail">${esc(item.bvid || '')}${meta ? ` · ${esc(meta)}` : ''}</span></td>
+      <td>${esc(item.bvid || '—')}</td>
+    </tr>`;
+  }).join('');
+  const mcpReady = s.mcp?.serverExists;
+  const configured = s.mcp?.configured;
+  const loggedIn = s.credential?.loggedIn;
+  return `
+    <div class="notice">${loggedIn
+      ? '大肥鱼的 B 站 MCP 已登录。这里显示本机观看台账，不是 B 站账号的公开历史。'
+      : '大肥鱼的 B 站 MCP 还没有登录。热榜/搜索/详情通常可用；字幕、评论、回复等需要它自己扫码登录。'}</div>
+    <div class="grid grid-4 memory-stats">
+      <section class="card stat"><span>累计记录</span><b>${s.counts.total}</b><small>本机台账条数</small></section>
+      <section class="card stat"><span>今天</span><b class="${s.counts.today ? 'ok' : ''}">${s.counts.today}</b><small>今天的观看/读字幕记录</small></section>
+      <section class="card stat"><span>看过的视频</span><b>${s.counts.videos}</b><small>按 BV 号去重</small></section>
+      <section class="card stat"><span>登录状态</span><b class="${loggedIn ? 'ok' : 'warn'}">${loggedIn ? '已登录' : '未登录'}</b><small>${s.mcp?.serverExists ? (configured ? 'MCP 已配置' : 'MCP 未配置') : 'MCP 未安装'}</small></section>
+    </div>
+    <div class="notice" style="margin-top:12px">最近一次活动：${s.lastAt ? esc(fmtTime(s.lastAt)) : '还没有记录'} · 观看台账：${esc(s.watchLog || '未找到')}</div>
+    <div class="backup-toolbar">
+      <button class="btn primary" id="bili-refresh" type="button" ${b.busy ? 'disabled' : ''}>刷新</button>
+      <button class="btn" id="bili-copy-prompt" type="button">复制“接入 B 站”提示词</button>
+      <span class="backup-hint">桌面只读台账，不控制 B 站账号，也不读取 cookie</span>
+    </div>
+    <section class="card panel" style="margin-top:14px">
+      <div class="section-title"><h3>它最近看了什么</h3><span>按本机时间倒序</span></div>
+      <div class="memory-table-wrap">
+        <table class="table">
+          <thead><tr><th>时间</th><th>动作</th><th>内容</th><th>BV 号</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="4" class="log-empty">还没有观看记录。大肥鱼查看视频详情或读字幕时才会写入这里；只看热榜/搜索时，当前 B 站 MCP 不一定记账。</td></tr>'}</tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card panel" style="margin-top:14px">
+      <div class="section-title"><h3>接入状态</h3><span>只检测，不自动改 DSH 配置</span></div>
+      <div class="check-row"><span class="check-icon ${mcpReady ? 'ok' : 'bad'}">${mcpReady ? '✓' : '×'}</span><div class="check-main"><h5>B 站 MCP 工具</h5><p>${mcpReady ? '已找到 tools/bilibili-mcp/mcp_server.py' : '没有找到 tools/bilibili-mcp，需要先安装/更新 qq-bridge 的 B 站工具'}</p></div></div>
+      <div class="check-row"><span class="check-icon ${configured ? 'ok' : 'warn'}">${configured ? '✓' : '!'}</span><div class="check-main"><h5>DSH 接入</h5><p>${configured ? `已在 profile 中发现 bilibili MCP：${esc((s.mcp.profiles || []).join('、'))}` : 'DSH 的 cordis.patch.yml 里还没有发现 bilibili MCP'}</p></div></div>
+      <div class="check-row"><span class="check-icon ${loggedIn ? 'ok' : 'warn'}">${loggedIn ? '✓' : '!'}</span><div class="check-main"><h5>B 站登录</h5><p>${loggedIn ? '本机已有有效凭证；不会在界面显示 cookie' : '还没有本机凭证；让大肥鱼调用 bili_login 生成二维码，你自己扫码'}</p></div></div>
+      <details class="deepseek-help" style="margin-top:12px">
+        <summary>让大肥鱼刷 B 站：手动接入步骤</summary>
+        <ol class="wizard-list">
+          <li>确认 qq-bridge 的 <code>tools/bilibili-mcp</code> 存在；需要 Python 3.10+。</li>
+          <li>在 qq-bridge 下创建独立 venv：<code>tools\\bili-venv</code>，安装 <code>tools\\bilibili-mcp\\requirements.txt</code>。</li>
+          <li>在 DSH profile 的 <code>cordis.patch.yml</code> 添加 bilibili MCP server，指向 <code>mcp_server.py</code>，并配置 <code>BILI_MCP_TOOLS</code>。</li>
+          <li>重启 DSH；让大肥鱼先测试 <code>bili_hot_videos</code> / <code>bili_search</code>。</li>
+          <li>需要字幕/评论时，让它调用 <code>bili_login</code>，你扫码后再调用 <code>bili_check_credential</code>。</li>
+        </ol>
+        <p class="embed-hint">桌面不会自动改 DSH 配置；点上面的按钮复制完整提示词给 DeepSeek，让它帮你按现有环境完成接入。</p>
+      </details>
+    </section>`;
+}
+
 function memoryPage() {
   const m = state.memory;
   const status = m.status;
@@ -1219,7 +1325,7 @@ function render() {
   }
 
   const snapshot = state.snap;
-  if (!snapshot && !['setup', 'environment'].includes(state.page)) {
+  if (!snapshot && !['setup', 'environment', 'bilibili'].includes(state.page)) {
     view.innerHTML = '<div class="log-empty" style="padding:30px">正在读取运行状态…</div>';
     return;
   }
@@ -1230,6 +1336,7 @@ function render() {
   else if (state.page === 'embed') html = embedPage(snapshot);
   else if (state.page === 'setup') html = setupPage();
   else if (state.page === 'environment') html = environmentPage();
+  else if (state.page === 'bilibili') html = biliPage();
   else if (state.page === 'startup') html = startupPage();
   else if (state.page === 'logs') html = logsPage();
   else if (state.page === 'env') html = envPage(snapshot);
@@ -1882,6 +1989,56 @@ async function copyDeepSeekPrompt() {
   }
 }
 
+function updateBiliBadge(status) {
+  const badge = $('nav-bili-badge');
+  if (!badge) return;
+  const count = Number(status?.counts?.unread) || 0;
+  badge.textContent = count > 0 ? String(Math.min(count, 99)) : '';
+  badge.style.display = count > 0 ? 'inline-flex' : 'none';
+}
+
+async function refreshBili({ silent = false } = {}) {
+  if (state.bili.busy) return;
+  state.bili.busy = true;
+  try {
+    const status = await api.bilibiliStatus();
+    state.bili.status = status;
+    state.bili.error = null;
+    updateBiliBadge(status);
+    const last = Number(status.lastAt) || 0;
+    if (last && state.bili.lastToastAt === 0) state.bili.lastToastAt = last;
+    if (last > state.bili.lastToastAt && state.page !== 'bilibili') {
+      const entry = status.entries?.[0];
+      if (entry) toast(`大肥鱼刚${biliKindLabel(entry.kind)}：${entry.title || entry.bvid || 'B站内容'}`);
+      state.bili.lastToastAt = last;
+    }
+    if (state.page === 'bilibili' && !silent) render();
+  } catch (error) {
+    state.bili.error = error.message;
+    if (!silent && state.page === 'bilibili') render();
+  } finally {
+    state.bili.busy = false;
+  }
+}
+
+async function openBiliPage() {
+  await refreshBili();
+  const last = Number(state.bili.status?.lastAt) || 0;
+  if (last) {
+    try { await api.bilibiliAck(last); } catch { /* ignore */ }
+    await refreshBili();
+  }
+}
+
+async function copyBiliPrompt() {
+  try {
+    const result = await api.copyText(biliPromptText(state.bili.status?.watchLog));
+    toast(result.ok ? 'B站接入提示词已复制，可以粘贴给 DeepSeek / DSH' : `复制失败：${result.reason || '未知原因'}`);
+  } catch (error) {
+    toast(`复制失败：${error.message}`);
+  }
+}
+
 async function refreshEnvironment() {
   if (state.environment.busy) return;
   state.environment.busy = true;
@@ -2028,6 +2185,7 @@ async function openPage(page) {
     if (!state.environment.status) await refreshEnvironment();
     if (state.install.task) pollInstall();
   }
+  if (page === 'bilibili') await openBiliPage();
   if (page === 'config') {
     try { state.settings = await api.settingsGet(); } catch { state.settings = null; }
   }
@@ -2047,6 +2205,8 @@ function bind() {
   document.addEventListener('click', (event) => {
     if (event.target.closest('[data-env-detect]')) { refreshEnvironment(); return; }
     if (event.target.closest('[data-copy-deepseek]')) { copyDeepSeekPrompt(); return; }
+    if (event.target.closest('#bili-refresh')) { refreshBili(); return; }
+    if (event.target.closest('#bili-copy-prompt')) { copyBiliPrompt(); return; }
     const installBtn = event.target.closest('[data-env-install]');
     if (installBtn) { startInstall(installBtn.dataset.envInstall); return; }
     if (event.target.closest('[data-install-cancel]')) { cancelInstall(); return; }
@@ -2251,6 +2411,8 @@ async function boot() {  bind();
   try { state.logsList = await api.logsList(); } catch { state.logsList = []; }
   try { state.backups = await api.backups(); } catch { state.backups = []; }
   await refresh(false);
+  try { await refreshBili({ silent: true }); } catch { /* bili activity is optional */ }
+  if (!state.bili.timer) state.bili.timer = setInterval(() => refreshBili({ silent: true }), 20000);
   render();
   maybeOpenWizard();
   setInterval(() => { if (state.page !== 'logs') refresh(false); }, 6000);

@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   controlStop: (id, force = false, confirmBusy = false) => ipcRenderer.invoke('control:stop', { id, force, confirmBusy }),
   setupStatus: () => ipcRenderer.invoke('setup:status'),
   environmentDetect: (options = {}) => ipcRenderer.invoke('environment:detect', options),
+  bilibiliStatus: () => ipcRenderer.invoke('bilibili:status'),
+  bilibiliAck: (at) => ipcRenderer.invoke('bilibili:ack', { at }),
   installCatalog: () => ipcRenderer.invoke('install:catalog'),
   installStart: (component, targetDir, confirmed = false, licenseAccepted = false) => ipcRenderer.invoke('install:start', { component, targetDir, confirmed, licenseAccepted }),
   installStatus: () => ipcRenderer.invoke('install:status'),

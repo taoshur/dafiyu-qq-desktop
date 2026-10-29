@@ -20,6 +20,7 @@ const { assessBusy } = require('./busy-guard');
 const { createRecoveryEngine } = require('./recovery-engine');
 const { ownershipPlan } = require('./recovery-ownership');
 const { memoryStatus, listMemory, getCandidate, initTestDb, reviewCandidate } = require('./memory');
+const { status: biliStatus, ack: biliAck } = require('./bilibili');
 const { detectEnvironment } = require('./environment');
 const { createInstallManager } = require('./install-task');
 const { catalogFor, defaultInstallRoot } = require('./install-catalog');
@@ -178,6 +179,9 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
     try { snapshot = await buildSnapshot(settings, { mockMode: false }); } catch { snapshot = null; }
     return detectEnvironment({ settings, snapshot, checkNetwork: payload?.network !== false });
   });
+
+  ipcMain.handle('bilibili:status', async () => biliStatus({ settings: getSettings(), paths }));
+  ipcMain.handle('bilibili:ack', async (_event, payload) => biliAck({ paths, at: payload?.at }));
 
   ipcMain.handle('install:catalog', async () => ({
     bridge: catalogFor('bridge'),

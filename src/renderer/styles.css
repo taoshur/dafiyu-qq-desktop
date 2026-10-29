@@ -133,6 +133,7 @@ button { font-family: inherit; color: inherit; }
 }
 
 .nav-item.is-active svg { stroke: var(--teal); }
+.nav-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: #ff6b6b; color: #fff; font-size: 10px; line-height: 18px; text-align: center; display: none; }
 
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
 
