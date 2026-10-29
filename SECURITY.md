@@ -45,4 +45,4 @@
 - `state/`、`config/`、`backups/`
 - `memory.db`、`*.db-wal`、`*.db-shm`
 - `artifacts/` 中包含真实聊天/群号的截图
-- `deepseek-chan.png` 等未获授权的角色素材
+- 未获授权的第三方素材（Dafiyu 角色图已由项目所有者确认用于本项目）

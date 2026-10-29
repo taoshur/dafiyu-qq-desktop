@@ -67,6 +67,8 @@ upstream `LICENSE` and the respective projects' licenses before use.
 ## Artwork
 
 `deepseek-chan.png`, `src/renderer/assets/deepseek-chan.png`, and
-`build/icon.ico` in this repository are neutral placeholder artwork generated
-for this project. They are not the original character artwork. Replace them
-only with assets you have the right to redistribute.
+`build/icon.ico` use the Dafiyu project character artwork. The project owner
+states that this artwork is publicly usable for this project and does not
+infringe third-party rights. They are not covered by the source-code license;
+downstream users should not assume a separate right to reuse the character in
+unrelated products.

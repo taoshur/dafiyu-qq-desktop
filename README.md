@@ -11,12 +11,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.2.0 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.2.0/Dafiyu-Control-Center-Setup.exe
-- 大小：121,585,063 字节
+- **v0.2.1 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.2.1/Dafiyu-Control-Center-Setup.exe
+- 大小：122,398,549 字节
 - SHA256：
   ```text
-  C0FB20BE3ED1A4760888FF5F91FE5B8C24B9C21C61230AFFE259F686971285B0
+  A8DEE2F5D14BA00DC7094F5823BA78916B1B5ACF73F2C855CE350E966D175E91
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
@@ -123,23 +123,113 @@ npm run build     # dist/Dafiyu-Control-Center-Setup.exe
 Remove-Item Env:ELECTRON_RUN_AS_NODE
 ```
 
-## 架构
+## 架构与优势
+
+### 分层
 
 ```text
-src/main/       主进程：窗口、托盘、IPC、服务控制、恢复、备份、Memory、内嵌视图
-src/preload/    contextBridge 白名单 API
-src/renderer/   原生 HTML/CSS/JS 界面（无远程资源）
-test/           node:test 单元/隔离测试
-fixtures/       隔离测试用的假服务
-scripts/        开发启动与截图脚本
-build/          NSIS 安装脚本与图标
-docs/           构建、首次登录、Release 说明
+┌──────────────────────────────────────────────────────────┐
+│ Renderer（无 Node 权限）                                  │
+│ 总览 / 服务 / 日志 / 环境安装 / Memory / 备份 / 配置      │
+└───────────────▲──────────────────────────────────────────┘
+                │ 固定 IPC 白名单 + contextBridge
+┌───────────────┴──────────────────────────────────────────┐
+│ Main（唯一可信层）                                        │
+│ supervisor · control · health · recovery · backup         │
+│ environment · installer · memory · logs · embed          │
+└───────┬───────────────────────┬──────────────────────────┘
+        │ 固定 exe/参数          │ 只读/隔离 SQLite
+┌───────▼────────┐      ┌───────▼──────────────────────────┐
+│ SnowLuma       │      │ qq-bridge / DSH                  │
+│ 3000/3001/5099 │      │ 3100/3080 · Memory V3 · DSH API  │
+└────────────────┘      └──────────────────────────────────┘
 ```
 
-- 主进程是唯一能访问文件系统、进程和 SQLite 的层
-- 内嵌服务页面使用 Electron `WebContentsView`，独立 `persist:dafiyu-embed` 分区
-- 只允许 `127.0.0.1:5099` / `127.0.0.1:3100` 导航；外部跳转和弹窗拒绝
-- 生产 `memory.db` 以只读 + `query_only` 打开
+### 核心优势
+
+1. **控制面与运行面分离**
+   - 桌面只负责“看、管、恢复”，不重写机器人核心。
+   - qq-bridge、SnowLuma、DSH 可以独立升级、替换或由用户手动启动。
+
+2. **最小权限**
+   - Renderer 没有 Node、没有 shell、没有任意文件访问。
+   - preload 只暴露固定方法；主进程校验参数/路径/服务 ID。
+   - 内嵌服务页使用独立 `WebContentsView` 和独立分区，只允许回环地址。
+
+3. **进程所有权，而不是按名字杀进程**
+   - 启动时记录 PID、启动时间、可执行文件、完整命令行、父进程和子进程。
+   - 停止前做整树归属校验，避免误杀同名/外部进程。
+   - 外部启动的实例只检测，不接管、不终止。
+
+4. **故障隔离**
+   - 服务状态、恢复状态、安装状态、Memory 状态分别建模。
+   - 安装失败不会影响服务控制；服务崩溃恢复不会修改安装任务。
+   - BusyGuard、恢复租约、watchdog 协调和退避避免“多个恢复者互相打架”。
+
+5. **Windows 用户级部署**
+   - 默认安装到用户目录，避免不必要管理员权限。
+   - 所有持久配置使用原子写入；日志脱敏，不记录 token/password。
+   - 卸载默认保留用户数据，避免误删记忆。
+
+6. **可测试性**
+   - 假服务 fixtures + `node --test`，核心逻辑不依赖真实 QQ/DSH。
+   - 安装器使用固定版本、固定 SHA256、固定解压工具，不拼接用户输入命令。
+
+### Memory V3 架构
+
+Memory 的核心在 qq-bridge/DSH 侧，桌面的定位是**可观测、可审核、可备份，而不是绕过生产写入**。
+
+```text
+QQ 消息
+  → qq-bridge 接收
+  → messages 表（去重/游标）
+  → extraction worker 批量
+  → 模型抽取候选
+  → memory_candidates（pending）
+  → 审核/批准
+  → facts / events
+  → retrieve / inject 到 DSH 上下文
+```
+
+优势：
+
+- **批量 + 游标**：避免每条消息单独调用模型，控制成本；游标保证中断后可继续。
+- **候选层**：模型输出先进入 `memory_candidates`，不直接污染长期事实；`facts/events` 只接收审核后的内容。
+- **证据与质量**：候选带来源会话、批次、证据、质量/置信度、时间精度和作用域，方便回溯。
+- **去重与幂等**：`dedupe_key`、`batch_key`、消息唯一键避免重复抽取和重复候选。
+- **观察模式**：生产库 `observeOnly=true` 时只读；候选审核只在隔离测试库演练。
+- **只读桌面**：桌面用 SQLite `query_only` 打开生产 `memory.db`，不写、不迁移、不清理 WAL。
+- **测试库隔离**：`%APPDATA%\dafiyu-desktop\state\memory-test.db` 可安全演练 apply/reject，不与生产库混用。
+- **备份一致性**：`VACUUM INTO` 生成包含已提交 WAL 数据的一致性快照，并校验 manifest/SHA256/表计数。
+
+桌面的 Memory 页面提供：
+
+- facts / events / pending candidates 浏览与搜索
+- 候选证据、置信度、时间精度、作用域、质量
+- 隔离测试库审核
+- 生产库只读告警和完整性检查
+
+### 环境安装架构
+
+- 检测层 `environment.js` 只读检查 OS/架构/Node/路径/配置/端口/官方源
+- 安装层 `install-task.js` 使用显式状态机
+- 计划层 `install-catalog.js` 固定官方来源、版本、SHA256、安装能力
+- 安装状态与服务运行状态分离；安装完成不会自动启动服务
+- SnowLuma/DSH 因许可证或缺少可验证静默安装方式，明确标为手动安装
+
+```text
+IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING → COMPLETED
+                                  ↘ FAILED / CANCELLING → CANCELLED
+```
+
+### 为什么不是“把三个服务塞进一个进程”
+
+- 三件套的许可证、升级节奏和故障模式不同
+- SnowLuma 需要独立 WebUI/OneBot 生命周期
+- DSH 是独立智能体宿主，可能承载用户其他任务
+- qq-bridge 有 supervisor/watchdog 体系
+
+因此桌面采用“控制台 + 外部服务”的边界，而不是把三个组件改造成一个不可替换的 monolith。这样升级和排障都更可控，也避免桌面崩溃时机器人一起死。
 
 ## 数据位置
 
