@@ -5,8 +5,8 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 > 本项目是基于 [Derpyu520/qq-bridge](https://github.com/Derpyu520/qq-bridge) 的二次创作，不是 qq-bridge 官方项目。
 > 上游代码与文档以 MIT 许可发布；本仓库保留其版权与许可声明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-> 这不是机器人本体，也不包含 SnowLuma、qq-bridge、DSH 的源码或账号。
-> 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 只读浏览、服务网页内嵌和首次设置向导。
+> 这不是机器人本体，也不包含 SnowLuma、DSH 的安装包或账号；qq-bridge 以 MIT 源码形式内置在安装包中。
+> 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 + V4 只读浏览、服务网页内嵌和首次设置向导。
 
 ## 下载安装包
 
@@ -19,18 +19,25 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
   6684B405572B8C9E2767470977E91C1AAE138C91D07084A6CBD941A07EB5E297
   ```
 
-> 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置DSH。
+> 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 DSH。
+
+## 最近更新
+
+- **0.7.1**：B站活动记录搜索/热榜/排行/评论等全部动作，统计区分“动作数”和“BV 去重视频数”
+- **0.7.0**：Memory V4 多信号召回 + 可逆遗忘（Active/Dormant/Archived，不物理删除）
+- **0.6.0**：安装包内置带 Memory V3 的 qq-bridge 源码
+- **0.5.1**：安装失败可复制排查提示词；管理器版本升级
 
 ## 功能
 
-- **总览**：三件套端口/进程状态、QQ 链路、Memory V3 计数、数据库完整性、模型、运行时长
+- **总览**：三件套端口/进程状态、QQ 链路、Memory V3/V4 计数、数据库完整性、模型、运行时长
 - **服务管理**：按 SnowLuma → DSH → qq-bridge 顺序启动；只停止本软件启动且身份校验通过的进程
 - **启动与恢复**：登录自启、机器人自启、异常自动恢复三个互相独立的开关，默认关闭
 - **恢复引擎**：崩溃识别、退避、租约、BusyGuard、整树停止、watchdog 协调
 - **运行日志**：只读 tail，不删除、不截断原文件
 - **环境检查**：Node、目录、配置、依赖、state 可写性
 - **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4 召回/生命周期；新用户从空 SQLite 库开始，默认观察模式、按需检索、可逆归档而非物理删除
-- **B站活动**：只读本机观看台账，显示大肥鱼最近看了哪些视频/字幕；侧边栏未读提示；提供 B 站 MCP 接入指引
+- **B站活动**：记录搜索、热榜、排行、视频详情、字幕、评论等动作；区分“累计动作”和“按 BV 去重的视频数”；侧边栏未读提示
 - **更新检查**：从 GitHub Releases 检查新版本，SHA256 校验后打开安装包，不静默升级
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
@@ -70,12 +77,12 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 ## 环境要求
 
 - Windows 11 x64
-- Node.js 22+（开发与 CI 使用 Node 24）
+- Node.js 22+（开发与 CI 使用 Node 24；内置 qq-bridge 首次初始化也需要 Node/npm）
 - 已安装并可运行：
-  - [qq-bridge](https://github.com/Derpyu520/qq-bridge)（本地项目，路径可配置）
   - SnowLuma 2.x（本地安装，路径可配置）
   - DeepSeek Harness（可选，用于智能体宿主）
-- 外部依赖的许可证需单独确认；本仓库不打包它们
+- qq-bridge：安装包已内置源码，不需要另外 clone；首次初始化会执行 `npm install`
+- SnowLuma/DSH 和 npm 依赖的许可证需单独确认；本仓库不打包它们的二进制
 
 ## 快速开始
 
@@ -150,7 +157,7 @@ Remove-Item Env:ELECTRON_RUN_AS_NODE
         │ 固定 exe/参数          │ 只读/隔离 SQLite
 ┌───────▼────────┐      ┌───────▼──────────────────────────┐
 │ SnowLuma       │      │ qq-bridge / DSH                  │
-│ 3000/3001/5099 │      │ 3100/3080 · Memory V3 · DSH API  │
+│ 3000/3001/5099 │      │ 3100/3080 · Memory V3/V4 · DSH API │
 └────────────────┘      └──────────────────────────────────┘
 ```
 
@@ -184,7 +191,7 @@ Remove-Item Env:ELECTRON_RUN_AS_NODE
    - 假服务 fixtures + `node --test`，核心逻辑不依赖真实 QQ/DSH。
    - 安装器使用固定版本、固定 SHA256、固定解压工具，不拼接用户输入命令。
 
-### Memory V3 架构
+### Memory V3 + V4 架构
 
 Memory 的核心在 qq-bridge/DSH 侧，桌面的定位是**可观测、可审核、可备份，而不是绕过生产写入**。
 
@@ -197,7 +204,8 @@ QQ 消息
   → memory_candidates（pending）
   → 审核/批准
   → facts / events
-  → retrieve / inject 到 DSH 上下文
+  → V4 多信号召回
+  → 按 token 预算注入 DSH 上下文
 ```
 
 优势：
@@ -210,6 +218,27 @@ QQ 消息
 - **只读桌面**：桌面用 SQLite `query_only` 打开生产 `memory.db`，不写、不迁移、不清理 WAL。
 - **测试库隔离**：`%APPDATA%\dafiyu-desktop\state\memory-test.db` 可安全演练 apply/reject，不与生产库混用。
 - **备份一致性**：`VACUUM INTO` 生成包含已提交 WAL 数据的一致性快照，并校验 manifest/SHA256/表计数。
+
+#### V4 召回
+
+- 最近 3 条非 bot 消息 + 当前话题构造查询，不再只看最后一句
+- 人物、时间范围、事件参与者、关键词多路候选
+- 相关性 40% / 可信度 25% / 重要性 15% / 时间 10% / 活跃度 10% 重排
+- 时间类问题优先保留时间范围内的事件
+- 事实/事件去重，单人最多 3 条
+- 真实 token 预算，默认 600
+- `memory_recall_diagnostics` 记录候选数、选中 ID、token、时间过滤，不保存聊天原文
+
+#### V4 可逆遗忘
+
+- `facts/events` 增加 `importance`、`activation`、`last_recalled_at`、`reinforcement_count`、`lifecycle_state`
+- 可信度、重要性、活跃度互相独立
+- `Active ⇄ Dormant ⇄ Archived`；归档不删除、不改变 `status`
+- 高重要性（默认 >= 0.8）不会被归档
+- 只有实际注入的记忆才轻微提升活跃度；召回不增加 `reinforcement_count`
+- 归档记忆仍可被深度检索；事实有效性仍由 `status` 单独决定
+
+详细说明：[docs/MEMORY-V4.md](docs/MEMORY-V4.md)
 
 桌面的 Memory 页面提供：
 
@@ -224,7 +253,7 @@ QQ 消息
 - 安装层 `install-task.js` 使用显式状态机
 - 计划层 `install-catalog.js` 固定官方来源、版本、SHA256、安装能力
 - 安装状态与服务运行状态分离；安装完成不会自动启动服务
-- SnowLuma 和 qq-bridge 可自动下载官方来源（SnowLuma 必须先确认 LICENSE/EULA）；DSH 缺少可验证静默安装方式，明确标为手动安装
+- qq-bridge 源码随安装包内置（含 Memory V3/V4）；SnowLuma 从官方 Releases 自动下载（必须先确认 LICENSE/EULA）；DSH 缺少可验证静默安装方式，明确标为手动安装
 
 ```text
 IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING → COMPLETED
@@ -244,7 +273,9 @@ IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING �
 
 - 桌面配置/日志/测试库：`%APPDATA%\dafiyu-desktop`
 - 生产记忆：`<qq-bridge>/state/memory.db`
+- B站活动台账：`<qq-bridge>/state/bili-watch.jsonl`
 - 备份：`<qq-bridge>/backups/desktop-*`（以实际配置为准）
+- 更新缓存：`%APPDATA%\dafiyu-desktop\cache\updates`
 
 这些目录中的用户数据**不进入仓库**。
 
