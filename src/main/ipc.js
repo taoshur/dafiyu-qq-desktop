@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { clipboard } = require('electron');
+const { clipboard, shell } = require('electron');
 const { buildSnapshot } = require('./health');
 const { listSources, tailSource } = require('./logs');
 const { definitions, simulateAction, dependencyPlan } = require('./services');
@@ -21,6 +21,7 @@ const { createRecoveryEngine } = require('./recovery-engine');
 const { ownershipPlan } = require('./recovery-ownership');
 const { memoryStatus, listMemory, getCandidate, initTestDb, reviewCandidate } = require('./memory');
 const { status: biliStatus, ack: biliAck } = require('./bilibili');
+const { createUpdateManager } = require('./updates');
 const { detectEnvironment } = require('./environment');
 const { createInstallManager } = require('./install-task');
 const { catalogFor, defaultInstallRoot } = require('./install-catalog');
@@ -36,6 +37,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const controller = createController({ stateDir: controlStateDir, getSettings, log });
   controller.reconcile().catch((error) => log('control', `reconcile failed: ${error.message}`));
   const installManager = createInstallManager({ paths, getSettings, log, component: 'bridge' });
+  const updateManager = createUpdateManager({ currentVersion: require('../../package.json').version, paths, log });
   const autostart = createAutostart({
     stateFile: path.join(controlStateDir, 'autostart.json'),
     exePath: process.execPath,
@@ -116,6 +118,9 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
       logs: paths.logDir
     }
   }));
+  ipcMain.handle('update:check', async () => updateManager.check());
+  ipcMain.handle('update:download', async () => updateManager.downloadAndRun());
+  ipcMain.handle('update:status', async () => updateManager.status());
 
   ipcMain.handle('health:snapshot', async () => {
     if (cached.value && Date.now() - cached.at < 1000) return cached.value;
@@ -215,6 +220,17 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
     if (!text || text.length > 20000) return { ok: false, reason: '文本为空或过长' };
     clipboard.writeText(text);
     return { ok: true, length: text.length };
+  });
+
+  ipcMain.handle('app:open-external', async (_event, payload) => {
+    let target;
+    try { target = new URL(String(payload?.url || '')); } catch { return { ok: false, reason: '无效链接' }; }
+    if (target.protocol !== 'https:' || target.hostname !== 'github.com'
+      || !target.pathname.startsWith('/taoshur/dafiyu-qq-desktop/releases')) {
+      return { ok: false, reason: '只允许打开本项目的 GitHub Release 页面' };
+    }
+    await shell.openExternal(target.href);
+    return { ok: true };
   });
 
   ipcMain.handle('setup:status', async () => {

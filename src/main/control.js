@@ -75,6 +75,8 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
         args: [path.join(repo, 'scripts', 'start-bridge.mjs')],
         cwd: repo,
         signature: 'start-bridge.mjs',
+        launcher: 'vbs-bridge',
+        scriptFile: 'start-bridge-hidden.vbs',
         ports: [3100],
         waitMs: 25000,
         lockFile: path.join(repo, 'state', 'bridge.lock'),
@@ -238,6 +240,80 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     };
   }
 
+  async function startHiddenBridge(def, state) {
+    const settings = getSettings();
+    const repo = settings.repoRoot;
+    const candidates = [
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
+      path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
+      'node.exe'
+    ];
+    const nodeExe = candidates.find((item) => item === 'node.exe' || fs.existsSync(item)) || 'node.exe';
+    const scriptPath = path.join(stateDir, def.scriptFile);
+    const quote = (value) => String(value).replace(/"/g, '""');
+    fs.mkdirSync(stateDir, { recursive: true });
+    fs.writeFileSync(scriptPath, [
+      'Set sh = CreateObject("WScript.Shell")',
+      `sh.CurrentDirectory = "${quote(repo)}"`,
+      `sh.Run """${quote(nodeExe)}"" ""${quote(def.args[0])}""", 0, False`,
+      ''
+    ].join('\r\n'), 'utf8');
+    try {
+      const launcher = spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'wscript.exe'), [scriptPath], {
+        cwd: repo,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true
+      });
+      launcher.unref();
+    } catch (error) {
+      return { ok: false, reason: `隐藏启动 qq-bridge 失败：${error.message}` };
+    }
+
+    const deadline = now() + (def.waitMs || 25000);
+    let record = null;
+    while (now() < deadline) {
+      await sleep(500);
+      if (!(await tcpProbe(3100, '127.0.0.1', 500))) continue;
+      const listeners = await netstatListeners();
+      const listenerPid = listeners.get(3100);
+      if (!listenerPid) continue;
+      const details = await listProcessDetails();
+      const found = details.find((item) => item.pid === listenerPid);
+      if (!found) continue;
+      let root = found;
+      const seen = new Set();
+      while (root && !seen.has(root.pid)) {
+        seen.add(root.pid);
+        const parent = details.find((item) => item.pid === root.parentPid);
+        if (!parent) break;
+        const parentCmd = String(parent.cmdline || '').toLowerCase();
+        if (!parentCmd.includes('start-bridge.mjs')) break;
+        root = parent;
+      }
+      record = {
+        id: 'bridge',
+        pid: root.pid,
+        startMs: root.startMs,
+        exe: root.exe,
+        cmdline: root.cmdline,
+        parentPid: root.parentPid,
+        signature: 'start-bridge.mjs',
+        startedAt: new Date(now()).toISOString()
+      };
+      break;
+    }
+
+    if (!record) {
+      return { ok: false, rollback: true, reason: `隐藏启动超时：${def.waitMs}ms 内未检测到 qq-bridge 控制台（3100）` };
+    }
+    state.services.bridge = record;
+    saveState(state);
+    clearStoppedByUser(stateDir, 'bridge');
+    log('control', `started bridge hidden pid=${record.pid}`);
+    return { ok: true, record };
+  }
+
   async function start(id, { env = {} } = {}) {
     if (!enabled()) return { ok: false, reason: '真实控制未启用，请先在服务页显式开启' };
     const defs = buildDefinitions();
@@ -275,6 +351,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
 
     log('control', `start ${id}`);
     if (def.launcher === 'vbs') return startHiddenSnowluma(def, state);
+    if (def.launcher === 'vbs-bridge') return startHiddenBridge(def, state);
     if (def.scriptFile) {
       const scriptPath = path.join(stateDir, def.scriptFile);
       fs.mkdirSync(stateDir, { recursive: true });

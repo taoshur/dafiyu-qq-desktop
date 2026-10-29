@@ -11,12 +11,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.4.0 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.4.0/Dafiyu-Control-Center-Setup.exe
-- 大小：122,405,348 字节
+- **v0.4.1 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.4.1/Dafiyu-Control-Center-Setup.exe
+- 大小：122,408,307 字节
 - SHA256：
   ```text
-  9CA723E25E4056A409BA9061E2D9E4D107BD1ECBAF9EAEA063F5DB57D751620C
+  4C052B35B763D3C8A443BD20B3E45D27E4321248AA99FEBEC80106822483583C
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
@@ -31,6 +31,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **环境检查**：Node、目录、配置、依赖、state 可写性
 - **长期记忆**：生产 `memory.db` 只读浏览 facts / events / candidates；测试库可演练审核
 - **B站活动**：只读本机观看台账，显示大肥鱼最近看了哪些视频/字幕；侧边栏未读提示；提供 B 站 MCP 接入指引
+- **更新检查**：从 GitHub Releases 检查新版本，SHA256 校验后打开安装包，不静默升级
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
@@ -102,6 +103,7 @@ SnowLuma 使用 **WebUI 密码**，不是控制台令牌。
 
 环境安装能力与限制：[docs/ENVIRONMENT-INSTALL.md](docs/ENVIRONMENT-INSTALL.md)
 B站活动与接入：[docs/BILIBILI.md](docs/BILIBILI.md)
+更新检查：[docs/UPDATE.md](docs/UPDATE.md)
 
 ### qq-bridge
 

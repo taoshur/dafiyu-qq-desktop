@@ -35,6 +35,7 @@ const state = {
   },
   memoryOverview: null,
   bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
+  update: { check: null, busy: false, error: null, task: null, timer: null },
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
@@ -1258,6 +1259,34 @@ function backupsPage() {
     </section>`;
 }
 
+function updatePanel() {
+  const u = state.update;
+  const check = u.check;
+  const task = u.task;
+  const downloading = task && !['completed', 'failed', 'cancelled'].includes(task.status);
+  return `
+    <section class="card panel" style="margin-top:16px">
+      <div class="section-title"><h3>检查更新</h3><span>从 GitHub Releases 读取，不自动安装</span></div>
+      <div class="kv-grid">
+        <div class="kv"><span>当前版本</span><b>${esc(state.info?.version || '—')}</b></div>
+        <div class="kv"><span>最新版本</span><b>${esc(check?.latestVersion || '—')}</b></div>
+      </div>
+      ${u.error ? `<div class="notice danger">检查更新失败：${esc(u.error)}</div>` : ''}
+      ${check && !check.ok ? `<div class="notice danger">${esc(check.error || '无法获取最新版本')}</div>` : ''}
+      ${check?.ok && check.available ? `<div class="notice">发现新版本 <b>${esc(check.latestVersion)}</b>。安装包来自 GitHub Release，会先校验 SHA256，再打开安装程序。</div>` : ''}
+      ${check?.ok && !check.available ? '<p class="embed-hint">当前已经是最新版本。</p>' : ''}
+      ${downloading ? `<div class="install-bar"><i style="width:${task.percent || 0}%"></i></div><p class="embed-hint">正在下载 ${esc(task.latestVersion || '')} · ${task.percent == null ? '—' : `${task.percent}%`} · ${fmtSize(task.received)} / ${fmtSize(task.total)}</p>` : ''}
+      ${task?.status === 'failed' ? `<div class="notice danger">更新下载失败：${esc(task.error || '未知错误')}</div>` : ''}
+      ${task?.status === 'cancelled' ? '<div class="notice">更新下载已取消。</div>' : ''}
+      <div class="backup-toolbar">
+        <button class="btn ${check?.available ? '' : 'primary'}" id="update-check" type="button" ${u.busy || downloading ? 'disabled' : ''}>${u.busy ? '检查中…' : '检查更新'}</button>
+        ${check?.available ? `<button class="btn primary" id="update-download" type="button" ${downloading ? 'disabled' : ''}>下载并打开安装包</button>` : ''}
+        ${check?.releaseUrl ? `<button class="btn ghost" id="update-release" type="button">打开发布页</button>` : ''}
+      </div>
+      <p class="embed-hint">不静默安装、不替换正在运行的程序；安装完成后需要你手动重启控制中心。</p>
+    </section>`;
+}
+
 function aboutPage() {
   const info = state.info || {};
   return `
@@ -1298,7 +1327,8 @@ function aboutPage() {
         <div class="kv"><span>桌面配置</span><b>${esc(info.paths?.config || '—')}</b></div>
         <div class="kv"><span>桌面日志</span><b>${esc(info.paths?.logs || '—')}</b></div>
       </div>
-    </section>`;
+    </section>
+    ${updatePanel()}`;
 }
 
 function render() {
@@ -1346,6 +1376,9 @@ function render() {
   else html = aboutPage();
 
   const pageChanged = state.lastRenderedPage !== state.page;
+  if (state.update.check?.available && state.page !== 'about') {
+    html = `<div class="notice">发现新版本 <b>${esc(state.update.check.latestVersion)}</b>，可以到「关于」页检查并更新。<button class="btn" id="update-go-about" type="button" style="margin-left:10px">查看更新</button></div>${html}`;
+  }
   view.innerHTML = html;
   if (pageChanged) {
     view.classList.remove('fade-in');
@@ -2039,6 +2072,85 @@ async function copyBiliPrompt() {
   }
 }
 
+async function refreshUpdate({ silent = false } = {}) {
+  if (state.update.busy) return;
+  state.update.busy = true;
+  state.update.error = null;
+  try {
+    state.update.check = await api.updateCheck();
+    if (state.update.check?.available && silent) {
+      toast(`发现新版本 ${state.update.check.latestVersion}，可在「关于」页更新`);
+    }
+    if (state.page === 'about') render();
+  } catch (error) {
+    state.update.error = error.message;
+    if (state.page === 'about') render();
+  } finally {
+    state.update.busy = false;
+  }
+}
+
+function pollUpdate() {
+  if (state.update.timer) return;
+  state.update.timer = setInterval(async () => {
+    try {
+      const task = await api.updateStatus();
+      if (task) state.update.task = task;
+      const active = task && !['completed', 'failed', 'cancelled'].includes(task.status);
+      if (!active) {
+        clearInterval(state.update.timer);
+        state.update.timer = null;
+        if (state.page === 'about') render();
+        if (task?.status === 'completed') toast('安装程序已打开；完成后请手动重启控制中心');
+        if (task?.status === 'failed') toast(`更新失败：${task.error || '未知错误'}`);
+      } else if (state.page === 'about') render();
+    } catch { /* ignore transient poll errors */ }
+  }, 800);
+}
+
+function downloadUpdate() {
+  const check = state.update.check;
+  if (!check?.available) { toast('当前没有可用更新'); return; }
+  showModal({
+    title: `下载并安装 ${check.latestVersion}？`,
+    body: [
+      `将从 GitHub Release 下载 ${check.asset?.name || '安装包'}。`,
+      check.asset?.digest ? `SHA256：${check.asset.digest}` : '该 Release 没有提供摘要，将只校验来源域名。',
+      '下载完成后会打开安装程序；不会静默安装，也不会自动关闭当前控制中心。'
+    ].join('\n'),
+    confirmText: '下载并打开',
+    onConfirm: async () => {
+      state.update.busy = true;
+      try {
+        const result = await api.updateDownload();
+        state.update.task = result.task || null;
+        if (!result.ok) {
+          toast(`更新失败：${result.reason}`);
+        } else {
+          toast('安装程序已打开');
+        }
+        pollUpdate();
+        if (state.page === 'about') render();
+      } catch (error) {
+        toast(`更新失败：${error.message}`);
+      } finally {
+        state.update.busy = false;
+      }
+    }
+  });
+}
+
+async function openReleasePage() {
+  const url = state.update.check?.releaseUrl;
+  if (!url) return;
+  try {
+    const result = await api.openExternal(url);
+    if (!result.ok) toast(result.reason || '打开失败');
+  } catch (error) {
+    toast(`打开失败：${error.message}`);
+  }
+}
+
 async function refreshEnvironment() {
   if (state.environment.busy) return;
   state.environment.busy = true;
@@ -2207,6 +2319,10 @@ function bind() {
     if (event.target.closest('[data-copy-deepseek]')) { copyDeepSeekPrompt(); return; }
     if (event.target.closest('#bili-refresh')) { refreshBili(); return; }
     if (event.target.closest('#bili-copy-prompt')) { copyBiliPrompt(); return; }
+    if (event.target.closest('#update-check')) { refreshUpdate(); return; }
+    if (event.target.closest('#update-download')) { downloadUpdate(); return; }
+    if (event.target.closest('#update-release')) { openReleasePage(); return; }
+    if (event.target.closest('#update-go-about')) { openPage('about'); return; }
     const installBtn = event.target.closest('[data-env-install]');
     if (installBtn) { startInstall(installBtn.dataset.envInstall); return; }
     if (event.target.closest('[data-install-cancel]')) { cancelInstall(); return; }
@@ -2414,6 +2530,7 @@ async function boot() {  bind();
   try { await refreshBili({ silent: true }); } catch { /* bili activity is optional */ }
   if (!state.bili.timer) state.bili.timer = setInterval(() => refreshBili({ silent: true }), 20000);
   render();
+  refreshUpdate({ silent: true }).catch(() => {});
   maybeOpenWizard();
   setInterval(() => { if (state.page !== 'logs') refresh(false); }, 6000);
   setInterval(() => { if (state.page === 'logs' && state.logs.follow) loadLogs(); }, 4000);
