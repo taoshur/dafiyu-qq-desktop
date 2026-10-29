@@ -35,5 +35,5 @@ function environmentPage() {
       ${blocking.includes('bridge') ? `<input class="input setup-input" id="install-target" value="${esc(state.install.targetDir)}" placeholder="qq-bridge 安装目录（绝对路径）"><button class="btn" data-env-install="bridge" type="button" ${state.install.busy ? 'disabled' : ''}>安装 qq-bridge</button>` : ''}
       <button class="btn ghost" data-page-jump="config" type="button">手动指定已有安装路径</button>
     </div>
-    ${installTaskPanel()}`;
+    <div id="install-live">${installTaskPanel()}</div>`;
 }
