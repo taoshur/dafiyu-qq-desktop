@@ -1,6 +1,6 @@
 'use strict';
 
-const { memoryStatus, listMemory, getCandidate, initTestDb, reviewCandidate } = require('../../memory');
+const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
 
 function memoryMode(payload) {
   return payload?.mode === 'test' ? 'test' : 'prod';

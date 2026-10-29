@@ -1,6 +1,6 @@
 'use strict';
 
-const { status: biliStatus, ack: biliAck } = require('../../bilibili');
+const { status: biliStatus, ack: biliAck } = require('../../domain/bilibili/repository');
 
 function registerBilibiliHandlers(router, { paths, getSettings }) {
   router.handle('bilibili:status', async () => biliStatus({ settings: getSettings(), paths }));

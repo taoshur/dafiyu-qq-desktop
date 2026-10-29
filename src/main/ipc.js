@@ -12,6 +12,7 @@ const { createUpdateManager } = require('./updates');
 const { createInstallManager } = require('./install-task');
 const { tcpProbe } = require('./health');
 const { createIpcRouter } = require('./ipc/router');
+const { createServiceSupervisor } = require('./domain/services/supervisor');
 
 
 function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart = false, embed = null, log }) {
@@ -19,6 +20,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   let cached = { at: 0, value: null };
   const controlStateDir = path.join(paths.configDir, '..', 'state');
   const controller = createController({ stateDir: controlStateDir, getSettings, log });
+  const supervisor = createServiceSupervisor({ controller });
   controller.reconcile().catch((error) => log('control', `reconcile failed: ${error.message}`));
   const installManager = createInstallManager({ paths, getSettings, log, component: 'bridge' });
   const updateManager = createUpdateManager({ currentVersion: require('../../package.json').version, paths, log });
@@ -88,13 +90,13 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   registerInstallHandlers(router, { installManager, log });
   registerEmbedHandlers(router, { embed, log });
   registerClipboardHandlers(router);
-  registerControlHandlers(router, { paths, getSettings, setSettings, controller, log });
+  registerControlHandlers(router, { paths, getSettings, setSettings, controller: supervisor, log });
   registerMemoryHandlers(router, { paths, getSettings, log });
   registerSettingsHandlers(router, { paths, getSettings, setSettings, resetCache: () => { cached.at = 0; cached.value = null; }, log });
   registerBackupHandlers(router, { paths, getSettings, log });
   registerStartupHandlers(router, { getSettings, allowAutostart, controlStateDir, getStartupStatus, resetStartupCache: () => { startupCache = { at: 0, value: null }; }, autostart, recoveryEngine });
 
-  return { stopOwnedServices: () => controller.stopOwnedServices() };
+  return { stopOwnedServices: () => supervisor.stopOwnedServices() };
 }
 
 module.exports = { registerIpc };

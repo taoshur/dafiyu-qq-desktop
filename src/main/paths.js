@@ -53,6 +53,7 @@ function loadSettings(paths) {
   const saved = readJsonSafe(paths.configFile, {});
   const merged = { ...DEFAULT_PATHS, ...(saved && typeof saved === 'object' ? saved : {}) };
   return {
+    schemaVersion: Number(saved?.schemaVersion) || 1,
     repoRoot: path.resolve(String(merged.repoRoot || DEFAULT_PATHS.repoRoot)),
     snowlumaRoot: path.resolve(String(merged.snowlumaRoot || DEFAULT_PATHS.snowlumaRoot)),
     dshExe: path.resolve(String(merged.dshExe || DEFAULT_PATHS.dshExe)),
@@ -65,8 +66,20 @@ function loadSettings(paths) {
   };
 }
 
-function saveSettings(paths, settings) {
+function migrateSettings(paths) {
+  const raw = readJsonSafe(paths.configFile, null);
+  if (!raw || typeof raw !== 'object') return { migrated: false, reason: 'missing-or-invalid' };
+  if (Number(raw.schemaVersion) >= 1) return { migrated: false, reason: 'current' };
+  const backup = `${paths.configFile}.pre-schema-1-${Date.now()}.bak`;
+  try { fs.copyFileSync(paths.configFile, backup); } catch { return { migrated: false, reason: 'backup-failed' }; }
+  saveSettings(paths, { ...raw, schemaVersion: 1 });
+  return { migrated: true, backup };
+}
+
+function saveSettings(paths, settings) {  const existing = readJsonSafe(paths.configFile, {});
   const data = {
+    ...(existing && typeof existing === 'object' ? existing : {}),
+    schemaVersion: Number(settings.schemaVersion) || Number(existing?.schemaVersion) || 1,
     repoRoot: String(settings.repoRoot || ''),
     snowlumaRoot: String(settings.snowlumaRoot || ''),
     dshExe: String(settings.dshExe || ''),
@@ -137,4 +150,4 @@ function readProjectConfig(repoRoot) {
   };
 }
 
-module.exports = { DEFAULT_PATHS, createPaths, loadSettings, saveSettings, readProjectConfig, readJsonSafe };
+module.exports = { DEFAULT_PATHS, createPaths, loadSettings, saveSettings, migrateSettings, readProjectConfig, readJsonSafe };

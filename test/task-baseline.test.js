@@ -30,3 +30,29 @@ test('Phase 0: task managers have a stable idle/cancel baseline', async () => {
   assert.equal((await install.cancel()).ok, false);
   assert.equal((await update.check()).ok, true);
 });
+
+
+test('Supervisor facade delegates without changing controller behavior', () => {
+  const { createServiceSupervisor } = require('../src/main/domain/services/supervisor');
+  let started = 0;
+  const controller = {
+    record: null,
+    reconcile: async () => {},
+    records: () => ({}),
+    sentinel: () => ({ exists: false }),
+    buildDefinitions: () => ({ bridge: {} }),
+    start: async () => { started += 1; return { ok: true }; },
+    stop: async () => ({ ok: true }),
+    preflight: async () => ({ ok: true }),
+    recoverSentinel: async () => ({ ok: true }),
+    startOriginalBridge: async () => ({ ok: true }),
+    stopOwnedServices: async () => ({ ok: true })
+  };
+  const supervisor = createServiceSupervisor({ controller });
+  assert.equal(supervisor.controller, controller);
+  assert.deepEqual(supervisor.sentinel(), { exists: false });
+  return supervisor.start('bridge').then((result) => {
+    assert.equal(result.ok, true);
+    assert.equal(started, 1);
+  });
+});

@@ -2,6 +2,9 @@
  * Memory V4 lifecycle: separate truth (confidence) from importance and activation.
  * No physical deletion: archived records stay in SQLite and remain available to deep recall.
  */
+import fs from 'node:fs';
+import path from 'node:path';
+
 const DAY = 24 * 60 * 60 * 1000;
 
 export const DEFAULT_LIFECYCLE = Object.freeze({
@@ -28,8 +31,30 @@ export function lifecycleConfig(config = {}) {
   };
 }
 
+function backupBeforeMigration(db, missing) {
+  if (!missing) return null;
+  let file = '';
+  try {
+    const row = db.prepare('PRAGMA database_list').all().find((item) => item.name === 'main');
+    file = String(row?.file || '');
+  } catch { /* ignore */ }
+  if (!file || !fs.existsSync(file)) return null;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const target = path.join(path.dirname(file), `memory.db.pre-v4-${stamp}.bak`);
+  const escaped = target.replace(/'/g, "''");
+  try {
+    db.exec(`VACUUM INTO '${escaped}'`);
+    return target;
+  } catch (error) {
+    // Do not alter a user's memory schema without a recoverable snapshot.
+    throw new Error(`Memory V4 迁移前备份失败，已停止迁移：${error.message}`);
+  }
+}
+
 export function ensureLifecycleSchema(db) {
   const factCols = db.prepare('PRAGMA table_info(facts)').all().map((c) => c.name);
+  const eventColsBefore = db.prepare('PRAGMA table_info(events)').all().map((c) => c.name);
+  backupBeforeMigration(db, !factCols.includes('importance') || !eventColsBefore.includes('importance'));
   for (const [name, type] of [
     ['importance', 'REAL NOT NULL DEFAULT 0.5'],
     ['activation', 'REAL NOT NULL DEFAULT 1'],

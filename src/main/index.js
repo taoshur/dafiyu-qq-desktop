@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, nativeTheme, session, shell } = require('electron');
-const { createPaths, loadSettings } = require('./paths');
+const { createPaths, loadSettings, migrateSettings } = require('./paths');
 const { registerIpc } = require('./ipc');
 const { createEmbedder } = require('./embed');
 const { buildWindowPreferences, applyGlobalGuards } = require('./security');
@@ -13,6 +13,7 @@ const START_HIDDEN = process.argv.includes('--hidden') || process.env.DAFIYU_STA
 
 const userDataDir = app.getPath('userData');
 const paths = createPaths(userDataDir);
+const settingsMigration = migrateSettings(paths);
 let settings = loadSettings(paths);
 let tray = null;
 let mainWindow = null;
