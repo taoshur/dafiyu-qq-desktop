@@ -1,11 +1,11 @@
 {
   "name": "dafiyu-desktop",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "大肥鱼 QQ 机器人桌面控制台",
   "main": "src/main/index.js",
   "scripts": {
     "start": "node scripts/start.js",
-    "test": "node --test --test-concurrency=1",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
     "capture": "node scripts/capture-ui.js",
     "build": "electron-builder --win nsis --x64",
     "pack": "electron-builder --dir"
