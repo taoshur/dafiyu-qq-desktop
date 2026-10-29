@@ -30,6 +30,23 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - qq-bridge 控制台令牌只由主进程从 `state/console-token` 注入，不进入 URL、不写日志
 - 不包含任何 API Key、QQ 登录态、聊天记录或生产配置
 
+## SnowLuma 署名与授权
+
+SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
+
+- https://github.com/SnowLuma/SnowLuma
+- License：https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE
+- EULA：https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md
+
+本项目已于 **2026-10-29** 获得 SnowLumaDevs 的书面授权，允许在以下范围内使用：
+
+- 以非商业方式公开发布；
+- 允许用户主动启动、停止其自行安装的**官方未修改完整发行版** SnowLuma；
+- 允许内嵌访问本机 SnowLuma WebUI。
+
+该授权**不包括**修改、打包或再分发 SnowLuma 及其原生组件，也不包括商业使用。
+超出上述范围需要另行申请书面授权。SnowLuma 仍适用其自身 LICENSE/EULA，不受本项目的许可覆盖。
+
 ## 环境要求
 
 - Windows 11 x64
@@ -126,5 +143,15 @@ docs/           构建、首次登录、接管检查表
 
 ## License
 
-代码以 [MIT](LICENSE) 发布。第三方依赖、角色素材和外部服务各自的许可证不在此授权范围内。
+本项目自己的代码以 [PolyForm Noncommercial License 1.0.0](LICENSE) 发布：
+
+- **仅允许非商业用途**
+- 允许个人学习、研究、非商业自托管和修改
+- 不允许商业使用、收费托管/部署或把本项目并入商业产品
+- 这不是 OSI 定义的开源许可证，而是 source-available / noncommercial
+
+上游 qq-bridge 的 MIT 许可声明保留在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；
+第三方依赖、角色素材和 SnowLuma 各自的许可证不在此授权范围内。
+
+如果你需要商业授权，需要单独联系项目维护者。
 

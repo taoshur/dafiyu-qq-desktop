@@ -1013,7 +1013,13 @@ function aboutPage() {
       </section>
     </div>
     <section class="card panel" style="margin-top:16px">
-      <div class="section-title"><h3>本机路径</h3><span>可在设置中修改（下一阶段提供界面）</span></div>
+      <div class="section-title"><h3>署名与许可</h3></div>
+      <p class="embed-hint">SnowLuma 由 SnowLumaDevs 开发；本项目已获其书面授权，在非商业开源范围内启动/停止用户自行安装的官方 SnowLuma、并内嵌访问本机 WebUI。</p>
+      <p class="embed-hint">官方项目：https://github.com/SnowLuma/SnowLuma · LICENSE：https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE · EULA：https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md</p>
+      <p class="embed-hint">本项目代码使用 PolyForm Noncommercial 1.0.0，仅允许非商业用途；SnowLuma 仍受其自身许可约束。</p>
+    </section>
+    <section class="card panel" style="margin-top:16px">
+      <div class="section-title"><h3>本机路径</h3><span>可在设置中修改</span></div>
       <div class="kv-grid">
         <div class="kv"><span>桌面配置</span><b>${esc(info.paths?.config || '—')}</b></div>
         <div class="kv"><span>桌面日志</span><b>${esc(info.paths?.logs || '—')}</b></div>

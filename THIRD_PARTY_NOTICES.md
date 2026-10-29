@@ -41,11 +41,16 @@ upstream `LICENSE` and the respective projects' licenses before use.
 ## SnowLuma
 
 - Upstream: https://github.com/SnowLuma/SnowLuma
-- This repository does **not** bundle SnowLuma source or binaries.
-- SnowLuma uses a source-available, non-commercial license; its EULA may restrict
-  automated deployment/start/stop and redistribution.
-- The desktop control center offers optional start/stop controls. Verify the
-  license and obtain any required permission before publishing or deploying.
+- License: https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE
+- EULA: https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md
+- This repository does **not** bundle SnowLuma source or native binaries.
+- SnowLumaDevs granted written permission on 2026-10-29 for this project to:
+  - publish publicly on a non-commercial basis;
+  - let users actively start/stop their own unmodified official SnowLuma installation;
+  - embed access to the local SnowLuma WebUI.
+- The permission does **not** cover modifying, packaging, or redistributing
+  SnowLuma/native components, nor commercial use. SnowLuma remains under its own
+  LICENSE/EULA; this project's license does not override it.
 
 ## DeepSeek Harness (DSH)
 

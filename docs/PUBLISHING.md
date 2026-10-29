@@ -7,7 +7,7 @@
 - [ ] 角色图片/图标是否有再分发权；没有就保留当前中性占位图
 - [ ] `SnowLuma` / `DSH` 的许可证是否允许你引用其名称和外部调用方式
 - [ ] 仓库里没有 `console-token`、`webui.json`、API Key、QQ 号、聊天记录
-- [ ] 选择许可证（当前为 MIT，见 `LICENSE`）
+- [ ] 选择许可证（当前为 PolyForm Noncommercial 1.0.0，见 `LICENSE`；仅非商业，不是 OSI 开源许可）
 
 ## 2. 在 GitHub 创建空仓库
 
