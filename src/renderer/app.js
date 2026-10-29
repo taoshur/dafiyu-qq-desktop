@@ -36,6 +36,8 @@ const state = {
   memoryOverview: null,
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
+  environment: { status: null, busy: false, error: null },
+  install: { task: null, targetDir: '', timer: null, busy: false },
   wizard: { open: false, step: 0, status: null, busy: false, error: null },
   busy: false,
   error: null,
@@ -54,6 +56,7 @@ const PAGE_META = {
   services: ['服务', '按依赖顺序启动，只停止由本软件启动的服务'],
   embed: ['服务网页', '内嵌本机 WebUI；页面权限与原服务一致'],
   setup: ['首次设置', '首次部署时设置 SnowLuma 密码；bridge 令牌由本机自动生成'],
+  environment: ['环境安装', '检测 SnowLuma / qq-bridge / DSH；可自动安装的部分才提供一键安装'],
   startup: ['启动与恢复', '三个开关互相独立；默认全部关闭'],
   logs: ['运行日志', '只读查看，不会删除或截断原文件'],
   env: ['环境检查', '启动前先确认运行时、配置与数据目录'],
@@ -479,6 +482,93 @@ function setupPage() {
       <span class="backup-hint">${state.setup.error ? esc(state.setup.error) : '只读取状态；不会显示密码或令牌内容'}</span>
     </div>
     <div class="notice">分享安装包时不要带 qq-bridge/state/console-token、SnowLuma/config/webui.json、QQ 登录态或 API Key；每台机器应各自初始化。</div>`;
+}
+
+function envStateClass(state) {
+  if (state === 'running' || state === 'ok') return 'state-running';
+  if (state === 'installed-unconfigured' || state === 'configured-not-running' || state === 'warn') return 'state-degraded';
+  return 'state-stopped';
+}
+
+function environmentCard(item) {
+  const auto = item.id === 'bridge' && item.status === 'not-installed';
+  return `
+    <section class="card panel env-component">
+      <div class="section-title">
+        <h3>${esc(item.name)}</h3>
+        <span class="state-pill ${envStateClass(item.status)}"><i class="dot"></i>${esc(item.label)}</span>
+      </div>
+      <p class="env-reason">${esc(item.reason || '')}</p>
+      <div class="service-meta">
+        <span class="meta-pill">版本 ${esc(item.version || 'unknown')}</span>
+        ${item.running ? '<span class="meta-pill">运行中</span>' : ''}
+        ${item.manualOnly ? '<span class="meta-pill">手动安装</span>' : '<span class="meta-pill">可自动安装源码</span>'}
+      </div>
+      ${item.nextAction ? `<p class="embed-hint">下一步：${esc(item.nextAction)}</p>` : ''}
+      ${item.official?.releases ? `<p class="env-link">官方：${esc(item.official.releases)}</p>` : ''}
+      ${item.official?.project ? `<p class="env-link">官方：${esc(item.official.project)}</p>` : ''}
+      ${auto ? '<button class="btn primary" data-env-install="bridge" type="button">安装 qq-bridge 源码</button>' : ''}
+    </section>`;
+}
+
+function installTaskPanel() {
+  const task = state.install.task;
+  if (!task) return '';
+  const active = !['completed', 'failed', 'cancelled'].includes(task.status);
+  const pct = task.percent == null ? '—' : `${task.percent}%`;
+  return `
+    <section class="card panel" style="margin-top:16px">
+      <div class="section-title"><h3>安装任务</h3><span class="state-pill ${task.status === 'completed' ? 'state-running' : task.status === 'failed' ? 'state-stopped' : 'state-degraded'}"><i class="dot"></i>${esc(task.status)}</span></div>
+      <p class="env-reason">${esc(task.step || '')} · ${esc(task.component)} · ${pct}</p>
+      <div class="install-bar"><i style="width:${task.percent == null ? 8 : Math.max(2, Math.min(100, task.percent))}%"></i></div>
+      <div class="service-meta"><span class="meta-pill">目标：${esc(task.targetDir)}</span>${task.total ? `<span class="meta-pill">${fmtSize(task.received)} / ${fmtSize(task.total)}</span>` : ''}</div>
+      ${task.error ? `<div class="notice danger">${esc(task.error)}</div>` : ''}
+      <div class="backup-toolbar">
+        ${active ? '<button class="btn" data-install-cancel type="button">取消安装</button>' : ''}
+        ${task.status === 'failed' ? '<button class="btn primary" data-install-retry type="button">重试</button>' : ''}
+        ${task.status === 'completed' && task.result?.root ? '<button class="btn primary" data-install-use type="button">设为 qq-bridge 路径</button>' : ''}
+      </div>
+      <pre class="install-log">${(task.logs || []).slice(-30).map((item) => esc(item.line)).join('\n') || '暂无日志'}</pre>
+    </section>`;
+}
+
+function environmentPage() {
+  const env = state.environment.status;
+  if (!env) {
+    return `
+      <section class="card panel">
+        <div class="section-title"><h3>环境安装向导</h3><span>${state.environment.busy ? '检测中…' : '尚未检测'}</span></div>
+        <p class="env-reason">首次使用需要检查 SnowLuma、qq-bridge、DSH 和运行依赖。安装任务与运行状态分开管理；不会自动覆盖已有环境。</p>
+        ${state.environment.error ? `<div class="notice danger">${esc(state.environment.error)}</div>` : ''}
+        <div class="backup-toolbar">
+          <button class="btn primary" data-env-detect type="button" ${state.environment.busy ? 'disabled' : ''}>开始检测</button>
+          <span class="backup-hint">检测只读；不会安装、启动或停止任何服务</span>
+        </div>
+      </section>`;
+  }
+  const blocking = env.summary?.blocking || [];
+  const manual = (env.components || []).filter((item) => item.manualOnly && ['not-installed', 'incompatible'].includes(item.status));
+  return `
+    <div class="notice">检测时间 ${new Date(env.checkedAt).toLocaleString()} · 正常运行 ${env.summary?.running || 0}/3。自动安装仅支持 qq-bridge 官方源码；SnowLuma/DSH 必须使用官方安装包手动安装。</div>
+    <div class="grid grid-3">${(env.components || []).map(environmentCard).join('')}</div>
+    ${manual.length ? `<div class="notice">${manual.map((item) => `${item.name} 需要手动安装：${item.official?.releases || item.official?.project || ''}`).join('；')}</div>` : ''}
+    <div class="grid grid-2" style="margin-top:16px">
+      <section class="card panel">
+        <div class="section-title"><h3>运行依赖</h3><span>只检测，不把失败当未安装</span></div>
+        ${(env.checks || []).map((item) => `<div class="check-row"><span class="check-icon ${item.state}">${item.state === 'ok' ? '✓' : item.state === 'warn' ? '!' : '×'}</span><div class="check-main"><h5>${esc(item.label)}</h5><p>${esc(item.detail)}${item.hint ? ` · ${esc(item.hint)}` : ''}</p></div></div>`).join('')}
+      </section>
+      <section class="card panel">
+        <div class="section-title"><h3>安装来源</h3><span>${esc(env.network?.state || 'unknown')}</span></div>
+        ${(env.network?.targets || []).map((item) => `<p class="env-link">${esc(item.label)}：${esc(item.state)} ${item.detail ? `· ${esc(item.detail)}` : ''}</p>`).join('') || '<p class="embed-hint">未检查网络</p>'}
+        <p class="embed-hint">qq-bridge 使用固定版本源码归档 + SHA256 校验；不会执行来源不明的远程脚本。</p>
+      </section>
+    </div>
+    <div class="backup-toolbar" style="margin-top:14px">
+      <button class="btn primary" data-env-detect type="button" ${state.environment.busy ? 'disabled' : ''}>重新检测</button>
+      ${blocking.includes('bridge') ? `<input class="input setup-input" id="install-target" value="${esc(state.install.targetDir)}" placeholder="qq-bridge 安装目录（绝对路径）"><button class="btn" data-env-install="bridge" type="button" ${state.install.busy ? 'disabled' : ''}>安装 qq-bridge</button>` : ''}
+      <button class="btn ghost" data-page-jump="config" type="button">手动指定已有安装路径</button>
+    </div>
+    ${installTaskPanel()}`;
 }
 
 function embedPage(snapshot) {
@@ -1051,7 +1141,7 @@ function render() {
   }
 
   const snapshot = state.snap;
-  if (!snapshot && state.page !== 'setup') {
+  if (!snapshot && !['setup', 'environment'].includes(state.page)) {
     view.innerHTML = '<div class="log-empty" style="padding:30px">正在读取运行状态…</div>';
     return;
   }
@@ -1061,6 +1151,7 @@ function render() {
   else if (state.page === 'services') html = servicesPage(snapshot);
   else if (state.page === 'embed') html = embedPage(snapshot);
   else if (state.page === 'setup') html = setupPage();
+  else if (state.page === 'environment') html = environmentPage();
   else if (state.page === 'startup') html = startupPage();
   else if (state.page === 'logs') html = logsPage();
   else if (state.page === 'env') html = envPage(snapshot);
@@ -1696,6 +1787,108 @@ async function syncEmbed() {
   }
 }
 
+async function refreshEnvironment() {
+  if (state.environment.busy) return;
+  state.environment.busy = true;
+  state.environment.error = null;
+  render();
+  try {
+    state.environment.status = await api.environmentDetect({ network: true });
+    state.install.targetDir = state.install.targetDir || state.install.catalog?.defaultRoot || '';
+  } catch (error) {
+    state.environment.error = error.message;
+  } finally {
+    state.environment.busy = false;
+    if (state.page === 'environment') render();
+  }
+}
+
+function stopInstallPolling() {
+  if (state.install.timer) {
+    clearInterval(state.install.timer);
+    state.install.timer = null;
+  }
+}
+
+async function pollInstall() {
+  try {
+    state.install.task = await api.installStatus();
+    if (!state.install.task) return;
+    const active = !['completed', 'failed', 'cancelled'].includes(state.install.task.status);
+    if (!active) {
+      stopInstallPolling();
+      state.install.busy = false;
+      if (state.page === 'environment') render();
+      return;
+    }
+    if (state.page === 'environment') render();
+  } catch { /* ignore */ }
+}
+
+function startInstall(component) {
+  const targetInput = $('install-target');
+  const targetDir = targetInput?.value?.trim() || state.install.targetDir || state.install.catalog?.defaultRoot || '';
+  if (!targetDir) { toast('请填写安装目录'); return; }
+  if (state.install.task && !['completed', 'failed', 'cancelled'].includes(state.install.task.status)) {
+    toast('已有安装任务在进行中');
+    return;
+  }
+  showModal({
+    title: '安装 qq-bridge？',
+    body: [
+      '将从官方 GitHub 源码归档下载 v0.2.1-r1，校验 SHA256，解压到目标目录，然后运行 npm install。',
+      `目标目录：${targetDir}`,
+      '不会覆盖非空目录；不会自动启动服务；不会修改 SnowLuma/DSH。'
+    ].join('\n'),
+    confirmText: '开始安装',
+    onConfirm: async () => {
+      state.install.busy = true;
+      try {
+        const result = await api.installStart(component, targetDir, true);
+        if (!result.ok) {
+          toast(`安装未开始：${result.reason}`);
+          state.install.busy = false;
+          return;
+        }
+        state.install.task = result.task;
+        state.install.targetDir = targetDir;
+        stopInstallPolling();
+        state.install.timer = setInterval(pollInstall, 800);
+        if (state.page === 'environment') render();
+      } catch (error) {
+        toast(`安装失败：${error.message}`);
+        state.install.busy = false;
+      }
+    }
+  });
+}
+
+async function cancelInstall() {
+  try {
+    const result = await api.installCancel();
+    state.install.task = result.task || state.install.task;
+    stopInstallPolling();
+    state.install.busy = false;
+    if (state.page === 'environment') render();
+  } catch (error) {
+    toast(`取消失败：${error.message}`);
+  }
+}
+
+async function useInstallResult() {
+  const root = state.install.task?.result?.root;
+  if (!root) { toast('没有可用的安装结果'); return; }
+  try {
+    const current = await api.settingsGet();
+    await api.settingsSave({ ...current, repoRoot: root });
+    state.settings = await api.settingsGet();
+    toast('已把 qq-bridge 路径切换到新安装目录；请到配置页补全账号/DSH/SnowLuma 字段');
+    await refreshEnvironment();
+  } catch (error) {
+    toast(`切换路径失败：${error.message}`);
+  }
+}
+
 async function openPage(page) {
   const previous = state.page;
   state.page = page;
@@ -1716,6 +1909,11 @@ async function openPage(page) {
   if (page === 'setup') {
     try { state.setup.status = await api.setupStatus(); } catch (error) { state.setup.status = null; state.setup.error = error.message; }
   }
+  if (page === 'environment') {
+    try { state.install.catalog = await api.installCatalog(); } catch { state.install.catalog = null; }
+    if (!state.environment.status) await refreshEnvironment();
+    if (state.install.task) pollInstall();
+  }
   if (page === 'config') {
     try { state.settings = await api.settingsGet(); } catch { state.settings = null; }
   }
@@ -1733,6 +1931,14 @@ function bind() {
   window.addEventListener('scroll', () => { if (state.page === 'embed') placeEmbed(); }, true);
 
   document.addEventListener('click', (event) => {
+    if (event.target.closest('[data-env-detect]')) { refreshEnvironment(); return; }
+    const installBtn = event.target.closest('[data-env-install]');
+    if (installBtn) { startInstall(installBtn.dataset.envInstall); return; }
+    if (event.target.closest('[data-install-cancel]')) { cancelInstall(); return; }
+    if (event.target.closest('[data-install-retry]')) { startInstall('bridge'); return; }
+    if (event.target.closest('[data-install-use]')) { useInstallResult(); return; }
+    const jump = event.target.closest('[data-page-jump]');
+    if (jump) { openPage(jump.dataset.pageJump); return; }
     if (event.target.closest('#setup-wizard')) { openWizard(0); return; }
     if (event.target.closest('[data-wizard-close]') || event.target.matches('[data-wizard-backdrop]')) { closeWizard(); return; }
     if (event.target.closest('[data-wizard-next]')) {

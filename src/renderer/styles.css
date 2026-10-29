@@ -701,6 +701,12 @@ mark { background: rgba(246, 201, 107, 0.35); color: #fff; border-radius: 3px; }
 .memory-evidence .meta-pill { margin-right: 4px; }
 .memory-evidence p { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-dim); white-space: pre-wrap; }
 .notice.danger { border-color: rgba(255, 123, 123, 0.45); color: #ffb3b3; }
+.env-component { min-height: 210px; }
+.env-reason { color: var(--text-soft, #b9cbd5); font-size: 13px; line-height: 1.7; }
+.env-link { color: var(--text-faint); font-size: 11px; line-height: 1.7; word-break: break-all; }
+.install-bar { height: 8px; border-radius: 99px; background: rgba(125, 230, 212, 0.12); overflow: hidden; margin: 8px 0; }
+.install-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3fe0c8, #6ea8ff); transition: width 180ms ease; }
+.install-log { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 11px; line-height: 1.6; color: var(--text-faint); background: #071118; border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
 @media (max-width: 1120px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .memory-detail { max-width: 260px; }

@@ -19,6 +19,9 @@ const { assessBusy } = require('./busy-guard');
 const { createRecoveryEngine } = require('./recovery-engine');
 const { ownershipPlan } = require('./recovery-ownership');
 const { memoryStatus, listMemory, getCandidate, initTestDb, reviewCandidate } = require('./memory');
+const { detectEnvironment } = require('./environment');
+const { createInstallManager } = require('./install-task');
+const { catalogFor, defaultInstallRoot } = require('./install-catalog');
 
 const SERVICE_IDS = new Set(['snowluma', 'dsh', 'bridge']);
 const ACTIONS = new Set(['start', 'stop', 'restart']);
@@ -30,6 +33,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const controlStateDir = path.join(paths.configDir, '..', 'state');
   const controller = createController({ stateDir: controlStateDir, getSettings, log });
   controller.reconcile().catch((error) => log('control', `reconcile failed: ${error.message}`));
+  const installManager = createInstallManager({ paths, getSettings, log, component: 'bridge' });
   const autostart = createAutostart({
     stateFile: path.join(controlStateDir, 'autostart.json'),
     exePath: process.execPath,
@@ -166,6 +170,35 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   });
 
   ipcMain.handle('embed:state', async () => (embed ? embed.state() : { service: null }));
+
+  ipcMain.handle('environment:detect', async (_event, payload) => {
+    const settings = getSettings();
+    let snapshot = null;
+    try { snapshot = await buildSnapshot(settings, { mockMode: false }); } catch { snapshot = null; }
+    return detectEnvironment({ settings, snapshot, checkNetwork: payload?.network !== false });
+  });
+
+  ipcMain.handle('install:catalog', async () => ({
+    bridge: catalogFor('bridge'),
+    snowluma: catalogFor('snowluma'),
+    dsh: catalogFor('dsh'),
+    defaultRoot: defaultInstallRoot()
+  }));
+
+  ipcMain.handle('install:start', async (_event, payload) => {
+    const component = payload?.component === 'bridge' ? 'bridge' : '';
+    if (!component) return { ok: false, reason: '当前只提供 qq-bridge 官方源码自动安装；SnowLuma/DSH 需要手动安装' };
+    const targetDir = typeof payload?.targetDir === 'string' && payload.targetDir.trim()
+      ? payload.targetDir.trim()
+      : defaultInstallRoot();
+    if (!path.isAbsolute(targetDir)) return { ok: false, reason: '安装目录必须是绝对路径' };
+    const result = installManager.start({ component, targetDir, confirmed: payload?.confirmed === true });
+    log('install', `start ${component} dir=${path.basename(targetDir)} ok=${result.ok}`);
+    return result;
+  });
+
+  ipcMain.handle('install:status', async () => installManager.status());
+  ipcMain.handle('install:cancel', async () => installManager.cancel());
 
   ipcMain.handle('setup:status', async () => {
     const settings = getSettings();

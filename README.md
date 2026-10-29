@@ -33,6 +33,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
+- **环境安装**：检测 SnowLuma / qq-bridge / DSH、系统依赖和官方来源；qq-bridge 支持官方源码自动安装，SnowLuma/DSH 明确提供手动安装指引
 - **安全基线**：`contextIsolation`、sandbox、固定 IPC 白名单、无 Node 渲染进程、令牌不进入 URL/页面
 
 ## 安全边界
@@ -93,6 +94,8 @@ SnowLuma 使用 **WebUI 密码**，不是控制台令牌。
 - 登录后请立即在 SnowLuma 内改密
 
 详细说明：[docs/FIRST-RUN-CREDENTIALS.md](docs/FIRST-RUN-CREDENTIALS.md)
+
+环境安装能力与限制：[docs/ENVIRONMENT-INSTALL.md](docs/ENVIRONMENT-INSTALL.md)
 
 ### qq-bridge
 
