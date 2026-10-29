@@ -5,7 +5,7 @@
 | 组件 | 检测 | 自动安装 | 说明 |
 | --- | --- | --- | --- |
 | SnowLuma | 可执行文件、release.json 版本、config/webui.json、5099/3000/3001 | **是，官方 win-x64 完整包** | 必须先由用户接受 LICENSE/EULA；下载官方未修改完整发行版，SHA256 校验，解压，不修改代码/原生组件，不自建镜像，不打包再分发 |
-| qq-bridge | package.json、src/bridge.js、config.json、state/console-token、3100/3080 | **是，安装包内置源码** | 固定 `v0.2.1-r1` 源码随安装包分发；复制到用户目录后执行 `npm install`，不覆盖非空目录 |
+| qq-bridge | package.json、src/bridge.js、config.json、state/console-token、3100/3080 | **是，安装包内置定制源码** | 内置 v0.2.0-r4 + Memory V3；复制到用户目录后执行 `npm install`，不覆盖非空目录 |
 | DSH | DeepSeek Harness.exe、`~/.dsh`、运行端口 | **否** | 官方仓库没有可用于静默安装的 Release 资产；需要官方桌面安装包和首次初始化 |
 
 - Python **不是**三件套的运行依赖
@@ -31,10 +31,30 @@ qq-bridge 源码随桌面安装包分发（`resources/qq-bridge`），用户不�
 版本与来源：
 
 ```text
-qq-bridge v0.2.1-r1
+qq-bridge v0.2.0-r4（含 Memory V3）
 上游：https://github.com/Derpyu520/qq-bridge
 许可：MIT
 ```
+
+首次安装会从 `config.example.json` 初始化 `config.json`，其中 Memory V3 默认：
+
+```json
+{
+  "dbPath": "state/memory.db",
+  "retrieval": true,
+  "extract": true,
+  "ingest": true,
+  "observeOnly": true,
+  "batchSize": 30,
+  "idleMinutes": 15,
+  "maxQueue": 200,
+  "maxAttempts": 3,
+  "intervalMs": 60000,
+  "injectBudgetTokens": 600
+}
+```
+
+新用户得到的是空记忆库，不会带上任何现有生产记忆。
 
 步骤：
 

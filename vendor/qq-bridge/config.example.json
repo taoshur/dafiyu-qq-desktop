@@ -146,8 +146,6 @@
       "defaultMode": "diving",
       "preSleepWaitEnabled": true,
       "preSleepWaitMs": 300000,
-      "staleChatMinutes": 10,
-      "staleSilentMinutes": 120,
       "recommendedDefaultInfinite": true,
       "sleepMinMs": 60000,
       "sleepMaxMs": 0,
@@ -256,13 +254,22 @@
     "media": {
       "maxBytes": 8388608,
       "maxPixels": 64000000,
-      "maxCount": 5,
-      "normalize": true,
-      "maxModelBytes": 1048576,
-      "maxLongEdge": 1280,
-      "gifFrames": 6,
-      "gifTile": 240,
-      "normalizeTimeoutMs": 25000
+      "maxCount": 5
+    },
+    "memory": {
+      "dbPath": "state/memory.db",
+      "retrieval": true,
+      "extract": true,
+      "ingest": true,
+      "observeOnly": true,
+      "batchSize": 30,
+      "minBatchSize": 8,
+      "idleMinutes": 15,
+      "maxQueue": 200,
+      "maxAttempts": 3,
+      "intervalMs": 60000,
+      "model": "deepseek-chat",
+      "injectBudgetTokens": 600
     }
   },
   "webSearch": {

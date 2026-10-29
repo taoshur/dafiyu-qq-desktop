@@ -1,6 +1,6 @@
 {
   "name": "qq-bridge",
-  "version": "0.2.1-r1",
+  "version": "0.2.0-r4",
   "private": true,
   "license": "MIT",
   "description": "Bridge between SnowLuma (OneBot v11 / QQ) and DeepSeek Harness Web API: QQ messages become DSH agent prompts, agent replies go back to QQ. Targets the DSH Cookie-auth / slash-RPC / remote.mux protocol generation, so it deliberately names no DSH version here.",
@@ -21,7 +21,6 @@
     "test:initial-prompt": "node scripts/test-v2-initial-prompt.mjs",
     "test:regressions": "node scripts/test-audit-regressions.mjs",
     "test:media-search": "node scripts/test-media-search.mjs",
-    "test:media-normalize": "node scripts/test-media-normalize.mjs",
     "test:issues": "node scripts/test-issue-regressions.mjs",
     "test-wait:e2e": "node scripts/test-dsh-v2-wait.mjs",
     "test-vision": "node scripts/test-vision-media.mjs",
@@ -40,7 +39,7 @@
     "test:preset-prompt": "node scripts/test-preset-prompt.mjs",
     "test:role-card": "node scripts/test-role-card.mjs",
     "preview:console": "node scripts/console-ui-fixture.mjs",
-    "verify:adaptation": "node scripts/verify-dsh-021-adaptation.mjs",
+    "verify:adaptation": "node scripts/verify-dsh-020-adaptation.mjs",
     "test:dsh-auth": "node scripts/test-dsh-auth.mjs",
     "test:dsh-inbox": "node scripts/test-dsh-inbox-projection.mjs",
     "test:session-retire:e2e": "node scripts/test-dsh-session-retire.mjs",
@@ -58,7 +57,15 @@
     "postinstall": "node scripts/patch-snowluma-sdk.mjs",
     "privacy-scan": "node scripts/privacy-scan.mjs",
     "diagnose:acl": "node scripts/diagnose-acl.mjs",
-    "harden-acl": "node scripts/harden-state-acl.mjs"
+    "harden-acl": "node scripts/harden-state-acl.mjs",
+    "test:memory-phase1": "node scripts/test-memory-phase1.mjs",
+    "memory:replay-phase2": "node scripts/memory-replay-phase2.mjs",
+    "test:memory-identity": "node scripts/test-memory-identity.mjs",
+    "test:memory-quality": "node scripts/test-memory-extraction-quality.mjs",
+    "memory:ab-phase2": "node scripts/memory-ab-phase2.mjs",
+    "memory:metrics-phase2": "node scripts/memory-metrics-phase2.mjs",
+    "memory:real-extract": "node scripts/memory-real-extract-phase3.mjs",
+    "memory:ab-real": "node scripts/memory-ab-real-phase3.mjs"
   },
   "dependencies": {
     "@deepseek-ai/dsh-host-apiproxy": "0.1.1-rc.2",

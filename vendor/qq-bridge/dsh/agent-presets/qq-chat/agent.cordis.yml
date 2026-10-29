@@ -14,15 +14,9 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    # DSH 0.1.5 起 dsh-persona 的字段为 prefix/suffix（旧版为 text）；
-    # {{model}} 由 agent loop 注册的提示词变量在每次装配时解析。
-    #
-    # ⚠️ 不要写 {{cwd}}。DSH 0.2.1 起 agent loop 只注册 `provider` 与 `model` 两个变量
-    # （0.2.0 还有 `cwd`）。system prompt 装配对未知变量是 **fail loud**：
-    # `unknown prompt variable "{{cwd}}" in section "deployment:persona-suffix"`
-    # ⇒ 回合在 turn/start 之后立刻 error，模型一次都不跑，QQ 上表现为「完全不回」。
-    # 工作目录现在由 dsh-working-directory 的 `working-directory:current` 运行时上下文
-    # 注入（persona 的 includeRuntimeContext 默认 true），persona 里不需要再重复。
+    # DSH 0.1.5 起 dsh-persona 的字段为 prefix/suffix（旧版为 text）。
+    # DSH 0.2.1 起提示词变量只注册 provider/model：不能写 {{cwd}}，
+    # 否则装配时报 unknown prompt variable（工作目录改由 working-directory 服务提供）。
     prefix: >-
       You are a coding agent powered by the {{model}} model.
 

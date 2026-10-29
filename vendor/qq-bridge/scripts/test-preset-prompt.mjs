@@ -151,14 +151,14 @@ test('写回沿用文件主导行尾，且不吞掉块尾空行', () => {
 });
 
 test('只含空格/Tab 的行也能安全往返（不会被当成空行读丢）', () => {
+  // 用完整 prefix 做底稿：安全不变量本来就在里面，断言只需要盯空白行的往返。
   const spaced = [
-    ...originalPrefix.split('\n').slice(0, 3),
+    ...originalPrefix.split('\n'),
     '   ',
     '\t',
     ' 带前后空格的正文 ',
     '正常一行',
   ].join('\n');
-  // 前 3 行来自原文，因此安全不变量仍然齐全
   const next = renderPresetPromptYaml(source, spaced);
   assert.equal(extractPresetPrefix(next), spaced, '空白行必须原样保留');
 });

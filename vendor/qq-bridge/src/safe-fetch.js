@@ -1,3 +1,4 @@
+import zlib from 'node:zlib';
 // 只读 HTTP(S) 安全抓取工具：供 qq-bridge / MCP 共用。
 // 设计目标与 mcp-web-search-safe 一致：
 // - 仅 http/https
@@ -12,6 +13,29 @@ import https from 'node:https';
 import { StringDecoder } from 'node:string_decoder';
 
 const dnsLookup = dns.promises.lookup;
+
+// 本机代理（Clash/Surge 等）的 fake-ip 模式会把所有域名解析到 198.18.0.0/15。
+// 这既不是内网也不是真实地址，但会让下面的 SSRF 校验把所有外网抓取都拒掉
+// （症状：表情包、QQ 图片、web_fetch 全部报「解析到内网/本机地址」）。
+// 检测到「全部解析结果都是 fake-ip」时，改用公共 DNS 重新解析，拿到真实地址后
+// 仍然走原来的校验；校验规则本身不放松。
+const PUBLIC_DNS_SERVERS = ['223.5.5.5', '119.29.29.29'];
+
+function isFakeIp(address) {
+  const parts = String(address || '').split('.').map(Number);
+  return parts.length === 4 && parts[0] === 198 && (parts[1] === 18 || parts[1] === 19);
+}
+
+async function resolveWithPublicDns(hostname) {
+  const resolver = new dns.promises.Resolver();
+  resolver.setServers(PUBLIC_DNS_SERVERS);
+  const addresses = await withTimeout(
+    resolver.resolve4(hostname),
+    5000,
+    `公共 DNS 解析 ${hostname}`
+  );
+  return addresses.map((address) => ({ address, family: 4 }));
+}
 
 function withTimeout(promise, ms, label) {
   let timer;
@@ -150,7 +174,29 @@ export async function resolveSafeAddresses(hostname) {
     throw new Error(`域名解析失败：${error?.message ?? error}`);
   }
   if (!addresses.length) throw new Error('域名没有解析结果');
+  // fake-ip 代理环境：全部命中 198.18/15 时，用公共 DNS 重新解析一次。
+  // 代理 fake-ip：公共 DNS 已证明该域名解析到公网地址后，fake-ip 条目只作为
+  // 「走代理直连」的兜底地址，**不再**参与下面的内网校验 —— 它们是我方代理合成的
+  // 假地址（198.18/15），永远过不了 isPrivateIp。曾经把它们一起送进校验，结果是把
+  // 所有外网抓取整批判死（2026-10-23 线上：表情/图片全部「域名解析到内网/本机地址，已阻止」）。
+  // 安全边界不放松：真实 IP 由公共 DNS 给出，并逐个过 isPrivateIp。
+  let proxyFakeAddresses = [];
+  if (addresses.every((item) => isFakeIp(item?.address))) {
+    try {
+      const real = await resolveWithPublicDns(h);
+      // 真实 IP 直连在当前网络（走代理）下会超时；把 fake-IP 地址保留在末尾兜底。
+      // 域名已通过公共 DNS 证明是公网地址，走代理连同一个 Host 不降低安全性。
+      if (real.length) {
+        proxyFakeAddresses = addresses.filter((item) => isFakeIp(item?.address));
+        addresses = [...real, ...proxyFakeAddresses];
+      }
+    } catch {
+      // 公共 DNS 不可用时保持原结果，让下面的校验给出明确错误。
+    }
+  }
+  const proxyFakeSet = new Set(proxyFakeAddresses.map((item) => String(item.address)));
   for (const { address } of addresses) {
+    if (proxyFakeSet.has(String(address))) continue;
     if (isPrivateIp(address)) {
       throw new Error('域名解析到内网/本机地址，已阻止');
     }
@@ -188,12 +234,48 @@ function validateLimit(value, name) {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${name} 必须为正整数`);
 }
 
+// 可选追加请求头只允许「名字安全、值无换行」的普通头部：
+// 拒绝 host / 凭据类头部，防止调用方覆盖 Host 或偷偷带上 Cookie/Authorization。
+const FORBIDDEN_EXTRA_HEADERS = new Set([
+  'host', 'cookie', 'authorization', 'proxy-authorization',
+  'content-length', 'transfer-encoding', 'connection'
+]);
+
+export function sanitizeExtraHeaders(input) {
+  const out = {};
+  if (!input || typeof input !== 'object') return out;
+  for (const [rawName, rawValue] of Object.entries(input)) {
+    const name = String(rawName ?? '').trim().toLowerCase();
+    if (!/^[a-z0-9-]{1,64}$/.test(name)) continue;
+    if (FORBIDDEN_EXTRA_HEADERS.has(name)) continue;
+    const value = String(rawValue ?? '').replace(/[\r\n\u0000]/g, '').trim().slice(0, 1024);
+    if (!value) continue;
+    out[name] = value;
+  }
+  return out;
+}
+
+// QQ 的多媒体/表情 CDN（multimedia.nt.qq.com.cn / gxh.vip.qq.com 等）在裸请求下会 403，
+// 补一个来源页才给流；只对 QQ 域名生效，其它站点一律不带 Referer（不泄露来源页）。
+function defaultRefererFor(url) {
+  const host = String(url?.hostname || '').toLowerCase();
+  if (host === 'qq.com' || host.endsWith('.qq.com')) return 'https://qun.qq.com/';
+  return '';
+}
+
+function buildRequestHeaders(url, extraHeaders) {
+  const headers = sanitizeExtraHeaders(extraHeaders);
+  const referer = defaultRefererFor(url);
+  if (referer && !headers.referer) headers.referer = referer;
+  return Object.keys(headers).length ? headers : null;
+}
+
 /**
  * 用**一个**已校验的地址发起一次尝试，保留原始 Host/SNI（禁止重新解析 DNS）。
  * 返回 `{ok:true,result}` 或 `{ok:false,error,retryable}`；retryable 只标记网络层失败
  * （连接失败/超时/正文中断），大小与图片签名等策略性拒绝不重试。
  */
-function attemptOnce(url, address, limit, binary, budgetMs) {
+function attemptOnce(url, address, limit, binary, budgetMs, extraHeaders) {
   return new Promise((resolve) => {
     let settled = false;
     let req;
@@ -225,6 +307,8 @@ function attemptOnce(url, address, limit, binary, budgetMs) {
           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36',
           accept: binary ? 'image/*,*/*;q=0.8' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'accept-language': 'zh-CN,zh;q=0.9',
+          // 调用方补充头（已消毒）；放在最后但 Host/凭据类名字已被 sanitizeExtraHeaders 挡掉。
+          ...(extraHeaders || {}),
         },
         servername: url.protocol === 'https:' && !net.isIP(hostname) ? hostname : undefined,
         rejectUnauthorized: url.protocol === 'https:',
@@ -270,7 +354,7 @@ function attemptOnce(url, address, limit, binary, budgetMs) {
         });
         res.on('end', () => {
           if (settled) return;
-          if (binary) done({ statusCode, buffer: Buffer.concat(chunks) });
+          if (binary) done({ statusCode, buffer: Buffer.concat(chunks), contentType: String(res.headers['content-type'] || '') });
           else {
             appendText(decoder.end());
             done({ statusCode, body: chunks.join(''), truncated: false });
@@ -300,19 +384,21 @@ function attemptOnce(url, address, limit, binary, budgetMs) {
  * 而「第一个地址是坏的 IPv6」不会再白等 20 秒。
  * 所有地址都失败时抛最后一个错误（保留原始错误文案，便于日志排查）。
  */
-async function requestOnce(url, addresses, limit, binary = false) {
+async function requestOnce(url, addresses, limit, binary = false, extraHeaders = null, timeoutMs = 0) {
   const list = (Array.isArray(addresses) ? addresses : [addresses]).filter(Boolean);
   if (!list.length) throw new Error(`没有可用地址：${url.hostname}`);
-  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+  // 允许调用方给单个 URL 更短的预算（备用 CDN 经常快速返回 404，没必要等满 10s）。
+  const totalBudget = Number(timeoutMs) > 0 ? Math.min(Number(timeoutMs), REQUEST_TIMEOUT_MS) : REQUEST_TIMEOUT_MS;
+  const deadline = Date.now() + totalBudget;
   let lastError = null;
   const attempts = Math.min(list.length, MAX_ADDRESS_ATTEMPTS);
   for (let i = 0; i < attempts; i += 1) {
     const remaining = deadline - Date.now();
     if (remaining <= 250) break;
     const budget = list.length === 1
-      ? REQUEST_TIMEOUT_MS
+      ? totalBudget
       : Math.min(ATTEMPT_TIMEOUT_MS, remaining);
-    const outcome = await attemptOnce(url, list[i], limit, binary, budget);
+    const outcome = await attemptOnce(url, list[i], limit, binary, budget, extraHeaders);
     if (outcome.ok) return outcome.result;
     lastError = outcome.error;
     if (!outcome.retryable) throw outcome.error;
@@ -360,13 +446,54 @@ export function looksLikeImageBuffer(buf) {
   return false;
 }
 
+/**
+ * QQ 的系统小黄脸（face 段）在 CDN 上是一个 zip，里面装着一张 png（如 `178/png/178.png`），
+ * 所以直接当图片校验必然失败。这里做一个最小 ZIP 读取：只认第一个图片条目，
+ * 支持 stored(0) 和 deflate(8)，返回图片 Buffer；不是 zip 或里面没有图片就返回 null。
+ */
+export function unzipSingleImage(buf) {
+  if (!buf || buf.length < 30) return null;
+  if (!(buf[0] === 0x50 && buf[1] === 0x4b && (buf[2] === 3 || buf[2] === 5) && (buf[3] === 4 || buf[3] === 6))) return null;
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0 && i > Math.max(0, buf.length - 70000); i -= 1) {
+    if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+  const count = buf.readUInt16LE(eocd + 10);
+  let off = buf.readUInt32LE(eocd + 16);
+  const IMAGE_EXT = /\.(png|gif|webp|jpe?g)$/i;
+  for (let i = 0; i < count && off + 46 <= buf.length; i += 1) {
+    if (buf.readUInt32LE(off) !== 0x02014b50) return null;
+    const method = buf.readUInt16LE(off + 10);
+    const compSize = buf.readUInt32LE(off + 20);
+    const nameLen = buf.readUInt16LE(off + 28);
+    const extraLen = buf.readUInt16LE(off + 30);
+    const commentLen = buf.readUInt16LE(off + 32);
+    const localOff = buf.readUInt32LE(off + 42);
+    const name = buf.toString('utf8', off + 46, off + 46 + nameLen);
+    off += 46 + nameLen + extraLen + commentLen;
+    if (!IMAGE_EXT.test(name)) continue;
+    if (localOff + 30 > buf.length || buf.readUInt32LE(localOff) !== 0x04034b50) return null;
+    const lNameLen = buf.readUInt16LE(localOff + 26);
+    const lExtraLen = buf.readUInt16LE(localOff + 28);
+    const dataStart = localOff + 30 + lNameLen + lExtraLen;
+    const data = buf.subarray(dataStart, dataStart + compSize);
+    if (method === 0) return data;
+    if (method === 8) {
+      try { return zlib.inflateRawSync(data); } catch { return null; }
+    }
+    return null;
+  }
+  return null;
+}
+
 /** 抓取图片字节并返回 Buffer（带 SSRF 防护，且校验确实为图片）。 */
-export async function safeFetchBuffer(urlString, maxBytes = 8 * 1024 * 1024) {
+export async function safeFetchBuffer(urlString, maxBytes = 8 * 1024 * 1024, options = {}) {
   validateLimit(maxBytes, 'maxBytes');
   const MAX_REDIRECTS = 5;
   let { url, addresses } = await validateFetchUrl(urlString);
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    const result = await requestOnce(url, addresses, maxBytes, true);
+    const result = await requestOnce(url, addresses, maxBytes, true, buildRequestHeaders(url, options?.headers), options?.timeoutMs);
     if ([301, 302, 303, 307, 308].includes(result.statusCode)) {
       if (!result.redirect) throw new Error(`重定向缺少 Location: ${result.statusCode}`);
       const next = new URL(result.redirect, url).toString();
@@ -374,12 +501,21 @@ export async function safeFetchBuffer(urlString, maxBytes = 8 * 1024 * 1024) {
       continue;
     }
     if (result.statusCode < 200 || result.statusCode >= 300) {
-      throw new Error(`图片抓取失败：HTTP ${result.statusCode}`);
+      // 把状态码/类型/字节数挂到错误上，调用方才能记出可定位的诊断日志。
+      const error = new Error(`图片抓取失败：HTTP ${result.statusCode}`);
+      error.statusCode = result.statusCode;
+      error.contentType = result.contentType || '';
+      error.bytes = result.buffer ? result.buffer.length : 0;
+      throw error;
     }
     if (!looksLikeImageBuffer(result.buffer)) {
-      throw new Error(`抓取内容不是有效图片（PNG/JPEG/GIF/WebP）`);
+      const error = new Error(`抓取内容不是有效图片（PNG/JPEG/GIF/WebP）`);
+      error.statusCode = result.statusCode;
+      error.contentType = result.contentType || '';
+      error.bytes = result.buffer ? result.buffer.length : 0;
+      throw error;
     }
-    return { url: url.toString(), statusCode: result.statusCode, buffer: result.buffer };
+    return { url: url.toString(), statusCode: result.statusCode, contentType: result.contentType || '', buffer: result.buffer };
   }
   throw new Error('重定向次数过多，已停止');
 }
