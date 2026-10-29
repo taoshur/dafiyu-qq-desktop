@@ -46,6 +46,9 @@ SHA256 9DB4365C5816BB7FF971420423316D141B533FC66F171E2536A8B67E7D4501C9
 
 不会自动启动 bridge，不会写 SnowLuma/DSH 配置，不会把 token 写入日志。
 
+本机实测：v0.2.1-r1 源码归档下载、SHA256 校验、解压、`npm install`（128 packages）、
+`config.example.json` 初始化均完成；没有启动服务，没有接触生产数据。
+
 ## 需要手动完成
 
 - SnowLuma：从官方 Releases 下载 Windows 完整包，解压后按官方 WebUI 首次登录流程配置

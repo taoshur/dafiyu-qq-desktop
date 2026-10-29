@@ -103,7 +103,7 @@ async function detectEnvironment({
   const platform = process.platform;
   const arch = process.arch;
   const release = os.release();
-  const windowsSupported = platform === 'win32' && ['x64', 'arm64'].includes(arch);
+  const windowsSupported = platform === 'win32' && arch === 'x64';
   const windowsVersion = platform === 'win32' ? Number(release.split('.')[2] || 0) : 0;
   checks.push({
     id: 'os',
