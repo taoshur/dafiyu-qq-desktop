@@ -58,6 +58,16 @@ upstream `LICENSE` and the respective projects' licenses before use.
 - The installer must retain SnowLumaDevs attribution, official links, and the
   complete LICENSE/EULA.
 
+## Bilibili MCP
+
+- Upstream: https://github.com/adoresever/bilibili-mcp
+- Copyright (c) 2026 AGI_Ananas
+- License: MIT (full text is bundled at
+  `vendor/qq-bridge/tools/bilibili-mcp/LICENSE`)
+- The vendored server is used only for local Bilibili browsing and activity
+  logging; Bilibili account credentials remain local and are never uploaded by
+  this project.
+
 ## DeepSeek Harness (DSH)
 
 - Upstream: https://github.com/deepseek-ai/deepseek-harness
