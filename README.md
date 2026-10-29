@@ -65,7 +65,7 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 - Windows 11 x64
 - Node.js 22+（开发与 CI 使用 Node 24）
 - 已安装并可运行：
-  - [qq-bridge](https://github.com/)（本地项目，路径可配置）
+  - [qq-bridge](https://github.com/Derpyu520/qq-bridge)（本地项目，路径可配置）
   - SnowLuma 2.x（本地安装，路径可配置）
   - DeepSeek Harness（可选，用于智能体宿主）
 - 外部依赖的许可证需单独确认；本仓库不打包它们
@@ -73,8 +73,8 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 ## 快速开始
 
 ```powershell
-git clone <your-repo-url> dafiyu-desktop
-cd dafiyu-desktop
+git clone https://github.com/taoshur/dafiyu-qq-desktop.git
+cd dafiyu-qq-desktop
 npm install
 npm start
 ```
@@ -130,7 +130,7 @@ test/           node:test 单元/隔离测试
 fixtures/       隔离测试用的假服务
 scripts/        开发启动与截图脚本
 build/          NSIS 安装脚本与图标
-docs/           构建、首次登录、接管检查表
+docs/           构建、首次登录、Release 说明
 ```
 
 - 主进程是唯一能访问文件系统、进程和 SQLite 的层
