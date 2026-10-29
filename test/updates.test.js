@@ -39,3 +39,16 @@ test('更新下载只允许 GitHub 官方域名', () => {
   assert.equal(isAllowedDownloadHost('http://github.com/a'), false);
   assert.equal(isAllowedDownloadHost('https://evil.example.com/a'), false);
 });
+
+
+test('missing or unexpected assets are not selected', () => {
+  const other = normalizeRelease({ tag_name: 'v0.9.0', assets: [{ name: 'other.exe', state: 'uploaded', browser_download_url: 'https://github.com/x' }] }, '0.8.1');
+  assert.equal(other.asset, null);
+});
+
+test('trusted update digest requires full sha256', () => {
+  const { isTrustedDigest } = require('../src/main/updates');
+  assert.equal(isTrustedDigest('sha256:' + 'a'.repeat(64)), true);
+  assert.equal(isTrustedDigest('sha256:abc'), false);
+  assert.equal(isTrustedDigest(''), false);
+});

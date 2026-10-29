@@ -47,11 +47,14 @@ function requestJson(url, timeoutMs = 8000) {
   });
 }
 
+function isTrustedDigest(value) {
+  return /^sha256:[a-f0-9]{64}$/i.test(String(value || '').trim());
+}
+
 function pickAsset(release) {
   const assets = Array.isArray(release?.assets) ? release.assets : [];
   const exact = assets.find((item) => item.name === ASSET_NAME && item.state === 'uploaded');
-  if (exact) return exact;
-  return assets.find((item) => /\.exe$/i.test(item.name) && item.state === 'uploaded') || null;
+  return exact || null;
 }
 
 function normalizeRelease(release, currentVersion) {
@@ -178,6 +181,10 @@ function createUpdateManager({ currentVersion, paths, log = () => {}, journal = 
     if (!release.ok) return { ok: false, reason: release.error };
     if (!release.available) return { ok: false, reason: '当前已经是最新版本' };
     if (!release.asset?.url) return { ok: false, reason: '最新 Release 中没有可下载的安装包' };
+    const digest = String(release.asset.digest || '').trim();
+    if (!isTrustedDigest(digest)) {
+      return { ok: false, reason: '更新包缺少可信的 SHA256 摘要，拒绝自动下载和执行' };
+    }
     controller = new AbortController();
     task = {
       id: `update-${Date.now()}`,
@@ -208,11 +215,9 @@ function createUpdateManager({ currentVersion, paths, log = () => {}, journal = 
         }
       });
       if (controller.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
-      if (release.asset.digest) {
-        const expected = release.asset.digest.replace(/^sha256:/i, '').toUpperCase();
-        const actual = await hashFile(target);
-        if (actual !== expected) throw new Error('更新包 SHA256 校验失败');
-      }
+      const expected = digest.replace(/^sha256:/i, '').toUpperCase();
+      const actual = await hashFile(target);
+      if (actual !== expected) throw new Error('更新包 SHA256 校验失败');
       task.status = 'ready';
       task.updatedAt = Date.now();
       recordJournal(true);
@@ -249,4 +254,4 @@ function createUpdateManager({ currentVersion, paths, log = () => {}, journal = 
   return { check, downloadAndRun, status, cancel };
 }
 
-module.exports = { checkForUpdates, normalizeRelease, compareVersion, createUpdateManager, isAllowedDownloadHost };
+module.exports = { checkForUpdates, normalizeRelease, compareVersion, createUpdateManager, isAllowedDownloadHost, isTrustedDigest };

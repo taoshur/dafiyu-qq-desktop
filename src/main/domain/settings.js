@@ -26,6 +26,9 @@ function validateSettingsPaths(next) {
     const value = next[key];
     if (!value || !path.isAbsolute(value)) throw new Error(`${key} 必须是绝对路径`);
     if (!fs.existsSync(value)) throw new Error(`${key} 不存在：${value}`);
+    const stat = fs.statSync(value);
+    if (key === 'dshExe' && !stat.isFile()) throw new Error('dshExe 必须是可执行文件');
+    if (key !== 'dshExe' && !stat.isDirectory()) throw new Error(`${key} 必须是目录`);
   }
   return next;
 }

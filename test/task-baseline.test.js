@@ -97,3 +97,22 @@ test('Unified task service enforces one active install/update task', async () =>
   await service.cancel();
   assert.equal(service.status().active, null);
 });
+
+
+test('concurrent update starts reserve the task before awaiting', async () => {
+  const { createTaskService } = require('../src/main/domain/tasks/service');
+  let resolveUpdate;
+  const updateManager = {
+    status: () => ({ status: 'downloading' }),
+    check: async () => ({ ok: true }),
+    downloadAndRun: () => new Promise((resolve) => { resolveUpdate = resolve; }),
+    cancel: async () => ({ ok: true })
+  };
+  const installManager = { status: () => null, start: () => ({ ok: true }), cancel: async () => ({ ok: true }) };
+  const service = createTaskService({ installManager, updateManager });
+  const first = service.startUpdate();
+  const second = await service.startUpdate();
+  assert.equal(second.ok, false);
+  resolveUpdate({ ok: true, task: { status: 'downloading' } });
+  await first;
+});

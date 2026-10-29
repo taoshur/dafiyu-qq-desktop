@@ -314,7 +314,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     return { ok: true, record };
   }
 
-  async function start(id, { env = {} } = {}) {
+  async function startUnlocked(id, { env = {} } = {}) {
     if (!enabled()) return { ok: false, reason: '真实控制未启用，请先在服务页显式开启' };
     const defs = buildDefinitions();
     const def = defs[id];
@@ -452,7 +452,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     return { ok: true, record };
   }
 
-  async function stop(id, { force = false, confirmBusy = false, ignoreEnabled = false } = {}) {
+  async function stopUnlocked(id, { force = false, confirmBusy = false, ignoreEnabled = false } = {}) {
     if (!enabled() && !ignoreEnabled) return { ok: false, reason: '真实控制未启用，请先在服务页显式开启' };
     const defs = buildDefinitions();
     const def = defs[id];
@@ -536,6 +536,20 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
       const confirm = await recheckIdentity();
       if (!confirm.ok) {
         return { ok: false, identity: false, reason: confirm.reason, alive: alive.map((item) => item.pid) };
+      }
+      // Re-check each surviving descendant immediately before force-killing it.
+      // The earlier tree snapshot is not enough: PIDs can be reused between checks.
+      const fresh = await listProcessDetails();
+      for (const target of alive) {
+        const check = verifyProcess(target, fresh);
+        if (!check.ok) {
+          return {
+            ok: false,
+            identity: false,
+            reason: `强制终止前后代身份复核失败：PID ${target.pid} ${check.reason}`,
+            alive: alive.map((item) => item.pid)
+          };
+        }
       }
       forced = true;
       for (const target of alive) await taskkill(target.pid, { force: true, tree: true });
@@ -740,6 +754,24 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
       }
     }
     return results;
+  }
+
+  const serviceLocks = new Map();
+  function withServiceLock(id, fn) {
+    const previous = serviceLocks.get(id) || Promise.resolve();
+    const current = previous.catch(() => {}).then(fn);
+    serviceLocks.set(id, current.finally(() => {
+      if (serviceLocks.get(id) === current) serviceLocks.delete(id);
+    }));
+    return current;
+  }
+
+  function start(id, options) {
+    return withServiceLock(id, () => startUnlocked(id, options));
+  }
+
+  function stop(id, options) {
+    return withServiceLock(id, () => stopUnlocked(id, options));
   }
 
   return {

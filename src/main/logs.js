@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { redact } = require('./core/logger');
 
 const MAX_TAIL_BYTES = 256 * 1024;
 
@@ -65,7 +66,7 @@ function readTail(file, lines) {
   const all = text.split(/\r?\n/);
   if (all.length && all[all.length - 1] === '') all.pop();
   const truncated = all.length > count;
-  return { ...meta, lines: all.slice(-count), truncated };
+  return { ...meta, lines: all.slice(-count).map((line) => redact(line)), truncated };
 }
 
 function tailSource(settings, sourceId, lines) {

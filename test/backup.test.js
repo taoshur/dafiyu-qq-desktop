@@ -184,3 +184,16 @@ test('恢复演练只复制到测试路径并校验', () => {
   assert.ok(fs.existsSync(target));
   assert.ok(fs.existsSync(path.join(repo, 'state', 'memory.db')), '源库仍存在');
 });
+
+
+test('verifyBackup rejects manifest path traversal', () => {
+  const repo = makeRepo();
+  const result = createBackup({ repoRoot: repo, appVersion: 'test' });
+  const manifestFile = path.join(result.dir, 'manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+  manifest.files[0].path = '../outside.txt';
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest), 'utf8');
+  const check = verifyBackup(result.dir);
+  assert.equal(check.ok, false);
+  assert.ok(check.errors.some((line) => line.includes('非法路径')));
+});

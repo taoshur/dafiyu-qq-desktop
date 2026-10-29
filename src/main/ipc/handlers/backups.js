@@ -8,12 +8,21 @@ function backupRoots(settings) {
   return [path.join(settings.repoRoot, 'backups'), 'D:\\qq-bridge-backups'];
 }
 
+function realpathSafe(value) {
+  try { return fs.realpathSync.native(value); } catch { return path.resolve(value); }
+}
+
 function assertBackupDir(settings, dir) {
   const target = path.resolve(String(dir || ''));
-  const roots = backupRoots(settings).map((root) => path.resolve(root) + path.sep);
-  if (!roots.some((root) => (target + path.sep).startsWith(root))) throw new Error('只能校验备份目录内的路径');
   if (!fs.existsSync(target)) throw new Error('备份目录不存在');
-  return target;
+  const realTarget = realpathSafe(target);
+  const roots = backupRoots(settings)
+    .filter((root) => fs.existsSync(root))
+    .map((root) => realpathSafe(root));
+  if (!roots.some((root) => realTarget === root || realTarget.startsWith(root + path.sep))) {
+    throw new Error('只能校验备份目录内的路径');
+  }
+  return realTarget;
 }
 
 function registerBackupHandlers(router, { paths, getSettings, log }) {

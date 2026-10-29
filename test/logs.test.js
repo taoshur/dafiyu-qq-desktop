@@ -46,3 +46,17 @@ test('tailSource 拒绝未知来源', () => {
   const settings = { repoRoot: dir, snowlumaRoot: dir };
   assert.throws(() => tailSource(settings, 'etc-passwd', 10), /未知日志来源/);
 });
+
+
+test('readTail redacts bearer and console keys before display', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { readTail } = require('../src/main/logs');
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dafiyu-log-')), 'bridge.log');
+  fs.writeFileSync(file, 'Authorization: Bearer abc.def.ghi\nconsole-key=SECRET\n', 'utf8');
+  const result = readTail(file, 10);
+  const text = result.lines.join('\n');
+  assert.ok(!text.includes('abc.def.ghi'));
+  assert.ok(!text.includes('SECRET'));
+});

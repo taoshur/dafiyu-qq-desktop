@@ -141,15 +141,24 @@ function verifyBackup(dir) {
     return { ok: false, errors: [`manifest.json 无法解析：${error.message}`] };
   }
   if (!Array.isArray(manifest.files)) return { ok: false, errors: ['manifest.files 不是数组'] };
+  let base;
+  try { base = fs.realpathSync(dir); } catch (error) { return { ok: false, errors: [`备份目录无法解析：${error.message}`] }; }
 
   let checked = 0;
   for (const entry of manifest.files) {
     const rel = String(entry.path || '');
-    if (!rel || rel.includes('..') || path.isAbsolute(rel)) {
+    const segments = rel.split(/[\\/]+/);
+    if (!rel || segments.includes('..') || path.isAbsolute(rel)) {
       errors.push(`非法路径：${rel}`);
       continue;
     }
-    const file = path.join(dir, rel);
+    const file = path.resolve(dir, rel);
+    let realFile;
+    try { realFile = fs.realpathSync(file); } catch { errors.push(`缺少文件：${rel}`); continue; }
+    if (realFile !== base && !realFile.startsWith(base + path.sep)) {
+      errors.push(`路径越界：${rel}`);
+      continue;
+    }
     if (!fs.existsSync(file)) {
       errors.push(`缺少文件：${rel}`);
       continue;
@@ -334,11 +343,13 @@ function pruneBackups({ repoRoot, keep = 10, extraRoots = [] } = {}) {
  * 不接触生产 memory.db；调用方负责传入受控 targetFile。
  */
 function restoreDrill({ backupDir, targetFile }) {
+  const verified = verifyBackup(backupDir);
+  if (!verified.ok) throw new Error(`备份校验失败，拒绝恢复演练：${verified.errors.join('; ')}`);
   const source = path.join(backupDir, 'memory.db');
   if (!fs.existsSync(source)) throw new Error('备份中没有 memory.db');
-  if (!fs.existsSync(path.join(backupDir, 'manifest.json'))) throw new Error('备份缺少 manifest.json');
   fs.mkdirSync(path.dirname(targetFile), { recursive: true });
   fs.copyFileSync(source, targetFile);
+  if (sha256(source) !== sha256(targetFile)) throw new Error('恢复演练副本哈希不一致');
   const db = new DatabaseSync(targetFile, { readOnly: true });
   try {
     const integrity = db.prepare('PRAGMA quick_check(1)').get()?.quick_check || 'unknown';

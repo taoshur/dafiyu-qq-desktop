@@ -7,8 +7,10 @@
  */
 function createTaskService({ installManager, updateManager, journal = null } = {}) {
   let active = null;
+  let pending = null;
 
   function activeState() {
+    if (pending) return pending;
     if (active === 'install' && installManager?.status()) return 'install';
     if (active === 'update' && updateManager?.status()) return 'update';
     return null;
@@ -25,27 +27,35 @@ function createTaskService({ installManager, updateManager, journal = null } = {
 
   function startInstall(args) {
     if (activeState()) return { ok: false, reason: '已有安装/更新任务在进行中', task: status() };
-    const result = installManager.start(args);
-    if (result.ok) active = 'install';
-    return result;
+    pending = 'install';
+    try {
+      const result = installManager.start(args);
+      if (result.ok) active = 'install';
+      return result;
+    } finally {
+      pending = null;
+    }
   }
 
   function startUpdate() {
-    if (activeState()) return { ok: false, reason: '已有安装/更新任务在进行中', task: status() };
-    const result = updateManager.downloadAndRun();
+    if (activeState()) return Promise.resolve({ ok: false, reason: '已有安装/更新任务在进行中', task: status() });
+    pending = 'update';
+    let result;
+    try { result = updateManager.downloadAndRun(); } catch (error) { pending = null; throw error; }
     if (result && typeof result.then === 'function') {
       return result.then((value) => {
         if (value?.ok) active = 'update';
         return value;
-      });
+      }).finally(() => { pending = null; });
     }
+    pending = null;
     if (result?.ok) active = 'update';
-    return result;
+    return Promise.resolve(result);
   }
 
   async function cancel() {
     const kind = activeState();
-    if (!kind) return { ok: false, reason: '没有可取消的任务' };
+    if (!kind || kind === 'update' && pending === 'update') return { ok: false, reason: '任务正在启动，请稍后再取消' };
     const result = kind === 'install' ? await installManager.cancel() : await updateManager.cancel?.();
     active = null;
     return result;
