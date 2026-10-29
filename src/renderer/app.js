@@ -1042,9 +1042,27 @@ function fmtBiliView(value) {
 }
 
 function biliKindLabel(kind) {
-  if (kind === 'info') return '看了视频';
-  if (kind === 'subtitle') return '读了字幕';
-  return kind || '活动';
+  const labels = {
+    info: '看了视频', subtitle: '读了字幕', search: '搜索视频', hot: '看了热门',
+    rank: '看了排行', weekly: '看了每周必看', buzzwords: '看了热搜',
+    comments: '看了评论', danmaku: '看了弹幕', user_info: '查了UP主',
+    user_videos: '看了UP主投稿', favorite: '看了收藏夹'
+  };
+  return labels[kind] || kind || '活动';
+}
+
+function biliEntryText(item) {
+  if (item.title) return item.title;
+  if (item.kind === 'search') return `搜索「${item.query || '—'}」${item.count ? ` · ${item.count} 条结果` : ''}`;
+  if (item.kind === 'hot') return `浏览热门${item.count ? ` · ${item.count} 条` : ''}`;
+  if (item.kind === 'rank') return `浏览排行 ${item.category || ''}${item.day ? ` · ${item.day} 日` : ''}${item.count ? ` · ${item.count} 条` : ''}`;
+  if (item.kind === 'weekly') return `浏览每周必看${item.week ? ` · 第 ${item.week} 期` : ''}`;
+  if (item.kind === 'buzzwords') return '浏览热搜词';
+  if (item.kind === 'comments') return `看评论${item.count != null ? ` · ${item.count} 条` : ''}${item.error ? ' · 抓取失败' : ''}`;
+  if (item.kind === 'danmaku') return `看弹幕${item.count != null ? ` · ${item.count} 条` : ''}`;
+  if (item.kind === 'user_info') return `查看 UP 主${item.name ? `「${item.name}」` : ''}${item.uid ? ` · ${item.uid}` : ''}`;
+  if (item.kind === 'user_videos') return `查看 UP 主投稿${item.uid ? ` · ${item.uid}` : ''}${item.count ? ` · ${item.count} 条` : ''}`;
+  return biliKindLabel(item.kind);
 }
 
 function biliPromptText(watchLog = '') {
@@ -1079,7 +1097,7 @@ function biliPage() {
     return `<tr>
       <td>${esc(fmtTime(item.at))}</td>
       <td><span class="tag">${esc(biliKindLabel(item.kind))}</span></td>
-      <td><b>${esc(item.title || '（无标题）')}</b><span class="memory-detail">${esc(item.bvid || '')}${meta ? ` · ${esc(meta)}` : ''}</span></td>
+      <td><b>${esc(biliEntryText(item))}</b><span class="memory-detail">${esc(item.bvid || '')}${meta ? ` · ${esc(meta)}` : ''}</span></td>
       <td>${esc(item.bvid || '—')}</td>
     </tr>`;
   }).join('');
@@ -1091,9 +1109,9 @@ function biliPage() {
       ? '大肥鱼的 B 站 MCP 已登录。这里显示本机观看台账，不是 B 站账号的公开历史。'
       : '大肥鱼的 B 站 MCP 还没有登录。热榜/搜索/详情通常可用；字幕、评论、回复等需要它自己扫码登录。'}</div>
     <div class="grid grid-4 memory-stats">
-      <section class="card stat"><span>累计记录</span><b>${s.counts.total}</b><small>本机台账条数</small></section>
-      <section class="card stat"><span>今天</span><b class="${s.counts.today ? 'ok' : ''}">${s.counts.today}</b><small>今天的观看/读字幕记录</small></section>
-      <section class="card stat"><span>看过的视频</span><b>${s.counts.videos}</b><small>按 BV 号去重</small></section>
+      <section class="card stat"><span>累计动作</span><b>${s.counts.total}</b><small>搜索/热榜/视频/字幕等记录</small></section>
+      <section class="card stat"><span>今天动作</span><b class="${s.counts.today ? 'ok' : ''}">${s.counts.today}</b><small>今天 · 涉及 ${s.counts.todayVideos || 0} 个视频</small></section>
+      <section class="card stat"><span>看过的视频</span><b>${s.counts.videos}</b><small>按 BV 号去重（不把搜索/热榜算成视频）</small></section>
       <section class="card stat"><span>登录状态</span><b class="${loggedIn ? 'ok' : 'warn'}">${loggedIn ? '已登录' : '未登录'}</b><small>${s.mcp?.serverExists ? (configured ? 'MCP 已配置' : 'MCP 未配置') : 'MCP 未安装'}</small></section>
     </div>
     <div class="notice" style="margin-top:12px">最近一次活动：${s.lastAt ? esc(fmtTime(s.lastAt)) : '还没有记录'} · 观看台账：${esc(s.watchLog || '未找到')}</div>
@@ -1107,7 +1125,7 @@ function biliPage() {
       <div class="memory-table-wrap">
         <table class="table">
           <thead><tr><th>时间</th><th>动作</th><th>内容</th><th>BV 号</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="4" class="log-empty">还没有观看记录。大肥鱼查看视频详情或读字幕时才会写入这里；只看热榜/搜索时，当前 B 站 MCP 不一定记账。</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="4" class="log-empty">还没有 B 站活动。新版内置 B 站 MCP 会记录搜索、热榜、排行、视频详情、字幕、评论等动作；如果仍然为空，确认使用的是安装包内置版本并重启 DSH。</td></tr>'}</tbody>
         </table>
       </div>
     </section>

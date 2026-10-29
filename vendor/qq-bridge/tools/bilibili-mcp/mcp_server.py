@@ -264,6 +264,7 @@ async def bili_search(keyword: str, num: int = 10, order: str = "totalrank") -> 
             "description": item.get("description", "")[:200],
         })
 
+    _log_watch("", "", "search", {"query": str(keyword)[:120], "count": len(videos), "order": order})
     return json.dumps({"keyword": keyword, "count": len(videos), "videos": videos}, ensure_ascii=False)
 
 
@@ -336,6 +337,7 @@ async def bili_comments(bvid: str, num: int = 30) -> str:
     out = {"bvid": bvid, "count": len(comments[:num]), "comments": comments[:num]}
     if fetch_error:
         out["error"] = fetch_error
+    _log_watch(bvid, info.get("title", ""), "comments", {"count": len(comments[:num]), "error": bool(fetch_error)})
     return json.dumps(out, ensure_ascii=False)
 
 
@@ -430,6 +432,7 @@ async def bili_danmaku(bvid: str, num: int = 100) -> str:
             "time": d.dm_time,
         })
 
+    _log_watch(bvid, "", "danmaku", {"count": len(result)})
     return json.dumps({"bvid": bvid, "count": len(result), "danmakus": result}, ensure_ascii=False)
 
 
@@ -1024,6 +1027,7 @@ async def bili_hot_videos(pn: int = 1, ps: int = 20) -> str:
             "duration": item.get("duration", 0),
             "tname": item.get("tname", ""),
         })
+    _log_watch("", "", "hot", {"page": pn, "count": len(videos)})
     return json.dumps({"page": pn, "count": len(videos), "videos": videos}, ensure_ascii=False)
 
 
@@ -1042,6 +1046,7 @@ async def bili_hot_buzzwords(page_num: int = 1, page_size: int = 20) -> str:
         热搜词列表
     """
     result = await hot.get_hot_buzzwords(page_num=page_num, page_size=page_size)
+    _log_watch("", "", "buzzwords", {"page": page_num, "count": page_size})
     return json.dumps(result, ensure_ascii=False)
 
 
@@ -1060,9 +1065,11 @@ async def bili_weekly_hot(week: int = 0) -> str:
     """
     if week <= 0:
         result = await hot.get_weekly_hot_videos_list()
+        _log_watch("", "", "weekly", {"week": 0})
         return json.dumps(result, ensure_ascii=False)
     else:
         result = await hot.get_weekly_hot_videos(week=week)
+        _log_watch("", "", "weekly", {"week": week})
         return json.dumps(result, ensure_ascii=False)
 
 
@@ -1115,6 +1122,7 @@ async def bili_rank(category: str = "all", day: int = 3) -> str:
             "score": item.get("score", 0),
             "tname": item.get("tname", ""),
         })
+    _log_watch("", "", "rank", {"category": category, "day": day, "count": len(videos)})
     return json.dumps({"category": category, "day": day, "count": len(videos), "videos": videos}, ensure_ascii=False)
 
 
@@ -1148,6 +1156,7 @@ async def bili_user_info(uid: int) -> str:
     except:
         pass
 
+    _log_watch("", "", "user_info", {"uid": uid, "name": info.get("name", "")})
     return json.dumps({
         "uid": uid,
         "name": info.get("name", ""),
@@ -1203,6 +1212,7 @@ async def bili_user_videos(uid: int, pn: int = 1, ps: int = 30, order: str = "pu
             "length": item.get("length", ""),
             "description": (item.get("description", "") or "")[:100],
         })
+    _log_watch("", "", "user_videos", {"uid": uid, "page": pn, "count": len(videos)})
     return json.dumps({
         "uid": uid,
         "page": pn,

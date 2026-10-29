@@ -43,7 +43,15 @@ function readEntries(file) {
         duration: Number(item.duration) || null,
         view: Number(item.view) || null,
         segments: Number(item.segments) || null,
-        chars: Number(item.chars) || null
+        chars: Number(item.chars) || null,
+        query: String(item.query || '').slice(0, 120),
+        count: Number(item.count) || null,
+        category: String(item.category || '').slice(0, 40),
+        day: Number(item.day) || null,
+        week: Number(item.week) || null,
+        uid: Number(item.uid) || null,
+        name: String(item.name || '').slice(0, 80),
+        error: item.error === true
       });
     } catch { /* skip malformed line */ }
   }
@@ -95,9 +103,21 @@ function detectDshProfiles() {
 }
 
 function kindLabel(kind) {
-  if (kind === 'info') return '看了视频';
-  if (kind === 'subtitle') return '读了字幕';
-  return kind;
+  const labels = {
+    info: '看了视频',
+    subtitle: '读了字幕',
+    search: '搜索视频',
+    hot: '看了热门',
+    rank: '看了排行',
+    weekly: '看了每周必看',
+    buzzwords: '看了热搜',
+    comments: '看了评论',
+    danmaku: '看了弹幕',
+    user_info: '查了UP主',
+    user_videos: '看了UP主投稿',
+    favorite: '看了收藏夹'
+  };
+  return labels[kind] || kind;
 }
 
 function status({ settings, paths }) {
@@ -115,13 +135,21 @@ function status({ settings, paths }) {
   const credential = credentialFile ? readCredentialStatus(credentialFile) : { exists: false, loggedIn: false };
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const todayEntries = entries.filter((item) => item.at >= todayStart.getTime());
+  const videoEntries = entries.filter((item) => item.bvid);
+  const kinds = entries.reduce((out, item) => {
+    out[item.kind] = (out[item.kind] || 0) + 1;
+    return out;
+  }, {});
   return {
     watchLog,
     entries: entries.slice(0, MAX_ENTRIES),
     counts: {
       total: entries.length,
-      today: entries.filter((item) => item.at >= todayStart.getTime()).length,
-      videos: new Set(entries.map((item) => item.bvid).filter(Boolean)).size,
+      today: todayEntries.length,
+      todayVideos: new Set(todayEntries.map((item) => item.bvid).filter(Boolean)).size,
+      videos: new Set(videoEntries.map((item) => item.bvid)).size,
+      searches: kinds.search || 0,
       unread
     },
     lastAt: entries[0]?.at || null,
@@ -133,10 +161,7 @@ function status({ settings, paths }) {
       profiles
     },
     credential,
-    kinds: entries.reduce((out, item) => {
-      out[item.kind] = (out[item.kind] || 0) + 1;
-      return out;
-    }, {})
+    kinds
   };
 }
 

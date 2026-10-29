@@ -24,7 +24,9 @@ function fixture() {
   }));
   fs.writeFileSync(path.join(repo, 'state', 'bili-watch.jsonl'), [
     JSON.stringify({ at: 1000, bvid: 'BV1xx', title: '旧视频', kind: 'info', author: 'UP' }),
-    JSON.stringify({ at: 2000, bvid: 'BV1xx', title: '新视频', kind: 'subtitle', segments: 2, chars: 10 })
+    JSON.stringify({ at: 2000, bvid: 'BV1xx', title: '新视频', kind: 'subtitle', segments: 2, chars: 10 }),
+    JSON.stringify({ at: 3000, bvid: '', title: '', kind: 'search', query: '大肥鱼', count: 10 }),
+    JSON.stringify({ at: 4000, bvid: '', title: '', kind: 'hot', count: 20 })
   ].join('\n') + '\n');
   const paths = createPaths(path.join(root, 'userData'));
   return { root, repo, paths };
@@ -33,10 +35,11 @@ function fixture() {
 test('B站活动只读台账、登录状态和未读计数', () => {
   const f = fixture();
   const result = status({ settings: { repoRoot: f.repo }, paths: f.paths });
-  assert.equal(result.counts.total, 2);
+  assert.equal(result.counts.total, 4);
   assert.equal(result.counts.videos, 1);
-  assert.equal(result.counts.unread, 2);
-  assert.equal(result.entries[0].title, '新视频');
+  assert.equal(result.counts.searches, 1);
+  assert.equal(result.counts.unread, 4);
+  assert.equal(result.entries[0].kind, 'hot');
   assert.equal(result.credential.loggedIn, true);
   assert.equal(result.mcp.serverExists, true);
   const text = JSON.stringify(result);
@@ -49,5 +52,5 @@ test('标记已读后未读数清零，且不删除台账', () => {
   ack({ paths: f.paths, at: result.lastAt });
   const after = status({ settings: { repoRoot: f.repo }, paths: f.paths });
   assert.equal(after.counts.unread, 0);
-  assert.equal(after.counts.total, 2);
+  assert.equal(after.counts.total, 4);
 });
