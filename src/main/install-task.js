@@ -206,13 +206,15 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
       if (!fs.existsSync(path.dirname(target))) fs.mkdirSync(path.dirname(target), { recursive: true });
       if (!fs.existsSync(target)) { fs.mkdirSync(target, { recursive: true }); targetCreated = true; }
 
-      setStatus(TASK_STATUS.DOWNLOADING, '下载官方源码归档');
+      setStatus(TASK_STATUS.DOWNLOADING, item.kind === 'binary-zip' ? '下载官方发行包' : '下载官方源码归档');
       addLog(`来源：${item.url}`);
+      task.total = item.size || 0;
+      emit();
       await download(item.url, archive, {
         signal: controller.signal,
         onProgress: ({ received, total }) => {
           task.received = received;
-          task.total = total;
+          task.total = total || task.total;
           task.percent = total > 0 ? Math.min(100, Math.round((received / total) * 100)) : null;
           emit();
         }
@@ -224,46 +226,53 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
       if (actual !== item.sha256) throw new Error(`SHA256 不匹配（期望 ${item.sha256}，实际 ${actual}）`);
       addLog(`SHA256 校验通过：${actual}`);
 
-      setStatus(TASK_STATUS.INSTALLING, '解压源码');
+      setStatus(TASK_STATUS.INSTALLING, '解压官方发行包');
       const extractDir = path.join(tempDir, 'extract');
       fs.mkdirSync(extractDir, { recursive: true });
       await runProcess('tar.exe', ['-xf', archive, '-C', extractDir], { signal: controller.signal, onLog: addLog });
-      const sourceDir = path.join(extractDir, item.archiveRoot);
-      if (!fs.existsSync(sourceDir)) throw new Error(`归档中没有预期目录 ${item.archiveRoot}`);
+      const sourceDir = item.archiveRoot ? path.join(extractDir, item.archiveRoot) : extractDir;
+      if (!fs.existsSync(sourceDir)) throw new Error(`归档中没有预期目录 ${item.archiveRoot || 'root'}`);
       for (const entry of fs.readdirSync(sourceDir)) {
         fs.renameSync(path.join(sourceDir, entry), path.join(target, entry));
       }
-      addLog('源码已解压到目标目录');
+      addLog(item.kind === 'source-archive' ? '源码已解压到目标目录' : '官方发行包已解压到目标目录');
 
-      setStatus(TASK_STATUS.INSTALLING, '安装 npm 依赖');
-      if (process.platform === 'win32') {
-        await runProcess(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'npm install --no-audit --no-fund'], {
-          cwd: target, signal: controller.signal,
-          onLog: (line) => { addLog(line); }
-        });
-      } else {
-        await runProcess('npm', ['install', '--no-audit', '--no-fund'], {
-          cwd: target, signal: controller.signal,
-          onLog: (line) => { addLog(line); }
-        });
+      if (item.kind === 'source-archive') {
+        setStatus(TASK_STATUS.INSTALLING, '安装 npm 依赖');
+        if (process.platform === 'win32') {
+          await runProcess(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'npm install --no-audit --no-fund'], {
+            cwd: target, signal: controller.signal,
+            onLog: (line) => { addLog(line); }
+          });
+        } else {
+          await runProcess('npm', ['install', '--no-audit', '--no-fund'], {
+            cwd: target, signal: controller.signal,
+            onLog: (line) => { addLog(line); }
+          });
+        }
       }
 
-      setStatus(TASK_STATUS.CONFIGURING, '初始化配置');
-      const cfg = path.join(target, item.configFile);
-      const example = path.join(target, item.configExample);
-      if (!fs.existsSync(cfg) && fs.existsSync(example)) {
-        fs.copyFileSync(example, cfg);
-        addLog('已从 config.example.json 初始化 config.json；仍需填写账号/API 配置');
+      setStatus(TASK_STATUS.CONFIGURING, item.kind === 'binary-zip' ? '保留官方 LICENSE/EULA，等待首次启动配置' : '初始化配置');
+      if (item.configFile && item.configExample) {
+        const cfg = path.join(target, item.configFile);
+        const example = path.join(target, item.configExample);
+        if (!fs.existsSync(cfg) && fs.existsSync(example)) {
+          fs.copyFileSync(example, cfg);
+          addLog('已从 config.example.json 初始化 config.json；仍需填写账号/API 配置');
+        }
+      } else if (item.kind === 'binary-zip') {
+        addLog('未修改官方发行包内容；WebUI 初始密码在首次启动/登录时生成');
       }
 
       setStatus(TASK_STATUS.VERIFYING, '验证安装结果');
-      const pkg = path.join(target, 'package.json');
-      const entry = path.join(target, item.entry[0], item.entry[1]);
-      const modules = path.join(target, 'node_modules');
-      if (!fs.existsSync(pkg) || !fs.existsSync(entry) || !fs.existsSync(modules)) {
-        throw new Error('安装后验证失败：package.json / bridge.js / node_modules 不完整');
+      const missing = (item.verifyEntries || []).filter((entry) => !fs.existsSync(path.join(target, entry)));
+      if (missing.length) {
+        throw new Error(`安装后验证失败：缺少 ${missing.join(', ')}`);
       }
-      await runProcess(process.execPath, ['--check', entry], { cwd: target, signal: controller.signal, onLog: addLog });
+      if (item.kind === 'source-archive') {
+        const entry = path.join(target, item.entry[0], item.entry[1]);
+        await runProcess(process.execPath, ['--check', entry], { cwd: target, signal: controller.signal, onLog: addLog });
+      }
 
       const registry = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : { components: {} };
       registry.components = registry.components || {};
@@ -273,7 +282,8 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
         root: target,
         installedAt: Date.now(),
         source: item.url,
-        sha256: item.sha256
+        sha256: item.sha256,
+        licenseAcceptedAt: item.requiresLicenseAcceptance ? task.licenseAcceptedAt : null
       };
       writeAtomic(stateFile, registry);
       task.result = { root: target, version: item.version };
@@ -294,11 +304,14 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
     }
   }
 
-  function start({ component: requested = component, targetDir = defaultInstallRoot(), confirmed = false } = {}) {
+  function start({ component: requested = component, targetDir = null, confirmed = false, licenseAccepted = false } = {}) {
     if (task && ACTIVE.has(task.status)) return { ok: false, reason: '已有安装任务在进行中', task: JSON.parse(JSON.stringify(task)) };
     if (!confirmed) return { ok: false, reason: '需要用户确认后才会下载和安装' };
-    const plan = planFor({ component: requested, targetDir, settings });
+    const plan = planFor({ component: requested, targetDir: targetDir || undefined, settings });
     if (!plan.ok) return { ok: false, reason: plan.reason, official: plan.official };
+    if (plan.requiresLicenseAcceptance && !licenseAccepted) {
+      return { ok: false, reason: '安装 SnowLuma 前必须由用户确认接受官方 LICENSE 与 EULA' };
+    }
     controller = new AbortController();
     task = {
       id: `${requested}-${Date.now()}-${++taskSeq}`,
@@ -307,9 +320,10 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
       step: '准备',
       targetDir: plan.targetDir,
       version: plan.version,
+      licenseAcceptedAt: plan.requiresLicenseAcceptance ? Date.now() : null,
       percent: null,
       received: 0,
-      total: 0,
+      total: plan.size || 0,
       logs: [],
       logSeq: 0,
       lastLogged: 0,

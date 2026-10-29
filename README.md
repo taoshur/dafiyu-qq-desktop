@@ -11,12 +11,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.2.2 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.2.2/Dafiyu-Control-Center-Setup.exe
-- 大小：122,399,517 字节
+- **v0.3.0 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.3.0/Dafiyu-Control-Center-Setup.exe
+- 大小：122,400,651 字节
 - SHA256：
   ```text
-  C66F978FE1C716B8798AB020AEC8C6FF7132AD3C69D884510550588AA0B449AE
+  8BF02C90418BD1A5031E12F4428687EDF0C19ED8762DEFC51B0E45E48C86C919
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
@@ -33,8 +33,8 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
-- **环境安装**：检测 SnowLuma / qq-bridge / DSH、系统依赖和官方来源；qq-bridge 支持官方源码自动安装，SnowLuma/DSH 明确提供手动安装指引
-- **新手提示词**：首次设置/环境页可复制一段交给 DeepSeek 的部署提示词，限定官方来源、手动安装边界和凭据安全
+- **环境安装**：检测 SnowLuma / qq-bridge / DSH、系统依赖和官方来源；SnowLuma 与 qq-bridge 支持官方来源自动下载安装（SnowLuma 需先确认 LICENSE/EULA），DSH 提供手动安装指引
+- **新手提示词**：首次设置/环境页可复制一段交给 DeepSeek 的部署提示词，限定官方来源、许可边界和凭据安全
 - **安全基线**：`contextIsolation`、sandbox、固定 IPC 白名单、无 Node 渲染进程、令牌不进入 URL/页面
 
 ## 安全边界
@@ -53,13 +53,15 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 - License：https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE
 - EULA：https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md
 
-本项目已于 **2026-10-29** 获得 SnowLumaDevs 的书面授权，允许在以下范围内使用：
+本项目已获得 SnowLumaDevs 的书面授权，允许在以下范围内使用：
 
 - 以非商业方式公开发布；
-- 允许用户主动启动、停止其自行安装的**官方未修改完整发行版** SnowLuma；
-- 允许内嵌访问本机 SnowLuma WebUI。
+- 允许用户主动启动、停止其**自行安装或由本项目安装的官方未修改完整发行版** SnowLuma；
+- 允许内嵌访问本机 SnowLuma WebUI；
+- **2026-10-29 补充授权**：在非商业用途下，经用户主动确认并接受 LICENSE、EULA 后，可从 SnowLuma 官方发布渠道自动下载未修改的完整发行版，并完成本地安装及基础配置。
 
-该授权**不包括**修改、打包或再分发 SnowLuma 及其原生组件，也不包括商业使用。
+该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像、打包再分发或商业使用。
+安装/下载时必须保留 SnowLumaDevs 署名、官方链接及完整 LICENSE、EULA。
 超出上述范围需要另行申请书面授权。SnowLuma 仍适用其自身 LICENSE/EULA，不受本项目的许可覆盖。
 
 ## 环境要求
@@ -216,7 +218,7 @@ QQ 消息
 - 安装层 `install-task.js` 使用显式状态机
 - 计划层 `install-catalog.js` 固定官方来源、版本、SHA256、安装能力
 - 安装状态与服务运行状态分离；安装完成不会自动启动服务
-- SnowLuma/DSH 因许可证或缺少可验证静默安装方式，明确标为手动安装
+- SnowLuma 和 qq-bridge 可自动下载官方来源（SnowLuma 必须先确认 LICENSE/EULA）；DSH 缺少可验证静默安装方式，明确标为手动安装
 
 ```text
 IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING → COMPLETED

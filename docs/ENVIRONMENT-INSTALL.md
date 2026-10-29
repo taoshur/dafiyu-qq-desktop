@@ -4,7 +4,7 @@
 
 | 组件 | 检测 | 自动安装 | 说明 |
 | --- | --- | --- | --- |
-| SnowLuma | 可执行文件、release.json 版本、config/webui.json、5099/3000/3001 | **否** | SnowLuma EULA §5.4 限制自动部署/并入第三方安装包；本项目只获准启动/停止和 WebUI 内嵌，不包括安装、修改或再分发 |
+| SnowLuma | 可执行文件、release.json 版本、config/webui.json、5099/3000/3001 | **是，官方 win-x64 完整包** | 必须先由用户接受 LICENSE/EULA；下载官方未修改完整发行版，SHA256 校验，解压，不修改代码/原生组件，不自建镜像，不打包再分发 |
 | qq-bridge | package.json、src/bridge.js、config.json、state/console-token、3100/3080 | **是，官方源码归档** | 固定 `v0.2.1-r1`，SHA256 校验，`tar.exe` 解压，`npm install`，不覆盖非空目录 |
 | DSH | DeepSeek Harness.exe、`~/.dsh`、运行端口 | **否** | 官方仓库没有可用于静默安装的 Release 资产；需要官方桌面安装包和首次初始化 |
 
@@ -19,7 +19,8 @@
 
 - 检查 Windows/CPU/Node/npm/Git/Python 与组件状态
 - 状态区分：未安装、已安装未配置、已配置未运行、正常运行、版本不兼容、未知
-- qq-bridge 缺失时提供源码安装；SnowLuma/DSH 显示官方安装页面和手动步骤
+- SnowLuma/qq-bridge 缺失时提供官方来源安装；DSH 显示官方安装页面和手动步骤
+- SnowLuma 安装前必须勾选接受官方 LICENSE/EULA；UI 显示官方链接
 - 安装进度、实际下载字节数/百分比、日志、取消、失败重试
 - “重新检测”只读，不会启动/停止任何服务
 
@@ -49,16 +50,41 @@ SHA256 9DB4365C5816BB7FF971420423316D141B533FC66F171E2536A8B67E7D4501C9
 本机实测：v0.2.1-r1 源码归档下载、SHA256 校验、解压、`npm install`（128 packages）、
 `config.example.json` 初始化均完成；没有启动服务，没有接触生产数据。
 
+## SnowLuma 自动安装
+
+固定官方来源：
+
+```text
+https://github.com/SnowLuma/SnowLuma/releases/download/v2.2.1/SnowLuma-v2.2.1-win-x64.zip
+SHA256 09A3FBBF42EA805C4D61B5E67BEC2A46EF341FA803F211D78C40796CB7F535DC
+```
+
+前置条件：
+
+- 用户必须主动勾选接受 SnowLuma LICENSE / EULA
+- 仅非商业用途
+- 只下载官方未修改完整发行版
+- 不自建镜像、不打包再分发、不修改代码或原生组件
+
+下载后：
+
+- SHA256 校验
+- 解压到目标目录
+- 验证 `node.exe`、`index.mjs`、`launcher.bat`、`EULA.md`
+- 保留官方 LICENSE/EULA 和 SnowLumaDevs 署名
+- 不自动启动服务；WebUI 初始密码在首次启动/登录时生成
+
 ## 需要手动完成
 
-- SnowLuma：从官方 Releases 下载 Windows 完整包，解压后按官方 WebUI 首次登录流程配置
+- SnowLuma：可从官方 Releases 自动下载 Windows 完整包；首次启动后按官方 WebUI 登录流程配置
 - DSH：安装官方桌面应用并完成首次启动
 - qq-bridge：填写 `config.json` 的 DSH/SnowLuma/账号配置；bridge 首次启动自行生成 `state/console-token`
 - 所有凭据由用户输入/本机生成，桌面只读取必要的本机凭据
 
 ## 已知限制
 
-- SnowLuma/DSH 的“一键安装”未实现，也不会用假成功状态伪装
+- DSH 的“一键安装”未实现，也不会用假成功状态伪装
+- SnowLuma 自动安装只下载官方未修改完整包；不能修改代码/原生组件、自建镜像或打包再分发
 - qq-bridge 源码安装依赖网络、npm 和上游依赖；在真实网络环境完成前，UI 不保证成功
 - 取消下载/安装会终止子进程并清理临时目录，但不删除已存在的用户目录
 - 安装任务在应用异常退出后不会自动续跑；下次启动清理超过 24 小时的临时目录，需重新检测/重试

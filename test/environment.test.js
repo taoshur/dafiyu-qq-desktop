@@ -69,7 +69,8 @@ test('版本比较和安装目录校验', () => {
   assert.equal(compareVersion('1.9.9', '2.0.0'), -1);
   assert.equal(validateTargetDir('relative/path'), '安装目录必须是绝对路径');
   assert.equal(planFor({ component: 'bridge', targetDir: path.join(os.tmpdir(), 'dafiyu-install-test') }).ok, true);
-  assert.equal(planFor({ component: 'snowluma' }).autoInstall, false);
+  assert.equal(planFor({ component: 'snowluma' }).autoInstall, true);
+  assert.equal(planFor({ component: 'snowluma' }).requiresLicenseAcceptance, true);
 });
 
 test('安装任务拒绝未确认、重复/非自动组件', () => {

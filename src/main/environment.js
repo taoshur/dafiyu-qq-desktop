@@ -191,13 +191,13 @@ async function detectEnvironment({
     running: snowRunning,
     reason: snowReason,
     nextAction: snowStatus === STATUS.NOT_INSTALLED
-      ? '使用官方 Windows 发行包手动解压安装；本项目不会自动下载/部署 SnowLuma'
+      ? '可从 SnowLuma 官方 Releases 自动下载安装；下载前必须接受官方 LICENSE/EULA'
       : snowStatus === STATUS.INSTALLED_UNCONFIGURED
         ? '启动 SnowLuma 并完成 WebUI 首次登录/改密'
         : snowStatus === STATUS.CONFIGURED_NOT_RUNNING
           ? '在服务页启动 SnowLuma，并等待 3000/3001 就绪'
           : '',
-    manualOnly: true,
+    manualOnly: false,
     license: 'SnowLuma Source-Available Non-Commercial License / EULA',
     official: {
       project: 'https://github.com/SnowLuma/SnowLuma',

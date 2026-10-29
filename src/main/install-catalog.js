@@ -11,28 +11,44 @@ const QQ_BRIDGE = Object.freeze({
   kind: 'source-archive',
   url: 'https://codeload.github.com/Derpyu520/qq-bridge/zip/refs/tags/v0.2.1-r1',
   sha256: '9DB4365C5816BB7FF971420423316D141B533FC66F171E2536A8B67E7D4501C9',
+  size: 1407447,
   archiveRoot: 'qq-bridge-0.2.1-r1',
+  defaultSubdir: 'qq-bridge',
   license: 'MIT',
   upstream: 'https://github.com/Derpyu520/qq-bridge',
   nodeMin: '22.13.0',
   autoInstall: true,
+  requiresLicenseAcceptance: false,
   configExample: 'config.example.json',
   configFile: 'config.json',
-  entry: ['src', 'bridge.js']
+  entry: ['src', 'bridge.js'],
+  verifyEntries: ['package.json', 'src/bridge.js', 'node_modules']
+});
+
+const SNOWLUMA = Object.freeze({
+  id: 'snowluma',
+  name: 'SnowLuma',
+  version: 'v2.2.1',
+  kind: 'binary-zip',
+  url: 'https://github.com/SnowLuma/SnowLuma/releases/download/v2.2.1/SnowLuma-v2.2.1-win-x64.zip',
+  sha256: '09A3FBBF42EA805C4D61B5E67BEC2A46EF341FA803F211D78C40796CB7F535DC',
+  size: 43015802,
+  archiveRoot: null,
+  defaultSubdir: 'SnowLuma',
+  license: 'SnowLuma Source-Available Non-Commercial License / EULA',
+  upstream: 'https://github.com/SnowLuma/SnowLuma',
+  autoInstall: true,
+  requiresLicenseAcceptance: true,
+  licenseLinks: {
+    license: 'https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE',
+    eula: 'https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md',
+    releases: 'https://github.com/SnowLuma/SnowLuma/releases'
+  },
+  entry: ['index.mjs'],
+  verifyEntries: ['node.exe', 'index.mjs', 'launcher.bat', 'EULA.md']
 });
 
 const MANUAL = Object.freeze({
-  snowluma: {
-    id: 'snowluma',
-    name: 'SnowLuma',
-    autoInstall: false,
-    reason: 'SnowLuma EULA §5.4 限制自动部署/并入第三方安装包；本项目授权范围也不包含安装与再分发。',
-    official: {
-      releases: 'https://github.com/SnowLuma/SnowLuma/releases',
-      license: 'https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE',
-      eula: 'https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md'
-    }
-  },
   dsh: {
     id: 'dsh',
     name: 'DeepSeek Harness',
@@ -52,6 +68,7 @@ function defaultInstallRoot() {
 
 function catalogFor(id) {
   if (id === 'bridge') return QQ_BRIDGE;
+  if (id === 'snowluma') return SNOWLUMA;
   return MANUAL[id] || null;
 }
 
@@ -81,8 +98,8 @@ function planFor({ component, targetDir, settings = {} }) {
       official: item.official
     };
   }
-  const dir = targetDir || defaultInstallRoot();
-  const invalid = validateTargetDir(dir, component);
+  const dir = targetDir || path.join(defaultInstallRoot(), item.defaultSubdir || '');
+  const invalid = validateTargetDir(dir);
   if (invalid) return { ok: false, component, reason: invalid };
   return {
     ok: true,
@@ -92,10 +109,13 @@ function planFor({ component, targetDir, settings = {} }) {
     version: item.version,
     url: item.url,
     sha256: item.sha256,
+    size: item.size || 0,
     license: item.license,
     upstream: item.upstream,
-    steps: ['check', 'download', 'verify', 'extract', 'dependencies', 'configure', 'verify']
+    requiresLicenseAcceptance: item.requiresLicenseAcceptance === true,
+    licenseLinks: item.licenseLinks || null,
+    steps: ['check', 'download', 'verify', 'extract', ...(item.kind === 'source-archive' ? ['dependencies'] : []), 'configure', 'verify']
   };
 }
 
-module.exports = { QQ_BRIDGE, MANUAL, catalogFor, defaultInstallRoot, planFor, validateTargetDir };
+module.exports = { QQ_BRIDGE, SNOWLUMA, MANUAL, catalogFor, defaultInstallRoot, planFor, validateTargetDir };

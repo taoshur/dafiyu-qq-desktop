@@ -187,14 +187,19 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   }));
 
   ipcMain.handle('install:start', async (_event, payload) => {
-    const component = payload?.component === 'bridge' ? 'bridge' : '';
-    if (!component) return { ok: false, reason: '当前只提供 qq-bridge 官方源码自动安装；SnowLuma/DSH 需要手动安装' };
+    const component = ['bridge', 'snowluma'].includes(payload?.component) ? payload.component : '';
+    if (!component) return { ok: false, reason: '当前只提供 qq-bridge 与 SnowLuma 的官方自动安装；DSH 需要手动安装' };
     const targetDir = typeof payload?.targetDir === 'string' && payload.targetDir.trim()
       ? payload.targetDir.trim()
-      : defaultInstallRoot();
-    if (!path.isAbsolute(targetDir)) return { ok: false, reason: '安装目录必须是绝对路径' };
-    const result = installManager.start({ component, targetDir, confirmed: payload?.confirmed === true });
-    log('install', `start ${component} dir=${path.basename(targetDir)} ok=${result.ok}`);
+      : null;
+    if (targetDir && !path.isAbsolute(targetDir)) return { ok: false, reason: '安装目录必须是绝对路径' };
+    const result = installManager.start({
+      component,
+      targetDir,
+      confirmed: payload?.confirmed === true,
+      licenseAccepted: payload?.licenseAccepted === true
+    });
+    log('install', `start ${component} dir=${targetDir ? path.basename(targetDir) : 'default'} ok=${result.ok}`);
     return result;
   });
 

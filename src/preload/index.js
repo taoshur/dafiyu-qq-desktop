@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('dafiyu', {
   setupStatus: () => ipcRenderer.invoke('setup:status'),
   environmentDetect: (options = {}) => ipcRenderer.invoke('environment:detect', options),
   installCatalog: () => ipcRenderer.invoke('install:catalog'),
-  installStart: (component, targetDir, confirmed = false) => ipcRenderer.invoke('install:start', { component, targetDir, confirmed }),
+  installStart: (component, targetDir, confirmed = false, licenseAccepted = false) => ipcRenderer.invoke('install:start', { component, targetDir, confirmed, licenseAccepted }),
   installStatus: () => ipcRenderer.invoke('install:status'),
   installCancel: () => ipcRenderer.invoke('install:cancel'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', { text }),

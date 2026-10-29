@@ -492,7 +492,8 @@ function envStateClass(state) {
 }
 
 function environmentCard(item) {
-  const auto = item.id === 'bridge' && item.status === 'not-installed';
+  const auto = ['bridge', 'snowluma'].includes(item.id) && item.status === 'not-installed';
+  const snow = item.id === 'snowluma';
   return `
     <section class="card panel env-component">
       <div class="section-title">
@@ -503,12 +504,14 @@ function environmentCard(item) {
       <div class="service-meta">
         <span class="meta-pill">版本 ${esc(item.version || 'unknown')}</span>
         ${item.running ? '<span class="meta-pill">运行中</span>' : ''}
-        ${item.manualOnly ? '<span class="meta-pill">手动安装</span>' : '<span class="meta-pill">可自动安装源码</span>'}
+        ${snow ? '<span class="meta-pill">官方完整包</span>' : item.manualOnly ? '<span class="meta-pill">手动安装</span>' : '<span class="meta-pill">官方源码</span>'}
       </div>
       ${item.nextAction ? `<p class="embed-hint">下一步：${esc(item.nextAction)}</p>` : ''}
       ${item.official?.releases ? `<p class="env-link">官方：${esc(item.official.releases)}</p>` : ''}
       ${item.official?.project ? `<p class="env-link">官方：${esc(item.official.project)}</p>` : ''}
-      ${auto ? '<button class="btn primary" data-env-install="bridge" type="button">安装 qq-bridge 源码</button>' : ''}
+      ${snow ? '<p class="env-link">安装前必须接受官方 LICENSE 与 EULA；下载的是官方未修改完整发行版。</p><label class="env-check"><input id="accept-snowluma-license" type="checkbox"> 我已阅读并接受 SnowLuma LICENSE / EULA</label>' : ''}
+      ${snow ? `<p class="env-link">LICENSE：${esc(item.official?.license || '')} · EULA：${esc(item.official?.eula || '')}</p>` : ''}
+      ${auto ? `<button class="btn primary" data-env-install="${snow ? 'snowluma' : 'bridge'}" type="button">${snow ? '安装 SnowLuma 官方包' : '安装 qq-bridge 源码'}</button>` : ''}
     </section>`;
 }
 
@@ -527,7 +530,7 @@ function installTaskPanel() {
       <div class="backup-toolbar">
         ${active ? '<button class="btn" data-install-cancel type="button">取消安装</button>' : ''}
         ${task.status === 'failed' ? '<button class="btn primary" data-install-retry type="button">重试</button>' : ''}
-        ${task.status === 'completed' && task.result?.root ? '<button class="btn primary" data-install-use type="button">设为 qq-bridge 路径</button>' : ''}
+        ${task.status === 'completed' && task.result?.root ? `<button class="btn primary" data-install-use type="button">${task.component === 'snowluma' ? '设为 SnowLuma 路径' : '设为 qq-bridge 路径'}</button>` : ''}
       </div>
       <pre class="install-log">${(task.logs || []).slice(-30).map((item) => esc(item.line)).join('\n') || '暂无日志'}</pre>
     </section>`;
@@ -538,14 +541,14 @@ function deepSeekGuidePrompt() {
 
 项目与组件：
 - 控制中心：https://github.com/taoshur/dafiyu-qq-desktop
-- SnowLuma：https://github.com/SnowLuma/SnowLuma/releases （官方 Windows 完整发行包，需要 Node 24；只能手动安装，不要修改、打包、再分发或自动部署）
+- SnowLuma：https://github.com/SnowLuma/SnowLuma/releases （官方 Windows 完整发行包；用户主动确认并接受 LICENSE/EULA 后，可在本项目内自动下载未修改完整包；不要修改、打包、再分发或自建镜像）
 - qq-bridge：https://github.com/Derpyu520/qq-bridge （MIT；固定源码 v0.2.1-r1，下载地址 https://codeload.github.com/Derpyu520/qq-bridge/zip/refs/tags/v0.2.1-r1，SHA256 9DB4365C5816BB7FF971420423316D141B533FC66F171E2536A8B67E7D4501C9；需要 Node >=22.13 和 npm）
 - DeepSeek Harness：https://deepseek.com/harness （官方桌面应用，手动安装）
 
 请按以下规则帮助我：
 1. 先检查我的 Windows 版本、CPU 架构、Node/npm/Git 版本，并说明是否满足。
 2. 只使用上述官方来源。执行前先列出要下载的文件、版本、SHA256 和用途，等我确认。
-3. SnowLuma 和 DSH 只指导我手动安装，不要尝试自动部署、修改、打包或再分发；不要绕过它们的登录/授权。
+3. SnowLuma 只能在用户接受官方 LICENSE/EULA 后，从官方渠道下载未修改的完整发行版并安装；不要修改、打包、再分发或自建镜像。DSH 只指导我手动安装；不要绕过登录/授权。
 4. qq-bridge 可以指导下载官方源码归档、校验 SHA256、解压和 npm install；不要使用未知镜像。
 5. 不要向我索要 QQ 密码、token、API Key；不要读取或上传聊天记录。
 6. 每一步先说明会修改哪些目录/进程，完成后验证 package.json、src/bridge.js、node_modules、端口和配置。
@@ -583,7 +586,7 @@ function environmentPage() {
   const blocking = env.summary?.blocking || [];
   const manual = (env.components || []).filter((item) => item.manualOnly && ['not-installed', 'incompatible'].includes(item.status));
   return `
-    <div class="notice">检测时间 ${new Date(env.checkedAt).toLocaleString()} · 正常运行 ${env.summary?.running || 0}/3。自动安装仅支持 qq-bridge 官方源码；SnowLuma/DSH 必须使用官方安装包手动安装。</div>
+    <div class="notice">检测时间 ${new Date(env.checkedAt).toLocaleString()} · 正常运行 ${env.summary?.running || 0}/3。SnowLuma / qq-bridge 可在确认官方许可后自动下载安装；DSH 需要手动安装。</div>
     ${deepSeekHelpBlock()}
     <div class="grid grid-3">${(env.components || []).map(environmentCard).join('')}</div>
     ${manual.length ? `<div class="notice">${manual.map((item) => `${item.name} 需要手动安装：${item.official?.releases || item.official?.project || ''}`).join('；')}</div>` : ''}
@@ -1871,24 +1874,41 @@ async function pollInstall() {
 
 function startInstall(component) {
   const targetInput = $('install-target');
-  const targetDir = targetInput?.value?.trim() || state.install.targetDir || state.install.catalog?.defaultRoot || '';
+  const defaultRoot = state.install.catalog?.defaultRoot || state.install.targetDir || '';
+  const targetDir = component === 'snowluma'
+    ? `${defaultRoot}\\SnowLuma`
+    : (targetInput?.value?.trim() || state.install.targetDir || defaultRoot);
   if (!targetDir) { toast('请填写安装目录'); return; }
   if (state.install.task && !['completed', 'failed', 'cancelled'].includes(state.install.task.status)) {
     toast('已有安装任务在进行中');
     return;
   }
+  const snow = component === 'snowluma';
+  const licenseAccepted = Boolean($('accept-snowluma-license')?.checked);
+  if (snow && !licenseAccepted) {
+    toast('请先勾选接受 SnowLuma LICENSE / EULA');
+    return;
+  }
   showModal({
-    title: '安装 qq-bridge？',
-    body: [
-      '将从官方 GitHub 源码归档下载 v0.2.1-r1，校验 SHA256，解压到目标目录，然后运行 npm install。',
-      `目标目录：${targetDir}`,
-      '不会覆盖非空目录；不会自动启动服务；不会修改 SnowLuma/DSH。'
-    ].join('\n'),
+    title: snow ? '安装 SnowLuma 官方发行版？' : '安装 qq-bridge？',
+    body: snow
+      ? [
+        '将从 SnowLuma 官方 GitHub Releases 下载 v2.2.1 Windows x64 完整发行版，校验 SHA256，并解压到目标目录。',
+        `目标目录：${targetDir}`,
+        '下载的是官方未修改完整发行版；不会修改源代码或原生组件，不会自建镜像，不会打包再分发。',
+        '安装完成后仍需首次登录 WebUI 并设置密码；不会自动启动服务。',
+        '继续即表示你已阅读并接受 SnowLuma LICENSE / EULA。'
+      ].join('\n')
+      : [
+        '将从官方 GitHub 源码归档下载 v0.2.1-r1，校验 SHA256，解压到目标目录，然后运行 npm install。',
+        `目标目录：${targetDir}`,
+        '不会覆盖非空目录；不会自动启动服务；不会修改 SnowLuma/DSH。'
+      ].join('\n'),
     confirmText: '开始安装',
     onConfirm: async () => {
       state.install.busy = true;
       try {
-        const result = await api.installStart(component, targetDir, true);
+        const result = await api.installStart(component, targetDir, true, licenseAccepted);
         if (!result.ok) {
           toast(`安装未开始：${result.reason}`);
           state.install.busy = false;
@@ -1921,12 +1941,14 @@ async function cancelInstall() {
 
 async function useInstallResult() {
   const root = state.install.task?.result?.root;
+  const component = state.install.task?.component;
   if (!root) { toast('没有可用的安装结果'); return; }
   try {
     const current = await api.settingsGet();
-    await api.settingsSave({ ...current, repoRoot: root });
+    if (component === 'snowluma') await api.settingsSave({ ...current, snowlumaRoot: root });
+    else await api.settingsSave({ ...current, repoRoot: root });
     state.settings = await api.settingsGet();
-    toast('已把 qq-bridge 路径切换到新安装目录；请到配置页补全账号/DSH/SnowLuma 字段');
+    toast(component === 'snowluma' ? '已切换到新 SnowLuma 路径；请完成 WebUI 首次登录' : '已把 qq-bridge 路径切换到新安装目录；请到配置页补全账号/DSH/SnowLuma 字段');
     await refreshEnvironment();
   } catch (error) {
     toast(`切换路径失败：${error.message}`);

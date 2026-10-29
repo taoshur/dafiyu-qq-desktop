@@ -704,6 +704,7 @@ mark { background: rgba(246, 201, 107, 0.35); color: #fff; border-radius: 3px; }
 .env-component { min-height: 210px; }
 .env-reason { color: var(--text-soft, #b9cbd5); font-size: 13px; line-height: 1.7; }
 .env-link { color: var(--text-faint); font-size: 11px; line-height: 1.7; word-break: break-all; }
+.env-check { display: flex; gap: 7px; align-items: center; color: var(--text-soft, #b9cbd5); font-size: 12px; margin: 8px 0; }
 .install-bar { height: 8px; border-radius: 99px; background: rgba(125, 230, 212, 0.12); overflow: hidden; margin: 8px 0; }
 .install-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3fe0c8, #6ea8ff); transition: width 180ms ease; }
 .install-log { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 11px; line-height: 1.6; color: var(--text-faint); background: #071118; border: 1px solid var(--line); border-radius: 9px; padding: 10px; }

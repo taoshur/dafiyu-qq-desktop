@@ -47,10 +47,16 @@ upstream `LICENSE` and the respective projects' licenses before use.
 - SnowLumaDevs granted written permission on 2026-10-29 for this project to:
   - publish publicly on a non-commercial basis;
   - let users actively start/stop their own unmodified official SnowLuma installation;
-  - embed access to the local SnowLuma WebUI.
-- The permission does **not** cover modifying, packaging, or redistributing
-  SnowLuma/native components, nor commercial use. SnowLuma remains under its own
-  LICENSE/EULA; this project's license does not override it.
+  - embed access to the local SnowLuma WebUI;
+  - **supplemental permission**: after the user actively confirms and accepts
+    LICENSE/EULA, automatically download the unmodified complete official
+    release from the official SnowLuma channel and perform local installation
+    and basic configuration.
+- The permission does **not** cover modifying SnowLuma code/native components,
+  self-hosting mirrors, packaging/redistributing, or commercial use. SnowLuma
+  remains under its own LICENSE/EULA; this project's license does not override it.
+- The installer must retain SnowLumaDevs attribution, official links, and the
+  complete LICENSE/EULA.
 
 ## DeepSeek Harness (DSH)
 
