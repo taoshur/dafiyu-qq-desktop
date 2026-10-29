@@ -61,6 +61,7 @@ test('桌面自己的配置目录与设置可往返保存', () => {
   const paths = createPaths(userData);
   const defaults = loadSettings(paths);
   assert.ok(path.isAbsolute(defaults.repoRoot));
+  assert.equal(defaults.ownerTitle, '爸爸');
   assert.ok(fs.existsSync(paths.configDir));
   assert.ok(fs.existsSync(paths.logDir));
 
@@ -68,6 +69,7 @@ test('桌面自己的配置目录与设置可往返保存', () => {
     repoRoot: userData,
     snowlumaRoot: userData,
     dshExe: process.execPath,
+    ownerTitle: '  老板\n',
     controlEnabled: true,
     managerAutostart: true,
     botAutostart: false,
@@ -78,6 +80,7 @@ test('桌面自己的配置目录与设置可往返保存', () => {
   assert.equal(loaded.repoRoot, path.resolve(userData));
   assert.equal(loaded.snowlumaRoot, path.resolve(userData));
   assert.equal(loaded.dshExe, path.resolve(process.execPath));
+  assert.equal(loaded.ownerTitle, '老板');
   assert.equal(loaded.controlEnabled, true);
   assert.equal(loaded.managerAutostart, true);
   assert.equal(loaded.botAutostart, false);

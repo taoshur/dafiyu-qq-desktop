@@ -431,12 +431,16 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
       repoRoot: String(payload?.repoRoot || '').trim(),
       snowlumaRoot: String(payload?.snowlumaRoot || '').trim(),
       dshExe: String(payload?.dshExe || '').trim(),
+      ownerTitle: payload?.ownerTitle === undefined
+        ? getSettings().ownerTitle
+        : (String(payload.ownerTitle || '').replace(/[\r\n\t]/g, ' ').trim() || '爸爸').slice(0, 16),
       controlEnabled: payload?.controlEnabled === undefined ? Boolean(getSettings().controlEnabled) : payload.controlEnabled === true,
       managerAutostart: payload?.managerAutostart === undefined ? Boolean(getSettings().managerAutostart) : payload.managerAutostart === true,
       botAutostart: payload?.botAutostart === undefined ? Boolean(getSettings().botAutostart) : payload.botAutostart === true,
       autoRecovery: payload?.autoRecovery === undefined ? Boolean(getSettings().autoRecovery) : payload.autoRecovery === true
     };
-    for (const [key, value] of Object.entries(next)) {
+    for (const key of ['repoRoot', 'snowlumaRoot', 'dshExe']) {
+      const value = next[key];
       if (!value || !path.isAbsolute(value)) throw new Error(`${key} 必须是绝对路径`);
       if (!fs.existsSync(value)) throw new Error(`${key} 不存在：${value}`);
     }

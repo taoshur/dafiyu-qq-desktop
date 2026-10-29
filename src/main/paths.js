@@ -44,6 +44,11 @@ function readJsonSafe(file, fallback) {
   }
 }
 
+function normalizeOwnerTitle(value) {
+  const text = String(value ?? '').replace(/[\r\n\t]/g, ' ').trim();
+  return (text || '爸爸').slice(0, 16);
+}
+
 function loadSettings(paths) {
   const saved = readJsonSafe(paths.configFile, {});
   const merged = { ...DEFAULT_PATHS, ...(saved && typeof saved === 'object' ? saved : {}) };
@@ -51,6 +56,7 @@ function loadSettings(paths) {
     repoRoot: path.resolve(String(merged.repoRoot || DEFAULT_PATHS.repoRoot)),
     snowlumaRoot: path.resolve(String(merged.snowlumaRoot || DEFAULT_PATHS.snowlumaRoot)),
     dshExe: path.resolve(String(merged.dshExe || DEFAULT_PATHS.dshExe)),
+    ownerTitle: normalizeOwnerTitle(merged.ownerTitle),
     controlEnabled: merged.controlEnabled === true,
     // 三个开关完全独立，默认全部关闭；读取时只认显式 true。
     managerAutostart: merged.managerAutostart === true,
@@ -64,6 +70,7 @@ function saveSettings(paths, settings) {
     repoRoot: String(settings.repoRoot || ''),
     snowlumaRoot: String(settings.snowlumaRoot || ''),
     dshExe: String(settings.dshExe || ''),
+    ownerTitle: normalizeOwnerTitle(settings.ownerTitle),
     controlEnabled: settings.controlEnabled === true,
     managerAutostart: settings.managerAutostart === true,
     botAutostart: settings.botAutostart === true,

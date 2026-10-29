@@ -38,7 +38,7 @@ const state = {
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
   install: { task: null, targetDir: '', timer: null, busy: false },
-  wizard: { open: false, step: 0, status: null, busy: false, error: null },
+  wizard: { open: false, step: 0, status: null, busy: false, error: null, ownerTitle: '爸爸' },
   busy: false,
   error: null,
   recent: null
@@ -81,13 +81,14 @@ function fmtTime(ms) {
   return `${date.getMonth() + 1}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function greeting() {
+function greeting(title = '爸爸') {
   const hour = new Date().getHours();
-  if (hour < 6) return '夜深了，爸爸';
-  if (hour < 11) return '早上好，爸爸';
-  if (hour < 14) return '中午好，爸爸';
-  if (hour < 18) return '下午好，爸爸';
-  return '晚上好，爸爸';
+  const who = String(title || '爸爸').trim() || '爸爸';
+  if (hour < 6) return `夜深了，${who}`;
+  if (hour < 11) return `早上好，${who}`;
+  if (hour < 14) return `中午好，${who}`;
+  if (hour < 18) return `下午好，${who}`;
+  return `晚上好，${who}`;
 }
 
 function stateText(serviceState) {
@@ -181,7 +182,7 @@ function hero(snapshot) {
     <section class="card hero fade-in">
       <img class="hero-avatar" src="assets/deepseek-chan.png" alt="" />
       <div class="hero-text">
-        <h3>${greeting()}，今天也一起把家看好</h3>
+        <h3>${greeting(state.settings?.ownerTitle)}，今天也一起把家看好</h3>
         <p>服务控制默认关闭；在服务页显式启用后，才可启动/停止由本软件启动的实例。外部实例只检测，不误杀。</p>
         <div class="hero-chips">
           <span class="chip">服务 <b>${running}/${total}</b> 在线</span>
@@ -296,6 +297,10 @@ async function openWizard(step = 0) {
   state.wizard.step = step;
   state.wizard.busy = true;
   state.wizard.error = null;
+  if (!state.settings) {
+    try { state.settings = await api.settingsGet(); } catch { state.settings = null; }
+  }
+  state.wizard.ownerTitle = state.settings?.ownerTitle || '爸爸';
   renderWizard();
   try {
     state.wizard.status = await api.setupStatus();
@@ -374,10 +379,13 @@ function renderWizard() {
     body = `
       <p class="wizard-p">欢迎使用大肥鱼控制中心。第一次部署只需要完成三步：</p>
       <ol class="wizard-list">
+        <li>告诉大肥鱼怎么称呼你</li>
         <li>设置一次 SnowLuma WebUI 密码</li>
-        <li>在 5099 登录 SnowLuma</li>
-        <li>启动 qq-bridge；控制台令牌由本机自动生成</li>
+        <li>在 5099 登录 SnowLuma，然后启动 qq-bridge</li>
       </ol>
+      <label class="field-label" for="wizard-owner-title">大肥鱼对您的称呼</label>
+      <input class="input setup-input" id="wizard-owner-title" maxlength="16" value="${esc(w.ownerTitle || '爸爸')}" placeholder="例如：爸爸、主人、老板">
+      <p class="wizard-p">只用于界面问候，不写入 QQ 配置，也不会上传；默认是“爸爸”。</p>
       <p class="wizard-p">安装包里不包含 SnowLuma/qq-bridge 的账号、密码或令牌，每台机器各自初始化。</p>`;
   } else if (step === 1) {
     body = s?.webuiInitialized
@@ -899,10 +907,11 @@ function configPage(snapshot) {
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>桌面路径设置</h3><span>只写桌面自己的配置，不修改 qq-bridge/config.json</span></div>
       <div class="memory-filters">
+        <input class="input" id="cfg-ownerTitle" style="min-width:240px" maxlength="16" placeholder="大肥鱼对您的称呼（默认：爸爸）" value="${esc(state.settings?.ownerTitle || '爸爸')}" />
         <input class="input" id="cfg-repoRoot" style="min-width:360px" value="${esc(state.settings?.repoRoot || snapshot.paths.repoRoot)}" />
         <input class="input" id="cfg-snowlumaRoot" style="min-width:240px" value="${esc(state.settings?.snowlumaRoot || snapshot.paths.snowlumaRoot)}" />
         <input class="input" id="cfg-dshExe" style="min-width:360px" value="${esc(state.settings?.dshExe || snapshot.paths.dshExe)}" />
-        <button class="btn primary" id="cfg-save-paths" type="button">保存桌面路径</button>
+        <button class="btn primary" id="cfg-save-paths" type="button">保存桌面设置</button>
       </div>
       <p class="service-detail">修改后可重新检测环境；不会自动启动或重启任何服务。</p>
     </section>
@@ -1567,15 +1576,23 @@ function askOriginalLaunch() {
   });
 }
 
+async function saveOwnerTitle(title) {
+  const current = state.settings || await api.settingsGet();
+  state.settings = await api.settingsSave({ ...current, ownerTitle: title });
+  state.wizard.ownerTitle = state.settings.ownerTitle;
+  return state.settings;
+}
+
 async function saveDesktopPaths() {
+  const ownerTitle = $('cfg-ownerTitle')?.value.trim();
   const repoRoot = $('cfg-repoRoot')?.value.trim();
   const snowlumaRoot = $('cfg-snowlumaRoot')?.value.trim();
   const dshExe = $('cfg-dshExe')?.value.trim();
   try {
     const current = await api.settingsGet();
-    const saved = await api.settingsSave({ ...current, repoRoot, snowlumaRoot, dshExe });
+    const saved = await api.settingsSave({ ...current, ownerTitle, repoRoot, snowlumaRoot, dshExe });
     state.settings = saved;
-    toast('桌面路径已保存（未重启服务，未改项目配置）');
+    toast('桌面设置已保存（未重启服务，未改项目配置）');
     await refresh(true);
   } catch (error) {
     toast(`保存失败：${error.message}`);
@@ -2010,6 +2027,15 @@ function bind() {
     if (event.target.closest('[data-wizard-close]') || event.target.matches('[data-wizard-backdrop]')) { closeWizard(); return; }
     if (event.target.closest('[data-wizard-next]')) {
       if (state.wizard.step >= 4) { closeWizard(); return; }
+      if (state.wizard.step === 0) {
+        const title = $('wizard-owner-title')?.value || '爸爸';
+        saveOwnerTitle(title).then(() => {
+          state.wizard.step += 1;
+          state.wizard.error = null;
+          renderWizard();
+        }).catch((error) => toast(`称呼保存失败：${error.message}`));
+        return;
+      }
       state.wizard.step += 1;
       state.wizard.error = null;
       renderWizard();
@@ -2189,6 +2215,7 @@ function startClock() {
 async function boot() {  bind();
   startClock();
   try { state.info = await api.info(); } catch { state.info = {}; }
+  try { state.settings = await api.settingsGet(); } catch { state.settings = null; }
   await refreshControl();
   try { state.logsList = await api.logsList(); } catch { state.logsList = []; }
   try { state.backups = await api.backups(); } catch { state.backups = []; }
