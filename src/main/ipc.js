@@ -71,8 +71,8 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
       return { identityOk: check.ok, processAlive: Boolean(check.found), portOpen };
     },
     assessBusyFn: async () => assessBusy(getSettings().repoRoot),
-    startService: (id) => controller.start(id),
-    stopService: (id, options) => controller.stop(id, options),
+    startService: (id) => supervisor.start(id),
+    stopService: (id, options) => supervisor.stop(id, options),
     log
   });
 
