@@ -1,3 +1,47 @@
+function maskQq(value) {
+  const s = String(value || '');
+  return /^\d{5,12}$/.test(s) ? `QQ***${s.slice(-4)}` : s;
+}
+
+function memoryDate(item) {
+  const t = item.happened_at || item.created_at;
+  return fmtTime(t);
+}
+
+function memoryKindLabel(kind) {
+  if (kind === 'fact') return '事实';
+  if (kind === 'event') return '事件';
+  return kind || '—';
+}
+
+function memoryStatusLabel(status) {
+  if (status === 'pending') return '待确认';
+  if (status === 'applied') return '已采纳';
+  if (status === 'rejected') return '已拒绝';
+  return status || '—';
+}
+
+function memoryQualityLabel(quality) {
+  if (quality === 'valid') return '校验通过';
+  if (quality === 'invalid') return '校验未通过';
+  return quality || '—';
+}
+
+function memoryScopeLabel(scope) {
+  const text = String(scope || '');
+  if (text.startsWith('group:')) return `群聊 ${text.slice(6)}`;
+  if (text.startsWith('private:')) return `私聊 ${text.slice(8)}`;
+  if (text === 'global') return '全局';
+  return text || '—';
+}
+
+function memoryTimePrecisionLabel(precision) {
+  if (precision === 'exact') return '时间明确';
+  if (precision === 'day') return '只到日期';
+  if (precision === 'approx') return '大概时间';
+  return precision || '—';
+}
+
 function memoryPage() {
   const m = state.memory;
   const status = m.status;
