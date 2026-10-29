@@ -61,7 +61,7 @@ const PAGE_META = {
   logs: ['运行日志', '只读查看，不会删除或截断原文件'],
   env: ['环境检查', '启动前先确认运行时、配置与数据目录'],
   config: ['配置', '默认只读；令牌与凭据不会显示在这里'],
-  memory: ['长期记忆', '生产库只读；候选审核只在隔离测试库进行'],
+  memory: ['长期记忆', '大肥鱼记住的人和事；真实记忆只读，练习副本可审核'],
   backups: ['数据备份', 'SQLite 一致性快照 + manifest 校验'],
   about: ['关于', '大肥鱼桌面控制台 · 第三阶段（服务控制）']
 };
@@ -211,8 +211,8 @@ function overview(snapshot) {
     <div class="grid grid-3">${(snapshot.services || []).map(serviceCard).join('')}</div>
     <div class="grid grid-4 memory-stats" style="margin-top:18px">
       <section class="card stat"><span>QQ 连接</span><b class="${qqState === '链路在线' ? 'ok' : 'warn'}">${qqState}</b><small>SnowLuma + bridge</small></section>
-      <section class="card stat"><span>Memory V3</span><b class="${memState === '正常' ? 'ok' : 'warn'}">${memState}</b><small>${counts.facts || 0} facts / ${counts.events || 0} events / ${counts.pending || 0} pending</small></section>
-      <section class="card stat"><span>数据库完整性</span><b class="${mem?.integrity === 'ok' ? 'ok' : 'warn'}">${esc(mem?.integrity || '—')}</b><small>${mem?.observeOnly ? 'observeOnly 开启' : 'observeOnly 关闭'} · ${fmtSize(mem?.file?.size)}</small></section>
+      <section class="card stat"><span>长期记忆</span><b class="${memState === '正常' ? 'ok' : 'warn'}">${memState}</b><small>${counts.facts || 0} 条事实 / ${counts.events || 0} 条事件 / ${counts.pending || 0} 条待确认</small></section>
+      <section class="card stat"><span>数据库完整性</span><b class="${mem?.integrity === 'ok' ? 'ok' : 'warn'}">${esc(mem?.integrity === 'ok' ? '正常' : mem?.integrity || '—')}</b><small>观察模式${mem?.observeOnly ? '开启' : '关闭'} · ${fmtSize(mem?.file?.size)}</small></section>
       <section class="card stat"><span>模型 / 运行时长</span><b style="font-size:15px">${esc(mem?.model || memCfg.model || '—')}</b><small>桌面已运行 ${uptimeText}</small></section>
     </div>
     ${memErrors.length ? `<div class="notice">近 24 小时抽取失败：${memErrors.map((x) => `${new Date(Number(x.updated_at)).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${esc(x.conv_key || '未知会话')} · ${esc(String(x.last_error || '').slice(0, 80))}（第 ${x.attempts || 0} 次）`).join('；')}</div>` : ''}
@@ -921,16 +921,16 @@ function configPage(snapshot) {
     </div>
     <div class="section-title" style="margin-top:18px"><h3>运行开关</h3><span>只显示布尔状态</span></div>
     <div class="kv-grid">
-      <div class="kv"><span>成长 observeOnly</span><b>${yes(flags.observeOnly)}</b></div>
+      <div class="kv"><span>观察模式（不自动写入）</span><b>${yes(flags.observeOnly)}</b></div>
       <div class="kv"><span>语音能力</span><b>${yes(flags.voiceEnabled)}</b></div>
       <div class="kv"><span>DSH 允许远程</span><b>${yes(flags.allowRemote)}</b></div>
       <div class="kv"><span>ownerQQ 已配置</span><b>${yes(flags.hasOwnerQQ)}</b></div>
       <div class="kv"><span>SnowLuma 令牌</span><b>${yes(flags.hasSnowlumaToken)}</b></div>
       <div class="kv"><span>控制台令牌</span><b>${yes(flags.hasConsoleToken)}（未配置时自动生成）</b></div>
     </div>
-    <div class="section-title" style="margin-top:18px"><h3>Memory V3</h3><span>只读；生产库不在这里修改</span></div>
+    <div class="section-title" style="margin-top:18px"><h3>长期记忆</h3><span>只读；真实记忆不在这里修改</span></div>
     <div class="kv-grid">
-      <div class="kv"><span>observeOnly</span><b>${yes(cfg.memory?.observeOnly)}</b></div>
+      <div class="kv"><span>观察模式</span><b>${yes(cfg.memory?.observeOnly)}</b></div>
       <div class="kv"><span>检索注入</span><b>${yes(cfg.memory?.retrieval)}</b></div>
       <div class="kv"><span>自动抽取</span><b>${yes(cfg.memory?.extract)}</b></div>
       <div class="kv"><span>消息入库</span><b>${yes(cfg.memory?.ingest)}</b></div>
@@ -963,17 +963,51 @@ function memoryDate(item) {
   return fmtTime(t);
 }
 
+function memoryKindLabel(kind) {
+  if (kind === 'fact') return '事实';
+  if (kind === 'event') return '事件';
+  return kind || '—';
+}
+
+function memoryStatusLabel(status) {
+  if (status === 'pending') return '待确认';
+  if (status === 'applied') return '已采纳';
+  if (status === 'rejected') return '已拒绝';
+  return status || '—';
+}
+
+function memoryQualityLabel(quality) {
+  if (quality === 'valid') return '校验通过';
+  if (quality === 'invalid') return '校验未通过';
+  return quality || '—';
+}
+
+function memoryScopeLabel(scope) {
+  const text = String(scope || '');
+  if (text.startsWith('group:')) return `群聊 ${text.slice(6)}`;
+  if (text.startsWith('private:')) return `私聊 ${text.slice(8)}`;
+  if (text === 'global') return '全局';
+  return text || '—';
+}
+
+function memoryTimePrecisionLabel(precision) {
+  if (precision === 'exact') return '时间明确';
+  if (precision === 'day') return '只到日期';
+  if (precision === 'approx') return '大概时间';
+  return precision || '—';
+}
+
 function memoryPage() {
   const m = state.memory;
   const status = m.status;
   if (m.error) {
     return `<div class="notice danger">记忆读取失败：${esc(m.error)}</div>`;
   }
-  if (!status) return '<div class="log-empty" style="padding:30px">正在读取 Memory V3…</div>';
+  if (!status) return '<div class="log-empty" style="padding:30px">正在读取长期记忆…</div>';
   const counts = status.counts || {};
   const modeTest = m.mode === 'test';
   const rows = m.list?.rows || [];
-  const sourceLabel = modeTest ? '隔离测试库' : '生产库（只读）';
+  const sourceLabel = modeTest ? '练习副本' : '真实记忆（只读）';
   const testExists = status.testDbExists;
   const reviewDisabled = !modeTest || !m.selected;
   const table = rows.map((item) => {
@@ -985,14 +1019,14 @@ function memoryPage() {
     const date = memoryDate(item);
     const confidence = Number(item.confidence);
     const tags = [
-      item.scope ? `<span class="meta-pill">${esc(item.scope)}</span>` : '',
-      item.visibility ? `<span class="meta-pill">${esc(item.visibility)}</span>` : '',
-      item.time_precision ? `<span class="meta-pill">${esc(item.time_precision)}</span>` : '',
-      item.status ? `<span class="meta-pill">${esc(item.status)}</span>` : '',
-      item.quality ? `<span class="meta-pill">${esc(item.quality)}</span>` : ''
+      item.scope ? `<span class="meta-pill">${esc(memoryScopeLabel(item.scope))}</span>` : '',
+      item.visibility ? `<span class="meta-pill">${esc(item.visibility === 'public' ? '群内可见' : item.visibility === 'private' ? '仅自己可见' : item.visibility)}</span>` : '',
+      item.time_precision ? `<span class="meta-pill">${esc(memoryTimePrecisionLabel(item.time_precision))}</span>` : '',
+      item.status ? `<span class="meta-pill">${esc(memoryStatusLabel(item.status))}</span>` : '',
+      item.quality ? `<span class="meta-pill">${esc(memoryQualityLabel(item.quality))}</span>` : ''
     ].filter(Boolean).join(' ');
     return `<tr class="memory-row ${Number(m.selected) === id ? 'is-selected' : ''}" data-memory-id="${id}" data-memory-kind="${esc(kind)}">
-      <td><span class="tag">${esc(kind)}</span></td>
+      <td><span class="tag">${esc(memoryKindLabel(kind))}</span></td>
       <td><b>${esc(title)}</b><span class="memory-detail">${esc(detail)}</span></td>
       <td>${esc(subject)}</td>
       <td>${esc(date)}</td>
@@ -1005,80 +1039,81 @@ function memoryPage() {
   const evidence = m.detail?.evidence || [];
   const detailHtml = !selected ? '<div class="log-empty" style="padding:20px">选择一条记忆查看来源与证据</div>' : `
     <div class="memory-detail-head">
-      <span class="tag">${esc(selected.kind)}</span>
+      <span class="tag">${esc(memoryKindLabel(selected.kind))}</span>
       <b>${esc(selected.summary || selected.value || selected.attr || `候选 #${selected.id}`)}</b>
-      <span class="meta-pill">${esc(selected.status)}</span>
+      <span class="meta-pill">${esc(memoryStatusLabel(selected.status))}</span>
     </div>
     <div class="kv-grid">
-      <div class="kv"><span>主体</span><b>${esc(selected.subject_name || maskQq(selected.subject_qq) || '—')}</b></div>
-      <div class="kv"><span>置信度</span><b>${esc(selected.confidence ?? '—')}</b></div>
-      <div class="kv"><span>作用域</span><b>${esc(selected.scope || '—')}</b></div>
-      <div class="kv"><span>可见性</span><b>${esc(selected.visibility || '—')}</b></div>
+      <div class="kv"><span>涉及谁</span><b>${esc(selected.subject_name || maskQq(selected.subject_qq) || '—')}</b></div>
+      <div class="kv"><span>可信度</span><b>${esc(selected.confidence ?? '—')}</b></div>
+      <div class="kv"><span>生效范围</span><b>${esc(memoryScopeLabel(selected.scope))}</b></div>
+      <div class="kv"><span>可见范围</span><b>${esc(selected.visibility || '—')}</b></div>
       <div class="kv"><span>发生时间</span><b>${esc(selected.happened_at ? fmtTime(selected.happened_at) : '—')}</b></div>
-      <div class="kv"><span>时间精度</span><b>${esc(selected.time_precision || '—')}</b></div>
-      <div class="kv"><span>质量</span><b>${esc(selected.quality || '—')}</b></div>
-      <div class="kv"><span>拒绝原因</span><b>${esc(selected.reason || '—')}</b></div>
+      <div class="kv"><span>时间准确度</span><b>${esc(memoryTimePrecisionLabel(selected.time_precision))}</b></div>
+      <div class="kv"><span>质量检查</span><b>${esc(memoryQualityLabel(selected.quality))}</b></div>
+      <div class="kv"><span>不采纳原因</span><b>${esc(selected.reason || '—')}</b></div>
     </div>
     ${selected.detail ? `<p class="service-detail">${esc(selected.detail)}</p>` : ''}
-    <div class="section-title" style="margin-top:14px"><h3>来源证据</h3><span>仅在本地显示，不导出</span></div>
+    <div class="section-title" style="margin-top:14px"><h3>来源消息</h3><span>仅在本机显示，不导出</span></div>
     ${evidence.length ? evidence.map((msg) => `
       <div class="memory-evidence">
-        <span class="meta-pill">${msg.is_self ? 'bot' : msg.is_owner ? 'owner' : '其他'}</span>
+        <span class="meta-pill">${msg.is_self ? '大肥鱼' : msg.is_owner ? '你' : '其他人'}</span>
         <span class="meta-pill">${esc(msg.sender_name || maskQq(msg.sender_qq) || '—')}</span>
         <span class="meta-pill">${fmtTime(msg.sent_at)}</span>
         <p>${esc(msg.text || msg.media_note || '（无文本）')}</p>
-      </div>`).join('') : '<div class="log-empty" style="padding:12px">该候选没有可关联的消息证据（测试库或旧数据）</div>'}
+      </div>`).join('') : '<div class="log-empty" style="padding:12px">这条候选找不到原始消息（可能来自练习副本或旧数据）</div>'}
     ${modeTest ? `<div class="flow-actions" style="margin-top:14px">
-      <button class="btn primary" data-memory-review="apply" data-memory-id="${selected.id}" type="button">批准并写入测试库</button>
-      <button class="btn danger" data-memory-review="reject" data-memory-id="${selected.id}" type="button">拒绝</button>
-    </div>` : '<div class="notice" style="margin-top:14px">生产库只读：审核按钮已禁用。请切换到隔离测试库验证。</div>'}
+      <button class="btn primary" data-memory-review="apply" data-memory-id="${selected.id}" type="button">确认并写入练习副本</button>
+      <button class="btn danger" data-memory-review="reject" data-memory-id="${selected.id}" type="button">不记住这条</button>
+    </div>` : '<div class="notice" style="margin-top:14px">真实记忆只能看，不能在这里批准或删除。想练习审核，请切换到「练习副本」。</div>'}
   `;
 
   return `
-    <div class="notice">${modeTest ? '当前是隔离测试库：可审核候选，所有写入只发生在桌面 userData 的 memory-test.db。' : '当前是生产库：只读浏览，不执行任何 UPDATE/DELETE/apply。'}</div>
-    <div class="memory-toolbar">
+    <div class="notice">${modeTest ? '你正在看「练习副本」：这里的批准/拒绝只影响练习数据，不会改动真实记忆。' : '你正在看真实记忆：只能阅读，不能修改、删除或批准。想练习审核，请切换到「练习副本」。'}</div>
+    <p class="service-detail" style="margin:8px 0 0">这里不是聊天记录，而是大肥鱼对人和事形成的长期印象。AI 先把它觉得值得记的内容放进「待确认」，确认后才会成为正式事实或事件。</p>
+    <div class="memory-toolbar" style="margin-top:12px">
       <div class="segmented">
-        <button class="btn ${m.mode === 'prod' ? 'primary' : ''}" data-memory-mode="prod" type="button">生产只读</button>
-        <button class="btn ${m.mode === 'test' ? 'primary' : ''}" data-memory-mode="test" type="button">隔离测试库</button>
+        <button class="btn ${m.mode === 'prod' ? 'primary' : ''}" data-memory-mode="prod" type="button">真实记忆（只读）</button>
+        <button class="btn ${m.mode === 'test' ? 'primary' : ''}" data-memory-mode="test" type="button">练习副本</button>
       </div>
       <span class="meta-pill">${sourceLabel}</span>
-      ${modeTest && !testExists ? '<button class="btn" id="memory-init-test" type="button">初始化测试库</button>' : ''}
+      ${modeTest && !testExists ? '<button class="btn" id="memory-init-test" type="button">创建练习副本</button>' : ''}
       <button class="btn" id="memory-refresh" type="button">刷新</button>
     </div>
     <div class="grid grid-4 memory-stats">
-      <section class="card stat"><span>observeOnly</span><b class="${status.observeOnly ? 'warn' : 'ok'}">${status.observeOnly ? '开启' : '关闭'}</b><small>${status.retrieval ? '检索已开启' : '检索关闭'}</small></section>
-      <section class="card stat"><span>facts / events</span><b>${counts.facts} / ${counts.events}</b><small>active / 全部</small></section>
-      <section class="card stat"><span>待审核</span><b class="${counts.pending ? 'warn' : ''}">${counts.pending}</b><small>applied ${counts.applied}</small></section>
-      <section class="card stat"><span>完整性</span><b class="${status.integrity === 'ok' ? 'ok' : 'warn'}">${esc(status.integrity || '—')}</b><small>${fmtSize(status.file.size)} + WAL ${fmtSize(status.wal.size)}</small></section>
+      <section class="card stat"><span>观察模式</span><b class="${status.observeOnly ? 'warn' : 'ok'}">${status.observeOnly ? '开启' : '关闭'}</b><small>${status.observeOnly ? '只生成候选，不自动写入' : '会自动写入正式记忆'} · 检索${status.retrieval ? '已开启' : '关闭'}</small></section>
+      <section class="card stat"><span>已确认事实 / 已记录事件</span><b>${counts.facts} / ${counts.events}</b><small>已生效事实 / 已记录事件</small></section>
+      <section class="card stat"><span>待你确认</span><b class="${counts.pending ? 'warn' : ''}">${counts.pending}</b><small>其中已采纳 ${counts.applied} 条</small></section>
+      <section class="card stat"><span>数据库自检</span><b class="${status.integrity === 'ok' ? 'ok' : 'warn'}">${status.integrity === 'ok' ? '正常' : '需检查'}</b><small>数据库 ${fmtSize(status.file.size)} + 写日志 ${fmtSize(status.wal.size)}</small></section>
     </div>
-    <div class="notice" style="margin-top:12px">DB：${esc(status.dbPath)} ${status.error ? ` · 读取错误：${esc(status.error)}` : ''}</div>
+    <div class="notice" style="margin-top:12px">数据库位置：${esc(status.dbPath)} ${status.error ? ` · 读取错误：${esc(status.error)}` : ''}</div>
     <section class="card panel" style="margin-top:14px">
-      <div class="section-title"><h3>搜索与筛选</h3><span>数据来自当前选择的库</span></div>
+      <div class="section-title"><h3>查找记忆</h3><span>当前查看：${sourceLabel}</span></div>
       <div class="memory-filters">
         <div class="segmented">
-          ${['candidates', 'events', 'facts'].map((t) => `<button class="btn ${m.type === t ? 'primary' : ''}" data-memory-type="${t}" type="button">${t === 'candidates' ? '候选' : t === 'events' ? '事件' : '事实'}</button>`).join('')}
+          ${['candidates', 'events', 'facts'].map((t) => `<button class="btn ${m.type === t ? 'primary' : ''}" data-memory-type="${t}" type="button">${t === 'candidates' ? '待确认候选' : t === 'events' ? '已记录事件' : '已确认事实'}</button>`).join('')}
         </div>
-        <input id="memory-search" class="input" placeholder="关键词 / 主体 / 内容" value="${esc(m.q)}" />
+        <input id="memory-search" class="input" placeholder="搜索内容、人物或关键词" value="${esc(m.q)}" />
         <input id="memory-from" class="input" type="date" value="${esc(m.dateFrom)}" title="起始日期" />
         <input id="memory-to" class="input" type="date" value="${esc(m.dateTo)}" title="结束日期" />
         ${m.type === 'candidates' ? `<select id="memory-status" class="input">
-          <option value="pending" ${m.status === 'pending' ? 'selected' : ''}>待审核</option>
-          <option value="applied" ${m.status === 'applied' ? 'selected' : ''}>已通过</option>
+          <option value="pending" ${m.status === 'pending' ? 'selected' : ''}>待确认</option>
+          <option value="applied" ${m.status === 'applied' ? 'selected' : ''}>已采纳</option>
           <option value="rejected" ${m.status === 'rejected' ? 'selected' : ''}>已拒绝</option>
         </select>` : ''}
         <button class="btn primary" id="memory-apply-filters" type="button">筛选</button>
         <button class="btn" id="memory-reset-filters" type="button">重置</button>
       </div>
-      <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条 · 公式：${m.type === 'events' ? '按发生时间' : m.type === 'facts' ? '按更新时间' : '按候选创建时间/发生时间'}</div>
+      <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条 · 排序：${m.type === 'events' ? '按发生时间' : m.type === 'facts' ? '按更新时间' : '按产生/发生时间'}</div>
       <div class="memory-table-wrap">
         <table class="table memory-table">
-          <thead><tr><th>类型</th><th>内容</th><th>主体</th><th>时间</th><th>置信</th><th>范围</th></tr></thead>
+          <thead><tr><th>会变成</th><th>内容</th><th>涉及谁</th><th>时间</th><th>可信度</th><th>范围 / 状态</th></tr></thead>
           <tbody>${table || '<tr><td colspan="6" class="log-empty">没有匹配记录</td></tr>'}</tbody>
         </table>
       </div>
     </section>
     <section class="card panel" style="margin-top:14px">
-      <div class="section-title"><h3>详情与审核</h3><span>${modeTest ? '测试库可操作' : '生产库只读'}</span></div>
+      <div class="section-title"><h3>这条记忆的详情</h3><span>${modeTest ? '可在练习副本中操作' : '真实记忆只读'}</span></div>
       ${detailHtml}
     </section>`;
 }
@@ -1705,20 +1740,20 @@ async function switchMemoryMode(mode) {
 
 async function initMemoryTest() {
   showModal({
-    title: '初始化隔离测试库？',
+    title: '创建练习副本？',
     body: [
-      '将在桌面 userData/state/memory-test.db 创建合成候选，不包含真实聊天、真实记忆或生产数据。',
-      '生产库仍然只读，不会被复制或修改。',
-      '初始化后可在测试库中演练批准/拒绝和写入流程。'
+      '会在本机桌面目录创建一个练习用的记忆库，里面是合成数据，不包含真实聊天或真实记忆。',
+      '真实记忆仍然只读，不会被复制、修改或删除。',
+      '创建后可以在练习副本里体验“确认/不记住”的审核流程。'
     ].join('\n'),
-    confirmText: '初始化',
+    confirmText: '创建',
     onConfirm: async () => {
       try {
         const r = await api.memoryInitTest();
-        toast(r.created ? '隔离测试库已创建' : '隔离测试库已存在');
+        toast(r.created ? '练习副本已创建' : '练习副本已存在');
         await switchMemoryMode('test');
       } catch (error) {
-        toast(`初始化失败：${error.message}`);
+        toast(`创建失败：${error.message}`);
       }
     }
   });
@@ -1726,15 +1761,15 @@ async function initMemoryTest() {
 
 function askMemoryReview(action, id) {
   if (state.memory.mode !== 'test') {
-    toast('生产库只读：审核只能在隔离测试库进行');
+    toast('真实记忆只读：请先切换到「练习副本」再审核');
     return;
   }
-  const label = action === 'apply' ? '批准并写入测试库' : '拒绝';
+  const label = action === 'apply' ? '确认并写入练习副本' : '不记住这条';
   showModal({
-    title: `${label}候选 #${id}？`,
+    title: `${label} #${id}？`,
     body: action === 'apply'
-      ? '只写入隔离测试库 memory-test.db，不会修改生产 memory.db。写入前会做主体/可见范围校验。'
-      : '只把测试库中的候选标记为 rejected，不删除证据与历史。',
+      ? '只会写入练习副本，不会修改真实记忆。写入前会检查涉及的人和生效范围。'
+      : '只是把练习副本里的这条候选标记为“不采纳”，不会删除来源消息。',
     confirmText: label,
     danger: action === 'reject',
     onConfirm: async () => {
