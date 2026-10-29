@@ -385,8 +385,7 @@ function renderWizard() {
       </ol>
       <label class="field-label" for="wizard-owner-title">大肥鱼对您的称呼</label>
       <input class="input setup-input" id="wizard-owner-title" maxlength="16" value="${esc(w.ownerTitle || '爸爸')}" placeholder="例如：爸爸、主人、老板">
-      <p class="wizard-p">只用于界面问候，不写入 QQ 配置，也不会上传；默认是“爸爸”。</p>
-      <p class="wizard-p">安装包里不包含 SnowLuma/qq-bridge 的账号、密码或令牌，每台机器各自初始化。</p>`;
+      <p class="wizard-p">只用于界面问候，不写入 QQ 配置，也不会上传；默认是“爸爸”。</p>`;
   } else if (step === 1) {
     body = s?.webuiInitialized
       ? `<p class="wizard-p">这台机器的 SnowLuma 已经初始化过（存在 <code>config/webui.json</code>），继续使用原来的 WebUI 密码即可，不需要重设。</p>
@@ -415,8 +414,7 @@ function renderWizard() {
       <ul class="wizard-list">
         <li>SnowLuma：${s?.webuiInitialized ? '已初始化' : '仍需设置'}</li>
         <li>qq-bridge 令牌：${s?.bridgeTokenReady ? '已生成' : '待首次启动生成'}</li>
-      </ul>
-      <p class="wizard-p">分享安装包时不要带 token、webui.json、QQ 登录态或 API Key。</p>`;
+      </ul>`;
   }
   const canNext = step === 0 || step === 2 || step === 3 || (step === 1 && Boolean(s?.webuiInitialized));
   const nextLabel = step === total - 1 ? '完成' : '下一步';
@@ -489,8 +487,7 @@ function setupPage() {
       <button class="btn primary" id="setup-wizard" type="button">打开步骤向导</button>
       <button class="btn" id="setup-refresh" type="button" ${state.setup.busy ? 'disabled' : ''}>刷新检测</button>
       <span class="backup-hint">${state.setup.error ? esc(state.setup.error) : '只读取状态；不会显示密码或令牌内容'}</span>
-    </div>
-    <div class="notice">分享安装包时不要带 qq-bridge/state/console-token、SnowLuma/config/webui.json、QQ 登录态或 API Key；每台机器应各自初始化。</div>`;
+    </div>`;
 }
 
 function envStateClass(state) {
@@ -791,7 +788,6 @@ function startupPage() {
           <button class="btn primary" id="autostart-register" type="button" ${!info.canRegister || task.state === 'conflict' || task.state === 'registered' ? 'disabled' : ''}>注册登录自启</button>
           <button class="btn" id="autostart-unregister" type="button" ${!info.canRegister || task.state !== 'registered' ? 'disabled' : ''}>注销登录自启</button>
         </div>
-        ${info.canRegister === false ? '<p class="service-detail" style="margin-top:8px">当前是开发模式（未打包），系统任务注册/注销被禁用；打包后才会启用。</p>' : ''}
         <p class="service-detail" style="margin-top:10px">注册具有幂等性：已存在相同任务时不会重复创建；命令不一致时拒绝覆盖；失败会自动回滚本次创建。</p>
       </section>
       <section class="card panel">
@@ -1099,7 +1095,7 @@ function backupsPage() {
         ${item.manifest ? '<span class="tag man">manifest</span>' : ''}
         ${item.manifest && item.manifest.sqlite ? '<span class="tag">SQLite</span>' : ''}
       </td>
-      <td><span class="meta-pill">${esc(item.root.includes('D:') ? 'D 盘' : '仓库 backups')}</span></td>
+      <td><span class="meta-pill">${esc(item.root.includes('D:') ? 'D 盘' : '备份目录')}</span></td>
       <td class="row-actions">
         ${item.desktop ? `<button class="btn" data-verify="${esc(item.dir)}" type="button">校验</button>
         <button class="btn ghost" data-restore="${esc(item.dir)}" type="button">恢复演练</button>` : ''}
@@ -1559,7 +1555,7 @@ function askOriginalLaunch() {
   showModal({
     title: '用原启动方式启动 qq-bridge？',
     body: [
-      '将调用仓库自带的 start-qq-bridge-hidden.vbs（与计划任务相同的启动方式）。',
+      '将调用项目自带的隐藏启动脚本（与计划任务相同的启动方式）。',
       '启动后本软件不接管停止；若需要接管，请改用「启动」按钮由桌面拉起。',
       '仅在 qq-bridge 未运行时可用，避免重复实例。'
     ].join('\n'),

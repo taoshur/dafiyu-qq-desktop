@@ -11,12 +11,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.3.1 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.3.1/Dafiyu-Control-Center-Setup.exe
-- 大小：122,401,180 字节
+- **v0.3.2 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.3.2/Dafiyu-Control-Center-Setup.exe
+- 大小：122,401,113 字节
 - SHA256：
   ```text
-  0BB2D3B9C17E87BEEA07907EF3693166BE5AD1E9739F657F984F5C364F0C79C7
+  D74BDA457D639ABAE251D57C4626F406786DF57081F1A1191B97406ADA1B218F
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
