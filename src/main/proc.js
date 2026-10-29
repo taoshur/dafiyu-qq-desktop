@@ -11,7 +11,7 @@ const PROCESS_SCRIPT = [
   'ConvertTo-Json -Compress'
 ].join(' ');
 
-function runPowershell(script, timeoutMs = 9000) {
+function runPowershell(script, timeoutMs = 30000) {
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
   return new Promise((resolve, reject) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
