@@ -512,14 +512,14 @@ function environmentCard(item) {
       <div class="service-meta">
         <span class="meta-pill">版本 ${esc(item.version || 'unknown')}</span>
         ${item.running ? '<span class="meta-pill">运行中</span>' : ''}
-        ${snow ? '<span class="meta-pill">官方完整包</span>' : item.manualOnly ? '<span class="meta-pill">手动安装</span>' : '<span class="meta-pill">官方源码</span>'}
+        ${snow ? '<span class="meta-pill">官方完整包</span>' : item.manualOnly ? '<span class="meta-pill">手动安装</span>' : '<span class="meta-pill">安装包内置源码</span>'}
       </div>
       ${item.nextAction ? `<p class="embed-hint">下一步：${esc(item.nextAction)}</p>` : ''}
       ${item.official?.releases ? `<p class="env-link">官方：${esc(item.official.releases)}</p>` : ''}
       ${item.official?.project ? `<p class="env-link">官方：${esc(item.official.project)}</p>` : ''}
       ${snow ? '<p class="env-link">安装前必须接受官方 LICENSE 与 EULA；下载的是官方未修改完整发行版。</p><label class="env-check"><input id="accept-snowluma-license" type="checkbox"> 我已阅读并接受 SnowLuma LICENSE / EULA</label>' : ''}
       ${snow ? `<p class="env-link">LICENSE：${esc(item.official?.license || '')} · EULA：${esc(item.official?.eula || '')}</p>` : ''}
-      ${auto ? `<button class="btn primary" data-env-install="${snow ? 'snowluma' : 'bridge'}" type="button">${snow ? '安装 SnowLuma 官方包' : '安装 qq-bridge 源码'}</button>` : ''}
+      ${auto ? `<button class="btn primary" data-env-install="${snow ? 'snowluma' : 'bridge'}" type="button">${snow ? '安装 SnowLuma 官方包' : '安装内置 qq-bridge'}</button>` : ''}
     </section>`;
 }
 
@@ -538,10 +538,36 @@ function installTaskPanel() {
       <div class="backup-toolbar">
         ${active ? '<button class="btn" data-install-cancel type="button">取消安装</button>' : ''}
         ${task.status === 'failed' ? '<button class="btn primary" data-install-retry type="button">重试</button>' : ''}
+        ${task.status === 'failed' ? '<button class="btn" data-install-copy-error type="button">复制失败排查提示词</button>' : ''}
         ${task.status === 'completed' && task.result?.root ? `<button class="btn primary" data-install-use type="button">${task.component === 'snowluma' ? '设为 SnowLuma 路径' : '设为 qq-bridge 路径'}</button>` : ''}
       </div>
       <pre class="install-log">${(task.logs || []).slice(-30).map((item) => esc(item.line)).join('\n') || '暂无日志'}</pre>
     </section>`;
+}
+
+function installFailurePrompt(task) {
+  const name = task?.component === 'snowluma' ? 'SnowLuma' : task?.component === 'bridge' ? 'qq-bridge' : task?.component || '组件';
+  const logs = (task?.logs || []).slice(-8).map((item) => `- ${item.line}`).join('\n');
+  return `我的大肥鱼桌面控制中心在安装 ${name} 时失败了。请帮我排查并完成安装。
+
+失败信息：
+- 组件：${name}
+- 版本：${task?.version || 'unknown'}
+- 目标目录：${task?.targetDir || 'unknown'}
+- 错误：${task?.error || 'unknown'}
+- 最近日志：
+${logs || '- 无'}
+
+请按以下规则处理：
+1. 先解释最可能的失败原因，不要直接重复安装。
+2. 只使用官方来源；不要用未知镜像或来源不明的脚本。
+3. SnowLuma 只能下载官方未修改完整发行版，并需要我确认 LICENSE/EULA；不要修改或再分发。
+4. qq-bridge 使用官方源码；npm 安装失败时先检查 Node/npm、网络、权限和残留目录。
+5. 不要向我索要 QQ 密码、B站 cookie、token 或 API Key。
+6. 每一步先说明会改哪些目录/进程；需要覆盖已有目录时必须先备份并征得我确认。
+7. 如果无法自动修复，请给出可复制的 PowerShell 命令和回滚方式。
+
+不要假装安装成功；以实际检测结果为准。`;
 }
 
 function deepSeekGuidePrompt() {
@@ -2217,7 +2243,7 @@ function startInstall(component) {
         '继续即表示你已阅读并接受 SnowLuma LICENSE / EULA。'
       ].join('\n')
       : [
-        '将从官方 GitHub 源码归档下载 v0.2.1-r1，校验 SHA256，解压到目标目录，然后运行 npm install。',
+        '将把安装包内置的 qq-bridge v0.2.1-r1 源码复制到目标目录，然后运行 npm install。',
         `目标目录：${targetDir}`,
         '不会覆盖非空目录；不会自动启动服务；不会修改 SnowLuma/DSH。'
       ].join('\n'),
@@ -2242,6 +2268,15 @@ function startInstall(component) {
       }
     }
   });
+}
+
+async function copyInstallFailure() {
+  try {
+    const result = await api.copyText(installFailurePrompt(state.install.task));
+    toast(result.ok ? '失败排查提示词已复制，可以粘贴给 DeepSeek / DSH' : `复制失败：${result.reason || '未知原因'}`);
+  } catch (error) {
+    toast(`复制失败：${error.message}`);
+  }
 }
 
 async function cancelInstall() {
@@ -2326,6 +2361,7 @@ function bind() {
     const installBtn = event.target.closest('[data-env-install]');
     if (installBtn) { startInstall(installBtn.dataset.envInstall); return; }
     if (event.target.closest('[data-install-cancel]')) { cancelInstall(); return; }
+    if (event.target.closest('[data-install-copy-error]')) { copyInstallFailure(); return; }
     if (event.target.closest('[data-install-retry]')) { startInstall('bridge'); return; }
     if (event.target.closest('[data-install-use]')) { useInstallResult(); return; }
     const jump = event.target.closest('[data-page-jump]');

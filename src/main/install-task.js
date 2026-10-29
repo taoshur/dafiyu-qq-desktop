@@ -8,6 +8,14 @@ const { spawn } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const { catalogFor, planFor, defaultInstallRoot } = require('./install-catalog');
 
+function findBundledBridge() {
+  const candidates = [
+    path.join(process.resourcesPath || '', 'qq-bridge'),
+    path.join(__dirname, '..', '..', 'vendor', 'qq-bridge')
+  ];
+  return candidates.find((dir) => fs.existsSync(path.join(dir, 'package.json'))) || null;
+}
+
 const TASK_STATUS = Object.freeze({
   IDLE: 'idle',
   CHECKING: 'checking',
@@ -206,38 +214,48 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
       if (!fs.existsSync(path.dirname(target))) fs.mkdirSync(path.dirname(target), { recursive: true });
       if (!fs.existsSync(target)) { fs.mkdirSync(target, { recursive: true }); targetCreated = true; }
 
-      setStatus(TASK_STATUS.DOWNLOADING, item.kind === 'binary-zip' ? '下载官方发行包' : '下载官方源码归档');
-      addLog(`来源：${item.url}`);
-      task.total = item.size || 0;
-      emit();
-      await download(item.url, archive, {
-        signal: controller.signal,
-        onProgress: ({ received, total }) => {
-          task.received = received;
-          task.total = total || task.total;
-          task.percent = total > 0 ? Math.min(100, Math.round((received / total) * 100)) : null;
-          emit();
+      if (item.bundled) {
+        setStatus(TASK_STATUS.INSTALLING, '复制安装包内置的 qq-bridge 源码');
+        const source = findBundledBridge();
+        if (!source) throw new Error('安装包内没有找到内置 qq-bridge 源码');
+        for (const entry of fs.readdirSync(source)) {
+          fs.cpSync(path.join(source, entry), path.join(target, entry), { recursive: true });
         }
-      });
-      if (controller.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
+        addLog(`使用内置源码：${source}`);
+      } else {
+        setStatus(TASK_STATUS.DOWNLOADING, item.kind === 'binary-zip' ? '下载官方发行包' : '下载官方源码归档');
+        addLog(`来源：${item.url}`);
+        task.total = item.size || 0;
+        emit();
+        await download(item.url, archive, {
+          signal: controller.signal,
+          onProgress: ({ received, total }) => {
+            task.received = received;
+            task.total = total || task.total;
+            task.percent = total > 0 ? Math.min(100, Math.round((received / total) * 100)) : null;
+            emit();
+          }
+        });
+        if (controller.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
 
-      setStatus(TASK_STATUS.INSTALLING, '校验下载文件');
-      const actual = await hashFile(archive);
-      if (actual !== item.sha256) throw new Error(`SHA256 不匹配（期望 ${item.sha256}，实际 ${actual}）`);
-      addLog(`SHA256 校验通过：${actual}`);
+        setStatus(TASK_STATUS.INSTALLING, '校验下载文件');
+        const actual = await hashFile(archive);
+        if (actual !== item.sha256) throw new Error(`SHA256 不匹配（期望 ${item.sha256}，实际 ${actual}）`);
+        addLog(`SHA256 校验通过：${actual}`);
 
-      setStatus(TASK_STATUS.INSTALLING, '解压官方发行包');
-      const extractDir = path.join(tempDir, 'extract');
-      fs.mkdirSync(extractDir, { recursive: true });
-      await runProcess('tar.exe', ['-xf', archive, '-C', extractDir], { signal: controller.signal, onLog: addLog });
-      const sourceDir = item.archiveRoot ? path.join(extractDir, item.archiveRoot) : extractDir;
-      if (!fs.existsSync(sourceDir)) throw new Error(`归档中没有预期目录 ${item.archiveRoot || 'root'}`);
-      for (const entry of fs.readdirSync(sourceDir)) {
-        fs.renameSync(path.join(sourceDir, entry), path.join(target, entry));
+        setStatus(TASK_STATUS.INSTALLING, '解压官方发行包');
+        const extractDir = path.join(tempDir, 'extract');
+        fs.mkdirSync(extractDir, { recursive: true });
+        await runProcess('tar.exe', ['-xf', archive, '-C', extractDir], { signal: controller.signal, onLog: addLog });
+        const sourceDir = item.archiveRoot ? path.join(extractDir, item.archiveRoot) : extractDir;
+        if (!fs.existsSync(sourceDir)) throw new Error(`归档中没有预期目录 ${item.archiveRoot || 'root'}`);
+        for (const entry of fs.readdirSync(sourceDir)) {
+          fs.renameSync(path.join(sourceDir, entry), path.join(target, entry));
+        }
+        addLog(item.kind === 'source-archive' ? '源码已解压到目标目录' : '官方发行包已解压到目标目录');
       }
-      addLog(item.kind === 'source-archive' ? '源码已解压到目标目录' : '官方发行包已解压到目标目录');
 
-      if (item.kind === 'source-archive') {
+      if (item.kind === 'source-archive' || item.bundled) {
         setStatus(TASK_STATUS.INSTALLING, '安装 npm 依赖');
         if (process.platform === 'win32') {
           await runProcess(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'npm install --no-audit --no-fund'], {
@@ -269,7 +287,7 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
       if (missing.length) {
         throw new Error(`安装后验证失败：缺少 ${missing.join(', ')}`);
       }
-      if (item.kind === 'source-archive') {
+      if (item.kind === 'source-archive' || item.bundled) {
         const entry = path.join(target, item.entry[0], item.entry[1]);
         await runProcess(process.execPath, ['--check', entry], { cwd: target, signal: controller.signal, onLog: addLog });
       }

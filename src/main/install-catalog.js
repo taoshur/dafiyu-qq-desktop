@@ -8,11 +8,12 @@ const QQ_BRIDGE = Object.freeze({
   id: 'bridge',
   name: 'qq-bridge',
   version: 'v0.2.1-r1',
-  kind: 'source-archive',
-  url: 'https://codeload.github.com/Derpyu520/qq-bridge/zip/refs/tags/v0.2.1-r1',
+  kind: 'bundled-source',
+  bundled: true,
+  url: null,
   sha256: '9DB4365C5816BB7FF971420423316D141B533FC66F171E2536A8B67E7D4501C9',
-  size: 1407447,
-  archiveRoot: 'qq-bridge-0.2.1-r1',
+  size: 3159617,
+  archiveRoot: null,
   defaultSubdir: 'qq-bridge',
   license: 'MIT',
   upstream: 'https://github.com/Derpyu520/qq-bridge',
@@ -107,6 +108,7 @@ function planFor({ component, targetDir, settings = {} }) {
     autoInstall: true,
     targetDir: path.resolve(dir),
     version: item.version,
+    bundled: item.bundled === true,
     url: item.url,
     sha256: item.sha256,
     size: item.size || 0,
@@ -114,7 +116,9 @@ function planFor({ component, targetDir, settings = {} }) {
     upstream: item.upstream,
     requiresLicenseAcceptance: item.requiresLicenseAcceptance === true,
     licenseLinks: item.licenseLinks || null,
-    steps: ['check', 'download', 'verify', 'extract', ...(item.kind === 'source-archive' ? ['dependencies'] : []), 'configure', 'verify']
+    steps: item.bundled
+      ? ['check', 'copy', 'dependencies', 'configure', 'verify']
+      : ['check', 'download', 'verify', 'extract', ...(item.kind === 'source-archive' ? ['dependencies'] : []), 'configure', 'verify']
   };
 }
 

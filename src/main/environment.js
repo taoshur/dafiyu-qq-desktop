@@ -255,7 +255,7 @@ async function detectEnvironment({
     tokenReady: exists(bridgeToken),
     reason: bridgeReason,
     nextAction: bridgeStatus === STATUS.NOT_INSTALLED
-      ? '可从官方源码归档自动安装（需 npm、网络），或手动 clone 后 npm install'
+      ? '安装包内已带 qq-bridge 源码，可直接一键安装；需要本机 Node/npm'
       : bridgeStatus === STATUS.INSTALLED_UNCONFIGURED
         ? '复制 config.example.json 为 config.json 并按文档填写'
         : bridgeStatus === STATUS.CONFIGURED_NOT_RUNNING
