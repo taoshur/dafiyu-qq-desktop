@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { clipboard } = require('electron');
 const { buildSnapshot } = require('./health');
 const { listSources, tailSource } = require('./logs');
 const { definitions, simulateAction, dependencyPlan } = require('./services');
@@ -199,6 +200,13 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
 
   ipcMain.handle('install:status', async () => installManager.status());
   ipcMain.handle('install:cancel', async () => installManager.cancel());
+
+  ipcMain.handle('clipboard:write', async (_event, payload) => {
+    const text = typeof payload?.text === 'string' ? payload.text : '';
+    if (!text || text.length > 20000) return { ok: false, reason: '文本为空或过长' };
+    clipboard.writeText(text);
+    return { ok: true, length: text.length };
+  });
 
   ipcMain.handle('setup:status', async () => {
     const settings = getSettings();

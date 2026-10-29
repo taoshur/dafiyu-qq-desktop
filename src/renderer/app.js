@@ -451,6 +451,7 @@ function setupPage() {
   const initialized = Boolean(s.webuiInitialized);
   return `
     <div class="notice">首次部署只需要做两件事：给 SnowLuma 设一次 WebUI 密码；qq-bridge 控制台令牌由本机自动生成，内嵌页面自动注入，不需要你手动输入。</div>
+    ${deepSeekHelpBlock()}
     <div class="grid grid-2" style="margin-top:16px">
       <section class="card panel">
         <div class="section-title"><h3>1. SnowLuma WebUI</h3><span class="state-pill ${initialized ? 'state-running' : 'state-degraded'}"><i class="dot"></i>${initialized ? '已初始化' : '首次设置'}</span></div>
@@ -532,6 +533,39 @@ function installTaskPanel() {
     </section>`;
 }
 
+function deepSeekGuidePrompt() {
+  return `你是我的 Windows 11 部署助手。我要部署“大肥鱼桌面控制中心”的运行环境。
+
+项目与组件：
+- 控制中心：https://github.com/taoshur/dafiyu-qq-desktop
+- SnowLuma：https://github.com/SnowLuma/SnowLuma/releases （官方 Windows 完整发行包，需要 Node 24；只能手动安装，不要修改、打包、再分发或自动部署）
+- qq-bridge：https://github.com/Derpyu520/qq-bridge （MIT；固定源码 v0.2.1-r1，下载地址 https://codeload.github.com/Derpyu520/qq-bridge/zip/refs/tags/v0.2.1-r1，SHA256 9DB4365C5816BB7FF971420423316D141B533FC66F171E2536A8B67E7D4501C9；需要 Node >=22.13 和 npm）
+- DeepSeek Harness：https://deepseek.com/harness （官方桌面应用，手动安装）
+
+请按以下规则帮助我：
+1. 先检查我的 Windows 版本、CPU 架构、Node/npm/Git 版本，并说明是否满足。
+2. 只使用上述官方来源。执行前先列出要下载的文件、版本、SHA256 和用途，等我确认。
+3. SnowLuma 和 DSH 只指导我手动安装，不要尝试自动部署、修改、打包或再分发；不要绕过它们的登录/授权。
+4. qq-bridge 可以指导下载官方源码归档、校验 SHA256、解压和 npm install；不要使用未知镜像。
+5. 不要向我索要 QQ 密码、token、API Key；不要读取或上传聊天记录。
+6. 每一步先说明会修改哪些目录/进程，完成后验证 package.json、src/bridge.js、node_modules、端口和配置。
+7. 遇到许可证、权限、端口冲突或版本不兼容，先停下来解释，不要强行覆盖已有环境。
+8. 如果你不能直接执行，请给出我可以复制到 PowerShell 的固定命令，并说明风险和回滚方式。
+
+请从“检查环境”开始，一步一步来。`;
+}
+
+function deepSeekHelpBlock() {
+  const prompt = deepSeekGuidePrompt();
+  return `
+    <details class="deepseek-help">
+      <summary>不会部署？让 DeepSeek 按提示词帮你（可复制）</summary>
+      <p class="embed-hint">把下面这段复制给 DeepSeek / DSH。它只应使用官方来源，并在执行前征求你的确认；不要在里面粘贴 token、密码或聊天记录。</p>
+      <pre class="deepseek-prompt" id="deepseek-prompt">${esc(prompt)}</pre>
+      <button class="btn" data-copy-deepseek type="button">复制提示词</button>
+    </details>`;
+}
+
 function environmentPage() {
   const env = state.environment.status;
   if (!env) {
@@ -550,6 +584,7 @@ function environmentPage() {
   const manual = (env.components || []).filter((item) => item.manualOnly && ['not-installed', 'incompatible'].includes(item.status));
   return `
     <div class="notice">检测时间 ${new Date(env.checkedAt).toLocaleString()} · 正常运行 ${env.summary?.running || 0}/3。自动安装仅支持 qq-bridge 官方源码；SnowLuma/DSH 必须使用官方安装包手动安装。</div>
+    ${deepSeekHelpBlock()}
     <div class="grid grid-3">${(env.components || []).map(environmentCard).join('')}</div>
     ${manual.length ? `<div class="notice">${manual.map((item) => `${item.name} 需要手动安装：${item.official?.releases || item.official?.project || ''}`).join('；')}</div>` : ''}
     <div class="grid grid-2" style="margin-top:16px">
@@ -1787,6 +1822,15 @@ async function syncEmbed() {
   }
 }
 
+async function copyDeepSeekPrompt() {
+  try {
+    const result = await api.copyText(deepSeekGuidePrompt());
+    toast(result.ok ? '提示词已复制，可以粘贴给 DeepSeek / DSH' : `复制失败：${result.reason || '未知原因'}`);
+  } catch (error) {
+    toast(`复制失败：${error.message}`);
+  }
+}
+
 async function refreshEnvironment() {
   if (state.environment.busy) return;
   state.environment.busy = true;
@@ -1932,6 +1976,7 @@ function bind() {
 
   document.addEventListener('click', (event) => {
     if (event.target.closest('[data-env-detect]')) { refreshEnvironment(); return; }
+    if (event.target.closest('[data-copy-deepseek]')) { copyDeepSeekPrompt(); return; }
     const installBtn = event.target.closest('[data-env-install]');
     if (installBtn) { startInstall(installBtn.dataset.envInstall); return; }
     if (event.target.closest('[data-install-cancel]')) { cancelInstall(); return; }

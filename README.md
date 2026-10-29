@@ -11,12 +11,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.2.1 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.2.1/Dafiyu-Control-Center-Setup.exe
-- 大小：122,398,549 字节
+- **v0.2.2 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.2.2/Dafiyu-Control-Center-Setup.exe
+- 大小：122,399,517 字节
 - SHA256：
   ```text
-  A8DEE2F5D14BA00DC7094F5823BA78916B1B5ACF73F2C855CE350E966D175E91
+  C66F978FE1C716B8798AB020AEC8C6FF7132AD3C69D884510550588AA0B449AE
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
@@ -34,6 +34,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
 - **环境安装**：检测 SnowLuma / qq-bridge / DSH、系统依赖和官方来源；qq-bridge 支持官方源码自动安装，SnowLuma/DSH 明确提供手动安装指引
+- **新手提示词**：首次设置/环境页可复制一段交给 DeepSeek 的部署提示词，限定官方来源、手动安装边界和凭据安全
 - **安全基线**：`contextIsolation`、sandbox、固定 IPC 白名单、无 Node 渲染进程、令牌不进入 URL/页面
 
 ## 安全边界

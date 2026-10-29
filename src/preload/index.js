@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('dafiyu', {
   installStart: (component, targetDir, confirmed = false) => ipcRenderer.invoke('install:start', { component, targetDir, confirmed }),
   installStatus: () => ipcRenderer.invoke('install:status'),
   installCancel: () => ipcRenderer.invoke('install:cancel'),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write', { text }),
   controlPreflight: () => ipcRenderer.invoke('control:preflight'),
   controlRecoverSentinel: () => ipcRenderer.invoke('control:recover-sentinel'),
   controlStartOriginal: () => ipcRenderer.invoke('control:start-original'),

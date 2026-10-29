@@ -707,6 +707,9 @@ mark { background: rgba(246, 201, 107, 0.35); color: #fff; border-radius: 3px; }
 .install-bar { height: 8px; border-radius: 99px; background: rgba(125, 230, 212, 0.12); overflow: hidden; margin: 8px 0; }
 .install-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3fe0c8, #6ea8ff); transition: width 180ms ease; }
 .install-log { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 11px; line-height: 1.6; color: var(--text-faint); background: #071118; border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
+.deepseek-help { margin: 12px 0 16px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: rgba(125, 230, 212, 0.04); }
+.deepseek-help summary { cursor: pointer; color: var(--teal); font-size: 13px; }
+.deepseek-prompt { max-height: 240px; overflow: auto; white-space: pre-wrap; font-size: 11px; line-height: 1.65; color: var(--text-faint); background: #071118; border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
 @media (max-width: 1120px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .memory-detail { max-width: 260px; }
