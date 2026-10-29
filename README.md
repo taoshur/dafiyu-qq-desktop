@@ -112,6 +112,7 @@ SnowLuma 使用 **WebUI 密码**，不是控制台令牌。
 B站活动与接入：[docs/BILIBILI.md](docs/BILIBILI.md)
 更新检查：[docs/UPDATE.md](docs/UPDATE.md)
 Memory V4 召回与生命周期：[docs/MEMORY-V4.md](docs/MEMORY-V4.md)
+数据迁移与兼容性：[docs/DATA-MIGRATION.md](docs/DATA-MIGRATION.md)
 
 ### qq-bridge
 

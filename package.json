@@ -8,7 +8,8 @@
     "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
     "capture": "node scripts/capture-ui.js",
     "build": "electron-builder --win nsis --x64",
-    "pack": "electron-builder --dir"
+    "pack": "electron-builder --dir",
+    "verify:build": "node scripts/verify-build.js"
   },
   "keywords": [],
   "author": "",

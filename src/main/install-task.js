@@ -140,7 +140,7 @@ function writeAtomic(file, value) {
   fs.renameSync(tmp, file);
 }
 
-function createInstallManager({ paths, settings = {}, log = () => {}, component = 'bridge' } = {}) {
+function createInstallManager({ paths, settings = {}, log = () => {}, component = 'bridge', journal = null } = {}) {
   const emitter = new EventEmitter();
   const stateFile = path.join(paths.stateDir, 'install.json');
   const tempRoot = path.join(paths.cacheDir, 'install');
@@ -148,10 +148,17 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
   let controller = null;
   let child = null;
   let taskSeq = 0;
+  let lastJournalAt = 0;
 
   const emit = () => {
     if (!task) return;
     emitter.emit('update', JSON.parse(JSON.stringify(task)));
+    const now = Date.now();
+    const terminal = ['completed', 'failed', 'cancelled'].includes(task.status);
+    if (journal && (terminal || now - lastJournalAt > 750)) {
+      lastJournalAt = now;
+      try { journal.record({ ...task, kind: 'install' }); } catch { /* journal must not break install */ }
+    }
     if (typeof log === 'function') {
       const last = task.logs[task.logs.length - 1];
       if (last && last.seq !== task.lastLogged) {
@@ -334,6 +341,7 @@ function createInstallManager({ paths, settings = {}, log = () => {}, component 
     task = {
       id: `${requested}-${Date.now()}-${++taskSeq}`,
       component: requested,
+      kind: 'install',
       status: TASK_STATUS.CHECKING,
       step: '准备',
       targetDir: plan.targetDir,

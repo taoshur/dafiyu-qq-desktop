@@ -56,3 +56,19 @@ test('Supervisor facade delegates without changing controller behavior', () => {
     assert.equal(started, 1);
   });
 });
+
+
+test('Shared task journal keeps install/update metadata and survives corruption', () => {
+  const { createTaskJournal } = require('../src/main/domain/tasks/journal');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dafiyu-journal-'));
+  const file = path.join(root, 'tasks.json');
+  const journal = createTaskJournal({ file });
+  journal.record({ id: 'install-1', kind: 'install', component: 'bridge', status: 'downloading', targetDir: 'C:/x', version: 'v1', percent: 20 });
+  journal.record({ id: 'update-1', kind: 'update', status: 'completed', percent: 100 });
+  assert.equal(journal.list().length, 2);
+  assert.equal(journal.get('install-1').kind, 'install');
+  fs.writeFileSync(file, '{ broken', 'utf8');
+  assert.deepEqual(journal.list(), []);
+  journal.record({ id: 'update-2', kind: 'update', status: 'failed', error: 'x' });
+  assert.equal(journal.get('update-2').status, 'failed');
+});

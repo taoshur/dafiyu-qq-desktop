@@ -150,9 +150,17 @@ function hashFile(file) {
   });
 }
 
-function createUpdateManager({ currentVersion, paths, log = () => {} }) {
+function createUpdateManager({ currentVersion, paths, log = () => {}, journal = null }) {
   let task = null;
   let controller = null;
+  let lastJournalAt = 0;
+  const recordJournal = (force = false) => {
+    if (!journal || !task) return;
+    const now = Date.now();
+    if (!force && now - lastJournalAt < 750) return;
+    lastJournalAt = now;
+    try { journal.record({ ...task, kind: 'update' }); } catch { /* journal must not break update */ }
+  };
 
   const status = () => (task ? JSON.parse(JSON.stringify(task)) : null);
 
@@ -172,6 +180,11 @@ function createUpdateManager({ currentVersion, paths, log = () => {} }) {
     if (!release.asset?.url) return { ok: false, reason: '最新 Release 中没有可下载的安装包' };
     controller = new AbortController();
     task = {
+      id: `update-${Date.now()}`,
+      kind: 'update',
+      component: 'manager',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       status: 'downloading',
       latestVersion: release.latestVersion,
       asset: release.asset,
@@ -190,6 +203,8 @@ function createUpdateManager({ currentVersion, paths, log = () => {} }) {
           task.received = received;
           task.total = total || task.total;
           task.percent = task.total ? Math.min(100, Math.round((received / task.total) * 100)) : null;
+          task.updatedAt = Date.now();
+          recordJournal();
         }
       });
       if (controller.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
@@ -199,15 +214,21 @@ function createUpdateManager({ currentVersion, paths, log = () => {} }) {
         if (actual !== expected) throw new Error('更新包 SHA256 校验失败');
       }
       task.status = 'ready';
+      task.updatedAt = Date.now();
+      recordJournal(true);
       task.file = target;
       const child = spawn(target, [], { detached: true, stdio: 'ignore', windowsHide: false });
       child.unref();
       task.status = 'completed';
+      task.finishedAt = Date.now();
+      recordJournal(true);
       log('update', `installer launched version=${release.latestVersion}`);
       return { ok: true, task: status() };
     } catch (error) {
       task.status = controller.signal.aborted ? 'cancelled' : 'failed';
       task.error = error.message;
+      task.finishedAt = Date.now();
+      recordJournal(true);
       try { fs.rmSync(target, { force: true }); } catch { /* ignore */ }
       return { ok: false, reason: error.message, task: status() };
     }

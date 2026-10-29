@@ -10,6 +10,7 @@ const { createRecoveryEngine } = require('./recovery-engine');
 const { getIntent } = require('./stop-intent');
 const { createUpdateManager } = require('./updates');
 const { createInstallManager } = require('./install-task');
+const { createTaskJournal } = require('./domain/tasks/journal');
 const { tcpProbe } = require('./health');
 const { createIpcRouter } = require('./ipc/router');
 const { createServiceSupervisor } = require('./domain/services/supervisor');
@@ -22,8 +23,9 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const controller = createController({ stateDir: controlStateDir, getSettings, log });
   const supervisor = createServiceSupervisor({ controller });
   controller.reconcile().catch((error) => log('control', `reconcile failed: ${error.message}`));
-  const installManager = createInstallManager({ paths, getSettings, log, component: 'bridge' });
-  const updateManager = createUpdateManager({ currentVersion: require('../../package.json').version, paths, log });
+  const taskJournal = createTaskJournal({ file: path.join(paths.stateDir, 'tasks.json') });
+  const installManager = createInstallManager({ paths, getSettings, log, component: 'bridge', journal: taskJournal });
+  const updateManager = createUpdateManager({ currentVersion: require('../../package.json').version, paths, log, journal: taskJournal });
   const autostart = createAutostart({
     stateFile: path.join(controlStateDir, 'autostart.json'),
     exePath: process.execPath,
