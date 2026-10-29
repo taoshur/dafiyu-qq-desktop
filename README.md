@@ -8,6 +8,19 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 > 这不是机器人本体，也不包含 SnowLuma、qq-bridge、DSH 的源码或账号。
 > 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 只读浏览、服务网页内嵌和首次设置向导。
 
+## 下载安装包
+
+- **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
+- **v0.1.0 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.1.0/Dafiyu-Control-Center-Setup.exe
+- 大小：121,575,412 字节
+- SHA256：
+  ```text
+  7C494DA351F46D4D666A2D890294435EB29AC3412F7D8FF719D85F65BA5900BD
+  ```
+
+> 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
+
 ## 功能
 
 - **总览**：三件套端口/进程状态、QQ 链路、Memory V3 计数、数据库完整性、模型、运行时长
@@ -99,8 +112,6 @@ npm run build     # dist/Dafiyu-Control-Center-Setup.exe
 
 构建说明：[docs/WINDOWS-BUILD.md](docs/WINDOWS-BUILD.md)
 
-发布到 GitHub 的步骤：[docs/PUBLISHING.md](docs/PUBLISHING.md)
-
 ### 注意
 
 某些环境会设置 `ELECTRON_RUN_AS_NODE=1`。直接运行 Electron 会退化成 Node 并报 `bad option`；请使用 `npm start`，或先清除该环境变量。
@@ -134,12 +145,6 @@ docs/           构建、首次登录、接管检查表
 - 备份：`<qq-bridge>/backups/desktop-*`（以实际配置为准）
 
 这些目录中的用户数据**不进入仓库**。
-
-## 开源前必须确认
-
-- 仓库中的 `deepseek-chan.png`、`src/renderer/assets/deepseek-chan.png` 和 `build/icon.ico` 是**中性占位图**，不是原项目角色素材。请确认你拥有角色图片/图标的再分发权利后再替换。
-- SnowLuma、DSH 需由使用者自行获取，本仓库不随附它们的源码或二进制。
-- qq-bridge 若使用 MIT 之外的许可证，请以其仓库为准。
 
 ## License
 
