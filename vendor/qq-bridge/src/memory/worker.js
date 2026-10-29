@@ -52,8 +52,7 @@ export async function runExtractionCycle({ db, callModel, config = {}, log = () 
   const pend = pendingStats(db);
   if (!pend.pending) return { skipped: 'empty' };
   if (pend.pending > cfg.maxQueue) {
-    log(`[memory-extract] 待抽取 ${pend.pending} 条超上限 ${cfg.maxQueue}，跳过本轮（不丢消息）`);
-    return { skipped: 'overflow', pending: pend.pending };
+    log(`[memory-extract] 积压 ${pend.pending} 条，继续分批消费（提示上限 ${cfg.maxQueue}）`);
   }
 
   const batch = selectBatch(db, { batchSize: cfg.batchSize, maxQueue: cfg.maxQueue, contextSize: cfg.contextSize });
@@ -83,8 +82,13 @@ export async function runExtractionCycle({ db, callModel, config = {}, log = () 
         String((error?.message ?? error)).slice(0, 300), Date.now(), Date.now());
     const att = db.prepare('SELECT attempts FROM extraction_batches WHERE batch_key=?').get(key)?.attempts || 1;
     if (att >= cfg.maxAttempts) {
+      db.prepare(`INSERT INTO extract_dead_letters(batch_key, conv_key, message_ids, attempts, error, created_at)
+        VALUES(?,?,?,?,?,?)
+        ON CONFLICT(batch_key) DO UPDATE SET attempts=excluded.attempts, error=excluded.error, created_at=excluded.created_at`)
+        .run(key, batch.convKey, JSON.stringify(batch.ids), att,
+          String((error?.message ?? error)).slice(0, 300), Date.now());
       db.prepare(`UPDATE messages SET extracted=2 WHERE id IN (${batch.ids.map(() => '?').join(',')})`).run(...batch.ids);
-      log(`[memory-extract] ${batch.convKey} 失败 ${att} 次，放弃这批（标记跳过，不阻塞后续）`);
+      log(`[memory-extract] ${batch.convKey} 失败 ${att} 次，进入死信（可人工重试）`);
     } else {
       log(`[memory-extract] ${batch.convKey} 提取失败（第 ${att} 次）：${(error?.message ?? error)}`);
     }

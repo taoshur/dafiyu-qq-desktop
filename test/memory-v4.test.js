@@ -72,3 +72,31 @@ test('Lifecycle decays low-importance rows and protects important facts', () => 
   assert.equal(lowRow.status, 'active', 'archiving must not invalidate truth');
   assert.equal(highRow.lifecycle_state, 'active', 'high importance must be protected');
 });
+
+
+test('repeated lifecycle sweeps do not decay from the same old baseline twice', () => {
+  const { db } = fixture();
+  const old = Date.now() - 60 * 86400000;
+  const { id } = addFact(db, {
+    subjectQq: '123', subjectName: '小明', attr: '临时话题', value: '测试',
+    category: 'social', confidence: 0.5, scope: 'group:1', visibility: 'group'
+  });
+  db.prepare('UPDATE facts SET updated_at=?, last_recalled_at=?, activation=1, importance=0.2 WHERE id=?').run(old, old, id);
+  const first = sweepLifecycle(db, { now: Date.now(), force: true, config: { lifecycleEnabled: true } });
+  assert.ok(first.facts >= 1);
+  const a1 = db.prepare('SELECT activation, activation_updated_at FROM facts WHERE id=?').get(id);
+  const second = sweepLifecycle(db, { now: Date.now() + 86400000, force: true, config: { lifecycleEnabled: true } });
+  assert.ok(second.facts >= 1);
+  const a2 = db.prepare('SELECT activation FROM facts WHERE id=?').get(id);
+  assert.ok(Number(a2.activation) > Number(a1.activation) * 0.85, 'one-day sweep must not reapply six weeks of decay');
+  assert.ok(Number(a1.activation_updated_at) > old);
+});
+
+
+test('candidate TTL accepts ttlDays contract', () => {
+  const { classifyCandidate } = require('../vendor/qq-bridge/src/memory/quality.js');
+  const now = Date.now();
+  const judge = classifyCandidate({ kind: 'fact', category: 'plan', ttlDays: 3, certainty: 'stated', confidence: 0.8 }, { convKey: 'group:1' });
+  assert.ok(judge.expiresAt >= now + 2.9 * 86400000);
+  assert.ok(judge.expiresAt <= now + 3.1 * 86400000);
+});

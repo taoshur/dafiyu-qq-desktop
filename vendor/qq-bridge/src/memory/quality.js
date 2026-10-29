@@ -80,7 +80,7 @@ export function classifyCandidate(item, { convKey, now = Date.now() } = {}) {
   // 6) 临时计划：必须有有效期，转 temporal
   let expiresAt = Number(item.expiresAt) || null;
   if (item.kind === 'fact' && item.category === 'plan') {
-    const ttlDays = Number(item.ttl_days) > 0 ? Number(item.ttl_days) : 7;
+    const ttlDays = Number(item.ttlDays ?? item.ttl_days) > 0 ? Number(item.ttlDays ?? item.ttl_days) : 7;
     expiresAt = expiresAt || now + ttlDays * 86400000;
     if (quality.length === 0) quality.push('valid');
   }

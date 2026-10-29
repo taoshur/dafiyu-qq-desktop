@@ -59,6 +59,15 @@ CREATE TABLE IF NOT EXISTS memory_candidates (
 );
 CREATE INDEX IF NOT EXISTS idx_cand_status ON memory_candidates(status, created_at);
 
+CREATE TABLE IF NOT EXISTS extract_dead_letters (
+  batch_key TEXT PRIMARY KEY,
+  conv_key TEXT,
+  message_ids TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS extract_stats (
   day TEXT PRIMARY KEY,
   batches INTEGER NOT NULL DEFAULT 0,
@@ -135,7 +144,7 @@ export function selectBatch(db, { batchSize = 30, maxQueue = 200, contextSize = 
   ensureExtractSchema(db);
   const pending = pendingStats(db);
   if (!pending.pending) return null;
-  if (pending.pending > maxQueue * 5) return { overflow: true, pending: pending.pending };
+  // Large backlogs are drained in batches; do not reject the whole queue.
   const rows = db.prepare(`SELECT * FROM messages WHERE extracted=0 ORDER BY id ASC LIMIT ?`).all(batchSize);
   if (!rows.length) return null;
   const convKey = rows[0].conv_key;
@@ -145,6 +154,29 @@ export function selectBatch(db, { batchSize = 30, maxQueue = 200, contextSize = 
   const contextRows = db.prepare(`SELECT * FROM messages WHERE conv_key=? AND id < ? ORDER BY id DESC LIMIT ?`)
     .all(convKey, sameConv[0].id, Math.max(0, Number(contextSize) || 0)).reverse();
   return { convKey, batchKey, rows: sameConv, contextRows, ids: sameConv.map((r) => r.id) };
+}
+
+/** Reset dead-letter batches so a later operator/console action can retry them. */
+export function retryDeadLetters(db, { batchKey = null } = {}) {
+  ensureExtractSchema(db);
+  const rows = batchKey
+    ? db.prepare('SELECT * FROM extract_dead_letters WHERE batch_key=?').all(String(batchKey))
+    : db.prepare('SELECT * FROM extract_dead_letters').all();
+  let retried = 0;
+  db.exec('BEGIN');
+  try {
+    for (const row of rows) {
+      const ids = JSON.parse(row.message_ids || '[]').map(Number).filter(Number.isFinite);
+      if (ids.length) db.prepare(`UPDATE messages SET extracted=0 WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+      db.prepare('DELETE FROM extract_dead_letters WHERE batch_key=?').run(row.batch_key);
+      retried += 1;
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+    throw error;
+  }
+  return { retried };
 }
 
 /** JSON Schema 校验（手写，不引入依赖）：只收白名单字段 + 长度/类型约束 */

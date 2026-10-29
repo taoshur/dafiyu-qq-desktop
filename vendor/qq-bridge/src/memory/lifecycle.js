@@ -22,13 +22,18 @@ export function lifecycleConfig(config = {}) {
     ...DEFAULT_LIFECYCLE,
     ...(config.lifecycle || {}),
     enabled: config.lifecycleEnabled !== false,
-    tauDays: Number(config.decayTauDays) || Number(config.lifecycle?.tauDays) || DEFAULT_LIFECYCLE.tauDays,
-    dormantThreshold: Number(config.dormantThreshold) || DEFAULT_LIFECYCLE.dormantThreshold,
-    archiveThreshold: Number(config.archiveThreshold) || DEFAULT_LIFECYCLE.archiveThreshold,
-    recallBoost: Number(config.recallBoost) || DEFAULT_LIFECYCLE.recallBoost,
-    protectImportance: Number(config.protectImportance) || DEFAULT_LIFECYCLE.protectImportance,
-    sweepHours: Number(config.sweepHours) || DEFAULT_LIFECYCLE.sweepHours
+    tauDays: numberOr(config.decayTauDays, numberOr(config.lifecycle?.tauDays, DEFAULT_LIFECYCLE.tauDays)),
+    dormantThreshold: numberOr(config.dormantThreshold, DEFAULT_LIFECYCLE.dormantThreshold),
+    archiveThreshold: numberOr(config.archiveThreshold, DEFAULT_LIFECYCLE.archiveThreshold),
+    recallBoost: numberOr(config.recallBoost, DEFAULT_LIFECYCLE.recallBoost),
+    protectImportance: numberOr(config.protectImportance, DEFAULT_LIFECYCLE.protectImportance),
+    sweepHours: numberOr(config.sweepHours, DEFAULT_LIFECYCLE.sweepHours)
   };
+}
+
+function numberOr(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function backupBeforeMigration(db, missing) {
@@ -54,10 +59,11 @@ function backupBeforeMigration(db, missing) {
 export function ensureLifecycleSchema(db) {
   const factCols = db.prepare('PRAGMA table_info(facts)').all().map((c) => c.name);
   const eventColsBefore = db.prepare('PRAGMA table_info(events)').all().map((c) => c.name);
-  backupBeforeMigration(db, !factCols.includes('importance') || !eventColsBefore.includes('importance'));
+  backupBeforeMigration(db, !factCols.includes('importance') || !eventColsBefore.includes('importance') || !factCols.includes('activation_updated_at'));
   for (const [name, type] of [
     ['importance', 'REAL NOT NULL DEFAULT 0.5'],
     ['activation', 'REAL NOT NULL DEFAULT 1'],
+    ['activation_updated_at', 'INTEGER'],
     ['last_recalled_at', 'INTEGER'],
     ['reinforcement_count', 'INTEGER NOT NULL DEFAULT 0'],
     ['lifecycle_state', "TEXT NOT NULL DEFAULT 'active'"]
@@ -68,6 +74,7 @@ export function ensureLifecycleSchema(db) {
   for (const [name, type] of [
     ['importance', 'REAL NOT NULL DEFAULT 0.5'],
     ['activation', 'REAL NOT NULL DEFAULT 1'],
+    ['activation_updated_at', 'INTEGER'],
     ['last_recalled_at', 'INTEGER'],
     ['reinforcement_count', 'INTEGER NOT NULL DEFAULT 0'],
     ['lifecycle_state', "TEXT NOT NULL DEFAULT 'active'"]
@@ -99,7 +106,8 @@ function tauDaysFor(row, cfg) {
 export function activationAt(row, now = Date.now(), config = {}) {
   const cfg = lifecycleConfig(config);
   const base = Number(row.activation) || 1;
-  const last = Number(row.last_recalled_at) || Number(row.updated_at) || Number(row.happened_at) || Number(row.created_at) || now;
+  const last = Math.max(Number(row.last_recalled_at) || 0, Number(row.activation_updated_at) || 0)
+    || Number(row.updated_at) || Number(row.happened_at) || Number(row.created_at) || now;
   const days = Math.max(0, (Number(now) - last) / DAY);
   const decayed = base * Math.exp(-days / tauDaysFor(row, cfg));
   const importance = Number(row.importance) || 0;
@@ -125,8 +133,8 @@ export function lifecyclePenalty(row, now = Date.now(), config = {}) {
 export function touchRecalled(db, items, { now = Date.now(), config = {} } = {}) {
   const cfg = lifecycleConfig(config);
   if (!cfg.enabled) return;
-  const updateFact = db.prepare(`UPDATE facts SET activation=?, last_recalled_at=?, lifecycle_state=?, updated_at=updated_at WHERE id=?`);
-  const updateEvent = db.prepare(`UPDATE events SET activation=?, last_recalled_at=?, lifecycle_state=? WHERE id=?`);
+  const updateFact = db.prepare(`UPDATE facts SET activation=?, activation_updated_at=?, last_recalled_at=?, lifecycle_state=?, updated_at=updated_at WHERE id=?`);
+  const updateEvent = db.prepare(`UPDATE events SET activation=?, activation_updated_at=?, last_recalled_at=?, lifecycle_state=? WHERE id=?`);
   db.exec('BEGIN');
   try {
     for (const item of items) {
@@ -135,8 +143,8 @@ export function touchRecalled(db, items, { now = Date.now(), config = {} } = {})
       const activation = Math.min(1, Math.max(0, activationAt(row, now, cfg) + cfg.recallBoost));
       const next = { ...row, activation, last_recalled_at: now };
       const state = stateAt(next, now, cfg);
-      if (type === 'event') updateEvent.run(activation, now, state, row.id);
-      else updateFact.run(activation, now, state, row.id);
+      if (type === 'event') updateEvent.run(activation, now, now, state, row.id);
+      else updateFact.run(activation, now, now, state, row.id);
     }
     db.exec('COMMIT');
   } catch {
@@ -152,12 +160,12 @@ export function sweepLifecycle(db, { now = Date.now(), config = {}, force = fals
   if (!force && now - last < cfg.sweepHours * 3600 * 1000) return { skipped: true };
   const facts = db.prepare("SELECT * FROM facts WHERE status='active'").all();
   const events = db.prepare('SELECT * FROM events').all();
-  const updateFact = db.prepare('UPDATE facts SET activation=?, lifecycle_state=? WHERE id=?');
-  const updateEvent = db.prepare('UPDATE events SET activation=?, lifecycle_state=? WHERE id=?');
+  const updateFact = db.prepare('UPDATE facts SET activation=?, activation_updated_at=?, lifecycle_state=? WHERE id=?');
+  const updateEvent = db.prepare('UPDATE events SET activation=?, activation_updated_at=?, lifecycle_state=? WHERE id=?');
   db.exec('BEGIN');
   try {
-    for (const row of facts) updateFact.run(activationAt(row, now, cfg), stateAt(row, now, cfg), row.id);
-    for (const row of events) updateEvent.run(activationAt(row, now, cfg), stateAt(row, now, cfg), row.id);
+    for (const row of facts) updateFact.run(activationAt(row, now, cfg), now, stateAt(row, now, cfg), row.id);
+    for (const row of events) updateEvent.run(activationAt(row, now, cfg), now, stateAt(row, now, cfg), row.id);
     db.prepare('INSERT INTO memory_lifecycle_sweeps(id, last_at) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET last_at=excluded.last_at').run(now);
     db.exec('COMMIT');
   } catch {

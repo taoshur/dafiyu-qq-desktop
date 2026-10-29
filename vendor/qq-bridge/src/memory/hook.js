@@ -14,6 +14,7 @@ let db = null;
 let worker = null;
 let started = false;
 let disabled = false;
+let disabledUntil = 0;
 let logFn = () => {};
 let stats = { ingested: 0, errors: 0, lastError: '' };
 
@@ -36,24 +37,34 @@ export function getMemoryDb() {
 }
 
 export function memoryRuntimeStats() {
-  return { ...stats, worker: Boolean(worker), disabled };
+  return { ...stats, worker: Boolean(worker), disabled, disabledUntil };
 }
 
 /** 消息入库（best-effort，永不抛） */
 export function noteMessageForMemory(entry) {
-  if (disabled) return;
+  if (disabled) {
+    if (Date.now() < disabledUntil) return;
+    disabled = false;
+    stats.errors = 0;
+    try { logFn('[memory] 入库熔断冷却结束，恢复尝试'); } catch {}
+  }
   try {
     const cfg = memoryConf();
     if (cfg.ingest === false) return;
     const d = getMemoryDb();
     const r = ingestMessage(d, entry);
     if (r.inserted) stats.ingested += 1;
+    stats.errors = 0;
     startWorkerIfNeeded(d, cfg);
   } catch (error) {
     stats.errors += 1;
     stats.lastError = String(error?.message ?? error).slice(0, 200);
     try { logFn('[memory] 入库失败：' + stats.lastError); } catch {}
-    if (stats.errors >= 5) disabled = true; // 连续失败就自禁用，保护聊天
+    if (stats.errors >= 5) {
+      disabled = true;
+      disabledUntil = Date.now() + 5 * 60 * 1000;
+      try { logFn('[memory] 连续 5 次入库失败，熔断 5 分钟后重试'); } catch {}
+    }
   }
 }
 
