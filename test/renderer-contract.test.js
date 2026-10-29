@@ -1,0 +1,28 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const renderer = path.join(__dirname, '..', 'src', 'renderer');
+const pages = fs.readdirSync(path.join(renderer, 'pages')).filter((name) => name.endsWith('.js'));
+const app = fs.readFileSync(path.join(renderer, 'app.js'), 'utf8');
+const html = fs.readFileSync(path.join(renderer, 'index.html'), 'utf8');
+
+test('renderer page scripts are all loaded before app.js', () => {
+  for (const name of pages) {
+    assert.ok(html.includes(`pages/${name}`), `index.html missing pages/${name}`);
+    assert.ok(html.indexOf(`pages/${name}`) < html.indexOf('app.js'), `${name} must load before app.js`);
+  }
+  assert.ok(fs.readFileSync(path.join(renderer, 'core', 'format.js'), 'utf8').includes('function fmtSize'));
+  assert.ok(html.includes('core/format.js'));
+});
+
+test('renderer page entry points and PAGE_META remain defined', () => {
+  assert.ok(app.includes('const PAGE_META = {'), 'PAGE_META missing');
+  for (const name of ['overview', 'servicesPage', 'environmentPage', 'setupPage', 'embedPage', 'startupPage', 'logsPage', 'envPage', 'configPage', 'memoryPage', 'biliPage', 'backupsPage', 'aboutPage']) {
+    const sources = [app, ...pages.map((file) => fs.readFileSync(path.join(renderer, 'pages', file), 'utf8'))];
+    assert.ok(sources.some((source) => source.includes(`function ${name}(`)), `${name} missing`);
+  }
+});

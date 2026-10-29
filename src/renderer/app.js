@@ -46,6 +46,22 @@ const state = {
   recent: null
 };
 
+const PAGE_META = {
+  overview: ['总览', '三件套的健康状态一眼看清'],
+  services: ['服务', '按依赖顺序启动，只停止由本软件启动的服务'],
+  embed: ['服务网页', '内嵌本机 WebUI；页面权限与原服务一致'],
+  setup: ['首次设置', '首次部署时设置 SnowLuma 密码；bridge 令牌由本机自动生成'],
+  environment: ['环境安装', '检测 SnowLuma / qq-bridge / DSH；可自动安装的部分才提供一键安装'],
+  startup: ['启动与恢复', '三个开关互相独立；默认全部关闭'],
+  logs: ['运行日志', '只读查看，不会删除或截断原文件'],
+  env: ['环境检查', '启动前先确认运行时、配置与数据目录'],
+  config: ['配置', '默认只读；令牌与凭据不会显示在这里'],
+  memory: ['长期记忆', '大肥鱼记住的人和事；真实记忆只读，练习副本可审核'],
+  bilibili: ['B站活动', '大肥鱼在 B 站看了什么；本机台账，不上传'],
+  backups: ['数据备份', 'SQLite 一致性快照 + manifest 校验'],
+  about: ['关于', '大肥鱼桌面控制台 · 第三阶段（服务控制）']
+};
+
 function greeting(title = '爸爸') {
   const hour = new Date().getHours();
   const who = String(title || '爸爸').trim() || '爸爸';
