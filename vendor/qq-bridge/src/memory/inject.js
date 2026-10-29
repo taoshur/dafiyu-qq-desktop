@@ -44,7 +44,12 @@ function logInjection(convKey, r) {
   const now = Date.now();
   if (now - lastLogAt < 300) return; // 简单限流，避免高频写盘
   lastLogAt = now;
-  const line = JSON.stringify({ at: now, key: convKey, tokens: r.tokens, hits: r.hits, facts: r.facts, events: r.events }) + '\n';
+  const d = r.diagnostics || {};
+  const line = JSON.stringify({
+    at: now, key: convKey, tokens: r.tokens, hits: r.hits, facts: r.facts, events: r.events,
+    candidates: d.candidateCount ?? null, selected: Array.isArray(d.selectedIds) ? d.selectedIds.slice(0, 12) : null,
+    range: d.filters?.timeRange || null
+  }) + '\n';
   try {
     if (fs.existsSync(INJECT_LOG) && fs.statSync(INJECT_LOG).size > 2 * 1024 * 1024) {
       fs.writeFileSync(INJECT_LOG, '');

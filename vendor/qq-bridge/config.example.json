@@ -269,7 +269,15 @@
       "maxAttempts": 3,
       "intervalMs": 60000,
       "model": "deepseek-chat",
-      "injectBudgetTokens": 600
+      "injectBudgetTokens": 600,
+      "recallV4": true,
+      "lifecycleEnabled": true,
+      "decayTauDays": 30,
+      "dormantThreshold": 0.35,
+      "archiveThreshold": 0.15,
+      "recallBoost": 0.08,
+      "protectImportance": 0.8,
+      "sweepHours": 6
     }
   },
   "webSearch": {

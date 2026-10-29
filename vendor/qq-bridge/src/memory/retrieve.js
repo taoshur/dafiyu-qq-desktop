@@ -7,6 +7,8 @@
  */
 import { searchMemory } from './db.js';
 import { parseTimeRange } from './time-range.js';
+import { recallMemoryV4 } from './recall-v4.js';
+import { sweepLifecycle, touchRecalled, lifecycleConfig } from './lifecycle.js';
 
 export const DEFAULT_BUDGET = 600; // tokens
 
@@ -61,29 +63,40 @@ export function retrieveMemoryForPrompt(db, {
   selfQq = null
 } = {}) {
   const timeRange = parseTimeRange(text, now);
-  let rows = [];
+  const cfg = globalThis.__MEMORY_CONF__ || {};
+  const useV4 = cfg.recallV4 !== false;
+  let picked = [];
+  let recallDiagnostics = null;
   try {
-    rows = searchMemory(db, { convKey, qqs: speakerQqs, text, limit: limit * 3, now, timeRange, selfQq });
+    try { sweepLifecycle(db, { now, config: cfg }); } catch { /* lifecycle must not break retrieval */ }
+    if (useV4) {
+      const v4 = recallMemoryV4(db, {
+        convKey, speakerQqs, text, limit: limit * 3, now, timeRange, selfQq, config: cfg, budgetTokens
+      });
+      picked = v4.picked.slice(0, limit * 3);
+      recallDiagnostics = v4.diagnostics;
+    } else {
+      const rows = searchMemory(db, { convKey, qqs: speakerQqs, text, limit: limit * 3, now, timeRange, selfQq });
+      const allFacts = rows.filter((r) => r.type === 'fact');
+      const allEvents = rows.filter((r) => r.type === 'event');
+      // 事件保留至少一半配额（有时段查询时优先事件），避免被人物事实完全挤掉。
+      const eventSlots = allEvents.length ? Math.max(timeRange ? 3 : 2, Math.floor(limit / 2)) : 0;
+      if (timeRange) {
+        picked.push(...allEvents.slice(0, eventSlots));
+        picked.push(...allFacts.slice(0, limit - picked.length));
+        if (picked.length < limit) picked.push(...allEvents.slice(eventSlots, eventSlots + (limit - picked.length)));
+      } else {
+        picked.push(...allFacts.slice(0, Math.max(1, limit - eventSlots)));
+        picked.push(...allEvents.slice(0, limit - picked.length));
+        if (picked.length < limit) picked.push(...allFacts.slice(Math.max(1, limit - eventSlots), Math.max(1, limit - eventSlots) + (limit - picked.length)));
+      }
+    }
   } catch {
     return { text: '', tokens: 0, hits: 0, facts: 0, events: 0, range: timeRange };
   }
 
-  const allFacts = rows.filter((r) => r.type === 'fact');
-  const allEvents = rows.filter((r) => r.type === 'event');
-  // 事件保留至少一半配额（有时段查询时优先事件），避免被人物事实完全挤掉。
-  const eventSlots = allEvents.length ? Math.max(timeRange ? 3 : 2, Math.floor(limit / 2)) : 0;
-  const picked = [];
-  if (timeRange) {
-    picked.push(...allEvents.slice(0, eventSlots));
-    picked.push(...allFacts.slice(0, limit - picked.length));
-    if (picked.length < limit) picked.push(...allEvents.slice(eventSlots, eventSlots + (limit - picked.length)));
-  } else {
-    picked.push(...allFacts.slice(0, Math.max(1, limit - eventSlots)));
-    picked.push(...allEvents.slice(0, limit - picked.length));
-    if (picked.length < limit) picked.push(...allFacts.slice(Math.max(1, limit - eventSlots), Math.max(1, limit - eventSlots) + (limit - picked.length)));
-  }
-
   const lines = [];
+  const used = [];
   let tokens = 0;
   let facts = 0;
   let events = 0;
@@ -93,51 +106,59 @@ export function retrieveMemoryForPrompt(db, {
     if (lines.length >= limit) break;
     if (r.type === 'fact') {
       const subj = String(r.row.subject_qq || r.row.subject_name || '');
-      const used = perSubject.get(subj) || 0;
-      if (used >= 3) continue;
+      const usedBySubject = perSubject.get(subj) || 0;
+      if (usedBySubject >= 3) continue;
       const norm = String(r.row.value || '').replace(/\s+/g, '');
       if (seenValues.has(norm)) continue;
       const line = fmtFact(r.row);
       const t = estimateTokens(line + '\n');
       if (tokens + t > budgetTokens) continue;
       lines.push(line);
+      used.push(r);
       tokens += t;
       facts += 1;
-      perSubject.set(subj, used + 1);
+      perSubject.set(subj, usedBySubject + 1);
       seenValues.add(norm);
     } else {
       const line = fmtEvent(r.row);
       const t = estimateTokens(line + '\n');
       if (tokens + t > budgetTokens) continue;
       lines.push(line);
+      used.push(r);
       tokens += t;
       events += 1;
     }
   }
+  if (used.length) {
+    try { touchRecalled(db, used, { now, config: cfg }); } catch { /* recall bookkeeping is best effort */ }
+  }
 
-  if (!lines.length) return { text: '', tokens: 0, hits: 0, facts: 0, events: 0, range: timeRange };
+  if (!lines.length) return { text: '', tokens: 0, hits: 0, facts: 0, events: 0, range: timeRange, diagnostics: recallDiagnostics };
+  if (recallDiagnostics) recallDiagnostics.tokens = tokens;
   return {
     text: '【相关记忆】\n' + lines.join('\n'),
     tokens,
     hits: lines.length,
     facts,
     events,
-    range: timeRange
+    range: timeRange,
+    diagnostics: recallDiagnostics
   };
 }
 
-/** 从会话状态里取"当前话题相关的检索信号"：最近发言者 + 最近一条文本 */
-export function buildQueryFromState(st, { limitSpeakers = 4, textLimit = 200 } = {}) {
+/** 从会话状态里取"当前话题相关的检索信号"：最近发言者 + 最近几条非 bot 文本 */
+export function buildQueryFromState(st, { limitSpeakers = 4, textLimit = 260 } = {}) {
   const recent = Array.isArray(st?.recentMessages) ? st.recentMessages.slice(-12) : [];
   const qqs = [];
-  let latestText = '';
+  const texts = [];
   for (const m of recent) {
     if (m?.isSelf) continue;
     const qq = m?.userId != null ? String(m.userId) : (m?.senderQq != null ? String(m.senderQq) : '');
     if (/^\d{5,12}$/.test(qq) && !qqs.includes(qq)) qqs.push(qq);
     const text = m?.text || m?.plain;
-    if (text) latestText = String(text); // 取最后一条非 bot 消息，时间问句才不会被更早的消息覆盖
+    if (text) texts.push(String(text));
   }
+  const latestText = texts.slice(-3).join(' '); // 保留最近三条，避免只有一句“还记得吗”没有主题
   const topicText = Array.isArray(st?.activeTopics)
     ? st.activeTopics.slice(-3).map((t) => t?.text || '').join(' ')
     : '';

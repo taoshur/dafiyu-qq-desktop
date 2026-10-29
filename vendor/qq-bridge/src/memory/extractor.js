@@ -13,6 +13,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { addFact, addEvent, resolveQqByName } from './db.js';
+import { ensureLifecycleSchema } from './lifecycle.js';
 import { classifyCandidate, recordOpsEvent } from './quality.js';
 import { tokenize } from './tokenize.js';
 
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS extract_stats (
 
 export function ensureExtractSchema(db) {
   db.exec(APPLY_SCHEMA);
+  ensureLifecycleSchema(db);
   // messages 表补 msg_key / is_owner（阶段 1 建的表没有这些列）
   const cols = db.prepare("PRAGMA table_info(messages)").all().map((c) => c.name);
   if (!cols.includes('msg_key')) db.exec('ALTER TABLE messages ADD COLUMN msg_key TEXT');
@@ -240,6 +242,7 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
         const r = addFact(db, {
           subjectQq: f.subjectQq, subjectName: f.subjectName, attr: f.attr, value: f.value,
           kind: judge.expiresAt ? 'temporal' : f.kind, confidence: f.confidence, scope: f.scope, visibility: f.visibility,
+          category: f.category,
           sourceType, sourceConv: batch.convKey, sourceKey: `${batch.batchKey}|${dedupe}`
         });
         if (r.skipped) duplicates += 1; else written += 1;
@@ -266,6 +269,7 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
         const r = addEvent(db, {
           summary: e.summary, detail: e.detail, participants: e.participants,
           happenedAt: e.happenedAt, confidence: e.confidence, scope: e.scope,
+          category: e.category,
           visibility: e.visibility, sourceType, sourceConv: batch.convKey,
           sourceKey: `${batch.batchKey}|${dedupe}`
         });
@@ -356,6 +360,7 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
       value: cand.value,
       kind: cand.expires_at ? 'temporal' : (cand.kind_of_fact || 'multi'),
       confidence: cand.confidence,
+      category: cand.category,
       scope: cand.scope,
       visibility: cand.visibility,
       sourceType: 'auto:approved',
@@ -390,6 +395,7 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
         happenedAt,
         timePrecision,
         confidence: cand.confidence,
+        category: cand.category,
         scope: cand.scope,
         visibility: cand.visibility,
         sourceType: 'auto:approved',

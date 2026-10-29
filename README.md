@@ -11,12 +11,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.6.0 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.6.0/Dafiyu-Control-Center-Setup.exe
-- 大小：123,859,083 字节
+- **v0.7.0 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.7.0/Dafiyu-Control-Center-Setup.exe
+- 大小：123,864,145 字节
 - SHA256：
   ```text
-  6CC4E54FC4973C51BDD19D581464D2D5850D763B7EDDC7AF4E4A2C8760C4542C
+  577C2EFA14375E065CAC116806AEA04B60BDB0EC53CD2E96B7939372B5DDF40A
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 SnowLuma、qq-bridge、DSH。
@@ -29,7 +29,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **恢复引擎**：崩溃识别、退避、租约、BusyGuard、整树停止、watchdog 协调
 - **运行日志**：只读 tail，不删除、不截断原文件
 - **环境检查**：Node、目录、配置、依赖、state 可写性
-- **长期记忆**：内置 qq-bridge 包含 Memory V3；新用户从空 SQLite 库开始，默认观察模式、按需检索；桌面只读生产库，练习副本可审核
+- **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4 召回/生命周期；新用户从空 SQLite 库开始，默认观察模式、按需检索、可逆归档而非物理删除
 - **B站活动**：只读本机观看台账，显示大肥鱼最近看了哪些视频/字幕；侧边栏未读提示；提供 B 站 MCP 接入指引
 - **更新检查**：从 GitHub Releases 检查新版本，SHA256 校验后打开安装包，不静默升级
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
@@ -104,6 +104,7 @@ SnowLuma 使用 **WebUI 密码**，不是控制台令牌。
 环境安装能力与限制：[docs/ENVIRONMENT-INSTALL.md](docs/ENVIRONMENT-INSTALL.md)
 B站活动与接入：[docs/BILIBILI.md](docs/BILIBILI.md)
 更新检查：[docs/UPDATE.md](docs/UPDATE.md)
+Memory V4 召回与生命周期：[docs/MEMORY-V4.md](docs/MEMORY-V4.md)
 
 ### qq-bridge
 

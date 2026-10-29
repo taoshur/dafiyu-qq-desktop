@@ -134,8 +134,12 @@ function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '
       if (from != null) { where.push('created_at >= ?'); params.push(from); }
       if (to != null) { where.push('created_at <= ?'); params.push(to); }
       const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+      const factCols = tableColumns(db, 'facts');
       const total = Number(db.prepare(`SELECT COUNT(*) c FROM facts ${clause}`).get(...params)?.c || 0);
-      const rows = db.prepare(`SELECT id, subject_qq, subject_name, attr, value, kind, confidence, scope, visibility, status, created_at, updated_at, source_type
+      const rows = db.prepare(`SELECT id, subject_qq, subject_name, attr, value, kind, confidence, scope, visibility, status,
+        ${optional(factCols, 'importance', '0.5')}, ${optional(factCols, 'activation', '1')},
+        ${optional(factCols, 'lifecycle_state', "'active'")}, ${optional(factCols, 'last_recalled_at')},
+        created_at, updated_at, source_type
         FROM facts ${clause} ORDER BY updated_at DESC LIMIT ? OFFSET ?`).all(...params, take, skip);
       return { exists: true, type, total, rows: rows.map((r) => ({ ...r, type: 'fact' })) };
     }
@@ -149,7 +153,10 @@ function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '
       const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
       const total = Number(db.prepare(`SELECT COUNT(*) c FROM events ${clause}`).get(...params)?.c || 0);
       const eventCols = tableColumns(db, 'events');
-      const rows = db.prepare(`SELECT id, happened_at, ${optional(eventCols, 'time_precision', "'unknown'")}, summary, detail, participants, confidence, scope, visibility, source_type, source_conv, created_at
+      const rows = db.prepare(`SELECT id, happened_at, ${optional(eventCols, 'time_precision', "'unknown'")}, summary, detail, participants,
+        confidence, scope, visibility, source_type, source_conv, created_at,
+        ${optional(eventCols, 'importance', '0.5')}, ${optional(eventCols, 'activation', '1')},
+        ${optional(eventCols, 'lifecycle_state', "'active'")}, ${optional(eventCols, 'last_recalled_at')}
         FROM events ${clause} ORDER BY happened_at DESC, id DESC LIMIT ? OFFSET ?`).all(...params, take, skip);
       return { exists: true, type, total, rows: rows.map((r) => ({ ...r, type: 'event' })) };
     }

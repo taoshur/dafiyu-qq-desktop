@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { tokenize } from './tokenize.js';
+import { ensureLifecycleSchema, importanceFor } from './lifecycle.js';
 
 const SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -130,7 +131,8 @@ export function openMemoryDb(dbPath) {
   fs.mkdirSync(dir, { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec(SCHEMA);
-  db.prepare('INSERT OR IGNORE INTO meta(key, value) VALUES(?, ?)').run('schema_version', '3.0.0');
+  ensureLifecycleSchema(db);
+  db.prepare('INSERT OR IGNORE INTO meta(key, value) VALUES(?, ?)').run('schema_version', '4.0.0');
   return db;
 }
 
@@ -197,10 +199,12 @@ export function addFact(db, input) {
 
     const info = db.prepare(`INSERT INTO facts
       (subject_qq, subject_name, attr, value, kind, confidence, scope, visibility, status,
+       importance, activation, last_recalled_at, reinforcement_count, lifecycle_state,
        valid_from, valid_to, source_type, source_key, source_conv, source_msg_id, created_at, updated_at)
-      VALUES(?,?,?,?,?,?,?,?,'active',?,NULL,?,?,?,?,?,?)`)
+      VALUES(?,?,?,?,?,?,?,?,'active',?,1,NULL,0,'active',?,NULL,?,?,?,?,?,?)`)
       .run(subjectQq, input.subjectName || null, attr, value, kind,
         Number(input.confidence) || 0.7, scope, visibility,
+        Number(input.importance) > 0 ? Number(input.importance) : importanceFor(input.category, Number(input.confidence) || 0.7),
         input.validFrom ?? now, input.sourceType || 'manual', sourceKey,
         input.sourceConv || null, input.sourceMsgId ?? null, now, now);
     const id = Number(info.lastInsertRowid);
@@ -228,12 +232,15 @@ export function addEvent(db, input) {
 
   const info = db.prepare(`INSERT INTO events
     (happened_at, time_precision, summary, detail, participants, scope, visibility, confidence,
+     importance, activation, last_recalled_at, reinforcement_count, lifecycle_state,
      source_type, source_key, source_conv, source_msg_id, created_at)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    VALUES(?,?,?,?,?,?,?,?,?,1,NULL,0,'active',?,?,?,?,?)`)
     .run(happenedAt, precision, summary, input.detail || null,
       JSON.stringify(input.participants || []), String(input.scope || 'global'),
       ['private', 'group', 'global'].includes(input.visibility) ? input.visibility : 'global',
-      Number(input.confidence) || 0.7, input.sourceType || 'manual', sourceKey,
+      Number(input.confidence) || 0.7,
+      Number(input.importance) > 0 ? Number(input.importance) : importanceFor(input.category, Number(input.confidence) || 0.7),
+      input.sourceType || 'manual', sourceKey,
       input.sourceConv || null, input.sourceMsgId ?? null, now);
   const id = Number(info.lastInsertRowid);
   indexTokens(db, 'event', id, [summary, input.detail || ''].join(' '));

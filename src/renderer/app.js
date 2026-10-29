@@ -1156,7 +1156,8 @@ function memoryPage() {
       item.visibility ? `<span class="meta-pill">${esc(item.visibility === 'public' ? '群内可见' : item.visibility === 'private' ? '仅自己可见' : item.visibility)}</span>` : '',
       item.time_precision ? `<span class="meta-pill">${esc(memoryTimePrecisionLabel(item.time_precision))}</span>` : '',
       item.status ? `<span class="meta-pill">${esc(memoryStatusLabel(item.status))}</span>` : '',
-      item.quality ? `<span class="meta-pill">${esc(memoryQualityLabel(item.quality))}</span>` : ''
+      item.quality ? `<span class="meta-pill">${esc(memoryQualityLabel(item.quality))}</span>` : '',
+      item.lifecycle_state ? `<span class="meta-pill">${item.lifecycle_state === 'archived' ? '已归档' : item.lifecycle_state === 'dormant' ? '休眠' : '活跃'}</span>` : ''
     ].filter(Boolean).join(' ');
     return `<tr class="memory-row ${Number(m.selected) === id ? 'is-selected' : ''}" data-memory-id="${id}" data-memory-kind="${esc(kind)}">
       <td><span class="tag">${esc(memoryKindLabel(kind))}</span></td>
@@ -1184,6 +1185,9 @@ function memoryPage() {
       <div class="kv"><span>发生时间</span><b>${esc(selected.happened_at ? fmtTime(selected.happened_at) : '—')}</b></div>
       <div class="kv"><span>时间准确度</span><b>${esc(memoryTimePrecisionLabel(selected.time_precision))}</b></div>
       <div class="kv"><span>质量检查</span><b>${esc(memoryQualityLabel(selected.quality))}</b></div>
+      <div class="kv"><span>记忆状态</span><b>${selected.lifecycle_state === 'archived' ? '已归档（仍可检索）' : selected.lifecycle_state === 'dormant' ? '休眠' : '活跃'}</b></div>
+      <div class="kv"><span>活跃度</span><b>${selected.activation == null ? '—' : Number(selected.activation).toFixed(2)}</b></div>
+      <div class="kv"><span>重要度</span><b>${selected.importance == null ? '—' : Number(selected.importance).toFixed(2)}</b></div>
       <div class="kv"><span>不采纳原因</span><b>${esc(selected.reason || '—')}</b></div>
     </div>
     ${selected.detail ? `<p class="service-detail">${esc(selected.detail)}</p>` : ''}
