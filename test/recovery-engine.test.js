@@ -43,6 +43,7 @@ function setup(overrides = {}) {
     },
     lease,
     now: () => nowValue,
+    maxRecoveryDelayMs: 0,
     log: () => {}
   });
   return { engine, settings, health, calls, stateDir, setIntent: (v) => { intent = v; }, setNow: (v) => { nowValue = v; } };
@@ -246,4 +247,41 @@ test('状态目录不可写时恢复仍完成，记录失败但不抛出', async
   const result = await engine.runOnce();
   assert.equal(starts, 1);
   assert.equal(result.recovered.length, 1, '状态写入失败不应把恢复判为失败');
+});
+
+
+test('lease is released even when recovery throws', async () => {
+  let released = 0;
+  const env = setup({
+    lease: {
+      acquire: () => ({ acquired: true, reason: 'test' }),
+      heartbeat: () => ({ ok: true }),
+      release: () => { released += 1; return { ok: true }; },
+      ttlMs: 30000
+    },
+    startImpl: async () => { throw new Error('boom'); }
+  });
+  const result = await env.engine.runOnce();
+  assert.equal(env.calls.start, 1);
+  assert.ok(result.failed.length >= 1);
+  assert.equal(released, 1);
+});
+
+
+test('lease heartbeat renews during long recovery work', async () => {
+  let beats = 0;
+  const env = setup({
+    lease: {
+      acquire: () => ({ acquired: true, reason: 'test' }),
+      heartbeat: () => { beats += 1; return { ok: true }; },
+      release: () => ({ ok: true }),
+      ttlMs: 30
+    },
+    startImpl: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      return { ok: true, record: { pid: 333 } };
+    }
+  });
+  await env.engine.runOnce();
+  assert.ok(beats >= 1, 'heartbeat must run while recovery is still active');
 });

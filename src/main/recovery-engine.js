@@ -47,7 +47,8 @@ function createRecoveryEngine({
   lease = null,
   now = () => Date.now(),
   log = () => {},
-  notify = () => {}
+  notify = () => {},
+  maxRecoveryDelayMs = 120000
 } = {}) {
   const stateFile = path.join(stateDir, 'recovery-state.json');
   const historyFile = path.join(stateDir, 'recovery-history.jsonl');
@@ -124,6 +125,9 @@ function createRecoveryEngine({
 
     running.active = true;
     const summary = { at: now(), checked: 0, recovered: [], skipped: [], failed: [], lease: null };
+    let leaseAcquired = false;
+    let leaseLost = false;
+    let heartbeatTimer = null;
     try {
       const leaseResult = defaultLease.acquire();
       summary.lease = leaseResult.reason;
@@ -131,7 +135,22 @@ function createRecoveryEngine({
         log('recovery', `lease held by ${leaseResult.holder?.ownerId || 'unknown'}`);
         return summary;
       }
+      leaseAcquired = true;
       defaultLease.heartbeat();
+      const ttl = Number(defaultLease.ttlMs) || 30000;
+      heartbeatTimer = setInterval(() => {
+        try {
+          const beat = defaultLease.heartbeat();
+          if (!beat || beat.ok === false) {
+            leaseLost = true;
+            log('recovery', 'lease lost during recovery; stopping new starts');
+          }
+        } catch (error) {
+          leaseLost = true;
+          log('recovery', `heartbeat failed: ${error.message}`);
+        }
+      }, Math.max(1000, Math.floor(ttl / 3)));
+      heartbeatTimer.unref?.();
 
       const records = getRecords() || {};
       for (const [id, record] of Object.entries(records)) {
@@ -172,10 +191,15 @@ function createRecoveryEngine({
           consecutiveFailures: entry.failures,
           now: now()
         });
+        if (leaseLost) {
+          summary.skipped.push({ id, state: 'lease-lost', reason: '恢复租约已失效，停止新的启动' });
+          continue;
+        }
         if (decision.action !== 'restart') {
           summary.skipped.push({ id, state: 'circuit', reason: decision.reason });
           continue;
         }
+        if (decision.delayMs > 0) await sleep(Math.min(Number(decision.delayMs) || 0, maxRecoveryDelayMs));
 
         // 启动前再确认一次：并发看门狗/其他恢复者可能已经拉起服务或用户已要求停止。
         const recheck = await probe(id, record);
@@ -188,6 +212,10 @@ function createRecoveryEngine({
           continue;
         }
 
+        if (leaseLost) {
+          summary.skipped.push({ id, state: 'lease-lost', reason: '恢复租约在等待退避期间失效' });
+          continue;
+        }
         const startedAt = now();
         let result;
         try {
@@ -250,9 +278,12 @@ function createRecoveryEngine({
         if (notify) notify({ id, healthy, durationMs });
       }
 
-      defaultLease.release();
       return summary;
     } finally {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (leaseAcquired) {
+        try { defaultLease.release(); } catch { /* ignore */ }
+      }
       running.active = false;
     }
   }
