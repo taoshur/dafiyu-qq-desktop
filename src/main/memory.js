@@ -104,9 +104,10 @@ function memoryStatus({ settings, paths, mode = 'prod' }) {
   try {
     db = openReadonly(file);
     const one = (sql) => Number(db.prepare(sql).get()?.c || 0);
+    const eventColsForStatus = tableColumns(db, 'events');
     out.counts = {
       facts: one("SELECT COUNT(*) c FROM facts WHERE status='active'"),
-      events: one('SELECT COUNT(*) c FROM events'),
+      events: one(eventColsForStatus.has('retracted_at') ? "SELECT COUNT(*) c FROM events WHERE retracted_at IS NULL" : 'SELECT COUNT(*) c FROM events'),
       messages: one('SELECT COUNT(*) c FROM messages'),
       pending: one("SELECT COUNT(*) c FROM memory_candidates WHERE status='pending'"),
       applied: one("SELECT COUNT(*) c FROM memory_candidates WHERE status='applied'")
@@ -140,7 +141,7 @@ function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '
   const db = openReadonly(file);
   try {
     if (type === 'facts') {
-      const where = [];
+      const where = ["status='active'"];
       const params = [];
       if (term) { where.push("(COALESCE(subject_name,'') LIKE ? ESCAPE '\\' OR COALESCE(subject_qq,'') LIKE ? ESCAPE '\\' OR attr LIKE ? ESCAPE '\\' OR value LIKE ? ESCAPE '\\')"); params.push(term, term, term, term); }
       if (subject) { where.push("(subject_qq LIKE ? ESCAPE '\\' OR subject_name LIKE ? ESCAPE '\\')"); params.push(`%${escapeLike(subject)}%`, `%${escapeLike(subject)}%`); }

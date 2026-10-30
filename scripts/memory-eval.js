@@ -33,6 +33,14 @@ const CASES = [
     seeds: [{ type: 'event', summary: '一起修好了记忆系统，特别开心', detail: '反复测试后成功', happenedAt: Date.now() - 3 * 86400000, category: 'tech', confidence: 0.9, participants: ['123456'] }]
   },
   {
+    id: 'ranking-old-important', category: '长期重要经历', convKey: 'group:1', speakerQqs: ['123456'], query: '我们一起经历过什么',
+    seeds: [
+      { type: 'event', summary: '一起度过重要难关', detail: '很久以前但很重要', happenedAt: Date.now() - 365 * 86400000, category: 'social', confidence: 0.9, importance: 0.95, participants: ['123456'] },
+      { type: 'event', summary: '一起吃了普通午饭', detail: '最近的小事', happenedAt: Date.now() - 86400000, category: 'social', confidence: 0.9, importance: 0.2, participants: ['123456'] }
+    ],
+    expectFirst: 'event-old'
+  },
+  {
     id: 'absent', category: '不存在事件', convKey: 'group:1', speakerQqs: ['123456'], query: '我们去年在月球上吃过饭吗',
     seeds: []
   }
@@ -49,7 +57,7 @@ function seed(db, item) {
   return addEvent(db, {
     summary: item.summary, detail: item.detail, participants: item.participants || [],
     happenedAt: item.happenedAt, timePrecision: 'day', category: item.category,
-    confidence: item.confidence, scope: 'group:1', visibility: 'group', sourceType: 'eval'
+    confidence: item.confidence, importance: item.importance, scope: 'group:1', visibility: 'group', sourceType: 'eval'
   }).id;
 }
 
@@ -67,6 +75,7 @@ function runCase(item) {
   const expected = item.id === 'absent' ? [] : [...new Set(ids
     .filter((entry) => !item.expectSubject || String(entry.subject) === String(item.expectSubject))
     .map((entry) => entry.id))];
+  const firstOk = item.expectFirst ? selected[0] === expected[0] : null;
   const hit = expected.filter((id) => selected.includes(id));
   const falsePositives = selected.filter((id) => !expected.includes(id));
   db.close();
@@ -80,6 +89,7 @@ function runCase(item) {
     hallucination: expected.length === 0 && selected.length > 0 ? 1 : 0,
     tokens: Number(result.tokens) || 0,
     traceId: result.diagnostics?.traceId || null,
+    firstOk,
     text: result.text || ''
   };
 }
@@ -100,7 +110,9 @@ function evaluate() {
       precision: totalHits + totalFalse ? totalHits / (totalHits + totalFalse) : 1,
       falsePositiveCount: totalFalse,
       hallucinationRate: cases.filter((item) => item.hallucination).length / cases.length,
-      avgTokens: cases.reduce((sum, item) => sum + item.tokens, 0) / cases.length
+      avgTokens: cases.reduce((sum, item) => sum + item.tokens, 0) / cases.length,
+      rankingCases: cases.filter((item) => item.firstOk !== null).length,
+      rankingFirstPass: cases.filter((item) => item.firstOk === true).length
     }
   };
 }

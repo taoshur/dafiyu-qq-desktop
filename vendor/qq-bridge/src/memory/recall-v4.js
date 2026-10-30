@@ -131,6 +131,16 @@ export function recallMemoryV4(db, {
     seen.add(key);
     picked.push(item);
   };
+  // A long-term, high-importance shared event should not be crowded out by
+  // recent low-importance chatter. This is a protected slot, not a weight change.
+  if (config.protectImportantRecall !== false) {
+    const important = scored.filter((item) => item.type === 'event'
+      && Number(item.row.importance) >= 0.8
+      && Number(item.relevance) > 0
+      && item.row.happened_at && now - Number(item.row.happened_at) > 30 * 86400000
+    ).slice(0, 1);
+    for (const item of important) add(item, { force: true });
+  }
   // Time questions get at least two events before generic facts.
   if (timeRange) {
     for (const item of scored.filter((x) => x.type === 'event').slice(0, 2)) add(item, { force: true });

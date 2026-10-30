@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS traits (
   confidence REAL NOT NULL DEFAULT 0.5,
   evidence_count INTEGER NOT NULL DEFAULT 0,
   distinct_days INTEGER NOT NULL DEFAULT 0,
+  evidence_cursor INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active',
   first_evidence_at INTEGER,
   last_evidence_at INTEGER,
@@ -80,12 +81,12 @@ CREATE TABLE IF NOT EXISTS growth_candidates (
   evidence_count INTEGER,
   distinct_days INTEGER,
   span_days REAL,
+  basis_cursor INTEGER,
   reason TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   applied_at INTEGER,
   created_at INTEGER NOT NULL,
-  reviewed_at INTEGER,
-  UNIQUE(trait_key, kind, status)
+  reviewed_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS trait_versions (
@@ -182,6 +183,54 @@ export function ensureGrowthSchema(db) {
   // 兼容老库：补 tier / source 列
   const tCols = db.prepare('PRAGMA table_info(traits)').all().map((c) => c.name);
   if (!tCols.includes('tier')) db.exec("ALTER TABLE traits ADD COLUMN tier TEXT DEFAULT 'long'");
+  if (!tCols.includes('evidence_cursor')) db.exec('ALTER TABLE traits ADD COLUMN evidence_cursor INTEGER NOT NULL DEFAULT 0');
+  const cCols = db.prepare('PRAGMA table_info(growth_candidates)').all().map((c) => c.name);
+  if (!cCols.includes('basis_cursor')) db.exec('ALTER TABLE growth_candidates ADD COLUMN basis_cursor INTEGER');
+  // Old schema used UNIQUE(trait_key,kind,status), which allowed only one applied
+  // strengthen candidate forever. Rebuild once so history can retain many applied
+  // versions while only one pending candidate is allowed.
+  const candSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='growth_candidates'").get()?.sql || '';
+  if (/UNIQUE\s*\(\s*trait_key\s*,\s*kind\s*,\s*status\s*\)/i.test(candSql)) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.exec(`CREATE TABLE growth_candidates_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trait_key TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        before_strength REAL,
+        proposed_strength REAL,
+        delta REAL,
+        evidence_count INTEGER,
+        distinct_days INTEGER,
+        span_days REAL,
+        basis_cursor INTEGER,
+        reason TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        applied_at INTEGER,
+        created_at INTEGER NOT NULL,
+        reviewed_at INTEGER
+      )`);
+      const nowCols = db.prepare('PRAGMA table_info(growth_candidates)').all().map((c) => c.name);
+      const copyCols = nowCols.filter((name) => name !== 'basis_cursor');
+      db.exec(`INSERT INTO growth_candidates_new (${copyCols.join(',')}, basis_cursor)
+        SELECT ${copyCols.join(',')}, NULL FROM growth_candidates`);
+      db.exec('DROP TABLE growth_candidates');
+      db.exec('ALTER TABLE growth_candidates_new RENAME TO growth_candidates');
+      db.exec('COMMIT');
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+      throw error;
+    }
+  }
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uniq_growth_pending ON growth_candidates(trait_key, kind) WHERE status='pending'");
+  // One-time migration only: existing traits already consumed their historical
+  // evidence when strength was built. A meta flag prevents this from swallowing
+  // newly added evidence on every evaluation.
+  db.exec('CREATE TABLE IF NOT EXISTS growth_meta(key TEXT PRIMARY KEY, value TEXT)');
+  if (!db.prepare("SELECT 1 FROM growth_meta WHERE key='evidence_cursor_v1'").get()) {
+    db.prepare('UPDATE traits SET evidence_cursor=(SELECT COALESCE(MAX(id),0) FROM trait_evidence WHERE trait_key=traits.trait_key)').run();
+    db.prepare("INSERT OR REPLACE INTO growth_meta(key,value) VALUES('evidence_cursor_v1','1')").run();
+  }
   const eCols = db.prepare('PRAGMA table_info(trait_evidence)').all().map((c) => c.name);
   if (!eCols.includes('source')) db.exec("ALTER TABLE trait_evidence ADD COLUMN source TEXT DEFAULT 'behavior'");
   const now = Date.now();
@@ -285,8 +334,8 @@ function createInterestTraitsTx(db, { minWeight = 3, minBehavior = 2, minDays = 
       if (Number(info.changes) > 0) evidenceIds.push(Number(info.lastInsertRowid));
     }
     const agg = db.prepare('SELECT COUNT(*) c, COUNT(DISTINCT day) d, MIN(created_at) a, MAX(created_at) b FROM trait_evidence WHERE trait_key=?').get(key);
-    db.prepare('UPDATE traits SET evidence_count=?, distinct_days=?, first_evidence_at=?, last_evidence_at=? WHERE trait_key=?')
-      .run(Number(agg.c), Number(agg.d), Number(agg.a), Number(agg.b), key);
+    db.prepare('UPDATE traits SET evidence_count=?, distinct_days=?, first_evidence_at=?, last_evidence_at=?, evidence_cursor=? WHERE trait_key=?')
+      .run(Number(agg.c), Number(agg.d), Number(agg.a), Number(agg.b), Number(db.prepare('SELECT COALESCE(MAX(id),0) m FROM trait_evidence WHERE trait_key=?').get(key).m), key);
     // 兴趣形成也是一次「状态变化」：不写版本就没法追溯、也没法 rollback（审计发现 versions=0）。
     // before=0 表示「之前没有这个兴趣」；回滚后强度归零，上下文只注入 >=0.55 的 trait，等于不再提它。
     db.prepare(`INSERT INTO trait_versions(trait_key, before_strength, after_strength, reason, evidence_ids, source, at)
@@ -354,8 +403,14 @@ export function evaluateGrowth(db, conf = {}) {
     if (ev.days < cfg.minDistinctDays) continue;
     if (ev.span < cfg.minSpanDays) continue;
 
+    // Only evidence added since the last consumed watermark may raise strength.
+    // Re-evaluating the same evidence must not create another delta.
+    const cursor = Number(t.evidence_cursor) || 0;
+    const fresh = db.prepare('SELECT id FROM trait_evidence WHERE trait_key=? AND id>? ORDER BY id').all(t.trait_key, cursor);
+    if (!fresh.length) continue;
+    const basisCursor = Number(fresh[fresh.length - 1].id);
     const before = Number(t.strength);
-    const desiredUp = 0.02 * ev.count;
+    const desiredUp = 0.02 * fresh.length;
     const delta = Math.min(cfg.maxAutoDelta, desiredUp);
     const proposed = Math.max(0, Math.min(1, before + delta));
     if (Math.abs(proposed - before) < 0.005) continue;
@@ -366,10 +421,10 @@ export function evaluateGrowth(db, conf = {}) {
     const auto = cfg.autoApplyExpression && (t.category === 'expression' || t.category === 'interest' || t.category === 'habit');
     const reason = `证据 ${ev.count} 条 / ${ev.days} 天 / 跨度 ${ev.span.toFixed(1)} 天`;
     const info = db.prepare(`INSERT INTO growth_candidates
-      (trait_key, kind, before_strength, proposed_strength, delta, evidence_count, distinct_days, span_days, reason, status, created_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(t.trait_key, 'strengthen', before, proposed, proposed - before, ev.count, ev.days, ev.span, reason,
-        auto ? 'pending' : 'pending', Date.now());
+      (trait_key, kind, before_strength, proposed_strength, delta, evidence_count, distinct_days, span_days, basis_cursor, reason, status, created_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(t.trait_key, 'strengthen', before, proposed, proposed - before, ev.count, ev.days, ev.span, basisCursor, reason,
+        'pending', Date.now());
     const id = Number(info.lastInsertRowid);
     if (auto) applyCandidate(db, id, { source: 'auto' });
     produced.push({ id, trait: t.trait_key, delta: proposed - before, auto });
@@ -440,8 +495,8 @@ function applyCandidateTx(db, id, { source = 'manual', reason = '' } = {}) {
   // 复核候选是「人工确认后」才生效的唯一入口：只有它能把 rejected 改回 active。
   // 普通 strengthen 候选保持原状态不动（原来也不改状态）。
   const nextStatus = c.kind === 'review' && t.status === 'rejected' ? 'active' : t.status;
-  db.prepare('UPDATE traits SET strength=?, status=?, updated_at=? WHERE trait_key=?')
-    .run(after, nextStatus, Date.now(), c.trait_key);
+  db.prepare(`UPDATE traits SET strength=?, status=?, evidence_cursor=MAX(COALESCE(evidence_cursor,0), COALESCE(?,0)), updated_at=? WHERE trait_key=?`)
+    .run(after, nextStatus, Number(c.basis_cursor) || null, Date.now(), c.trait_key);
   db.prepare('UPDATE growth_candidates SET status=?, applied_at=?, reviewed_at=? WHERE id=?').run('applied', Date.now(), Date.now(), id);
   const evIds = db.prepare('SELECT id FROM trait_evidence WHERE trait_key=? ORDER BY id DESC LIMIT 20').all(c.trait_key).map((r) => r.id);
   db.prepare('INSERT INTO trait_versions(trait_key, before_strength, after_strength, reason, evidence_ids, source, at) VALUES(?,?,?,?,?,?,?)')

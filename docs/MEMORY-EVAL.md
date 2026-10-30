@@ -49,7 +49,7 @@ artifacts/memory-eval-report.md
 anonymized-memory-baseline-v1
 ```
 
-当前 6 个用例：
+当前 7 个用例：
 
 | 用例 | 类型 | Recall | 误召回 | Token |
 |---|---|---:|---:|---:|
@@ -58,6 +58,7 @@ anonymized-memory-baseline-v1
 | time-yesterday | 时间范围 | 100% | 0 | 10 |
 | cross-person | 跨人物归属 | 100% | 0 | 11 |
 | multi-turn | 多轮共同经历 | 100% | 0 | 17 |
+| ranking-old-important | 长期重要经历 | 100% | 0 | 0 |
 | absent | 不存在事件 | 100% | 0 | 0 |
 
 汇总：
@@ -67,7 +68,8 @@ Recall: 100%
 Precision: 100%
 误召回: 0
 幻觉率: 0%
-平均 Token: 11.5
+平均 Token: 13.6
+长期重要经历首位命中：1/1
 ```
 
 ## 重要限制

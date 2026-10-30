@@ -146,3 +146,15 @@ test('empty recall is still written to diagnostics', () => {
   assert.ok(row);
   assert.equal(JSON.parse(row.filters).stage, 'retrieval-empty');
 });
+
+
+test('retracted facts and events are excluded from recall', () => {
+  const { db } = fixture();
+  const fact = addFact(db, { subjectQq: '123', subjectName: '爸爸', attr: '旧事实', value: '已撤销', category: 'preference', confidence: 0.9, scope: 'group:1', visibility: 'group' });
+  const event = addEvent(db, { summary: '已撤销的旧事件', happenedAt: Date.now() - 86400000, category: 'social', confidence: 0.9, scope: 'group:1', visibility: 'group' });
+  db.prepare("UPDATE facts SET status='retracted' WHERE id=?").run(fact.id);
+  db.prepare('UPDATE events SET retracted_at=? WHERE id=?').run(Date.now(), event.id);
+  globalThis.__MEMORY_CONF__ = { recallV4: true, lifecycleEnabled: true };
+  const result = retrieveMemoryForPrompt(db, { convKey: 'group:1', speakerQqs: ['123'], text: '旧事实 已撤销的旧事件', budgetTokens: 600 });
+  assert.equal(result.hits, 0);
+});
