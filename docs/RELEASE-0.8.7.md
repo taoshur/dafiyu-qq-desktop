@@ -36,3 +36,10 @@ Legacy Growth Candidate stale 风险修订版本，仅用于生产升级前评�
 ## 状态
 
 本地修订包，未上传 GitHub，未部署生产。
+
+## 本地构建
+
+```text
+size: 123,442,195
+sha256: 33E4CE68891952390B6E654B34CEC0FB4C21C919338AC6B2742D958289F05F48
+```
