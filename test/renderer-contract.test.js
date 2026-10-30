@@ -59,3 +59,11 @@ test('memory page exposes the MaiBot import entry point', () => {
   assert.ok(app.includes('importMaiBotMemory'));
   assert.ok(app.includes('memoryMaiBotImport'));
 });
+
+
+test('native select options have readable light-popup colors', () => {
+  const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');
+  assert.ok(css.includes('.input option'));
+  assert.ok(css.includes('color: #111'));
+  assert.ok(css.includes('background: #fff'));
+});

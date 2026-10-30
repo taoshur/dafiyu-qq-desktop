@@ -688,6 +688,23 @@ mark { background: rgba(246, 201, 107, 0.35); color: #fff; border-radius: 3px; }
 .wizard-nav { display: flex; gap: 8px; }
 .wizard .setup-input { max-width: 100%; }
 .input:focus { outline: 2px solid var(--teal-soft); border-color: var(--teal); }
+/* Native <select> popups use the OS light surface on Windows. Without an
+   explicit option color they inherit the dark-theme light text and become
+   unreadable (white text on a white popup). */
+.input option,
+.select option {
+  color: #111;
+  background: #fff;
+}
+.input option:checked,
+.select option:checked {
+  color: #fff;
+  background: #1565c0;
+}
+.input option:disabled,
+.select option:disabled {
+  color: #777;
+}
 .memory-result-meta { font-size: 11px; color: var(--text-faint); padding: 6px 2px; }
 .memory-table-wrap { overflow: auto; max-height: 430px; border: 1px solid var(--line); border-radius: 12px; }
 .memory-table { margin: 0; }
