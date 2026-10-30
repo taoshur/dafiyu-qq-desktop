@@ -38,3 +38,16 @@ test('select interactions are driven by change, not the opening click', () => {
   assert.ok(!clickHandler.includes("memory-sort"), 'memory sort must not refresh on click');
   assert.ok(changeHandler.includes("memory-sort"), 'memory sort must react on change');
 });
+
+
+test('update progress polls before the long update download IPC resolves', () => {
+  const start = app.indexOf('function downloadUpdate()');
+  const end = app.indexOf('async function openReleasePage()', start);
+  assert.ok(start >= 0 && end > start);
+  const body = app.slice(start, end);
+  assert.ok(body.includes('const request = api.updateDownload()'));
+  assert.ok(body.indexOf('pollUpdate()') < body.indexOf('await request'));
+  const poll = app.slice(app.indexOf('function pollUpdate()'), app.indexOf('function downloadUpdate()'));
+  assert.ok(poll.includes('startedAt'), 'poll must tolerate the task not appearing immediately');
+  assert.ok(poll.includes('15000'), 'poll must have a bounded startup grace period');
+});

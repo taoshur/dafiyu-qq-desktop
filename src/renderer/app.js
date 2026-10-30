@@ -1058,12 +1058,16 @@ function renderLiveUpdate() {
 
 function pollUpdate() {
   if (state.update.timer) return;
+  const startedAt = Date.now();
   state.update.timer = setInterval(async () => {
     try {
       const task = await api.updateStatus();
       if (task) state.update.task = task;
       const active = task && !['completed', 'failed', 'cancelled'].includes(task.status);
       if (!active) {
+        // update:download IPC does not resolve until the download finishes.
+        // Keep polling briefly so the task can appear after the request starts.
+        if (!task && Date.now() - startedAt < 15000) return;
         clearInterval(state.update.timer);
         state.update.timer = null;
         if (state.page === 'about') renderLiveUpdate();
@@ -1088,14 +1092,17 @@ function downloadUpdate() {
     onConfirm: async () => {
       state.update.busy = true;
       try {
-        const result = await api.updateDownload();
+        // Start polling before awaiting the IPC call: update:download only
+        // resolves after the full download, so awaiting first hid all progress.
+        const request = api.updateDownload();
+        pollUpdate();
+        const result = await request;
         state.update.task = result.task || null;
         if (!result.ok) {
           toast(`更新失败：${result.reason}`);
         } else {
           toast('安装程序已打开');
         }
-        pollUpdate();
         if (state.page === 'about') render();
       } catch (error) {
         toast(`更新失败：${error.message}`);
