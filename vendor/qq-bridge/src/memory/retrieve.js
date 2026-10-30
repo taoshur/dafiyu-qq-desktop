@@ -136,12 +136,15 @@ export function retrieveMemoryForPrompt(db, {
     try { touchRecalled(db, used, { now, config: cfg }); } catch { /* recall bookkeeping is best effort */ }
   }
 
-  if (!lines.length) return { text: '', tokens: 0, hits: 0, facts: 0, events: 0, range: timeRange, diagnostics: recallDiagnostics };
   if (recallDiagnostics) {
     recallDiagnostics.tokens = tokens;
     recallDiagnostics.selectedIds = used.map((item) => `${item.type}:${item.row.id}`);
+    if (recallDiagnostics.filters) recallDiagnostics.filters.stage = lines.length ? 'injected' : 'retrieval-empty';
+    // Even an empty recall is useful evidence: it explains why the answer did
+    // not know something. Persist it before the empty return.
     try { recordRecallDiagnostics(db, recallDiagnostics); } catch { /* diagnostics must not break retrieval */ }
   }
+  if (!lines.length) return { text: '', tokens: 0, hits: 0, facts: 0, events: 0, range: timeRange, diagnostics: recallDiagnostics };
   return {
     text: '【相关记忆】\n' + lines.join('\n'),
     tokens,

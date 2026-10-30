@@ -121,3 +121,28 @@ test('Memory DB sets WAL and busy_timeout for desktop/bridge coexistence', () =>
   assert.equal(Number(db.prepare('PRAGMA busy_timeout').get().timeout), 8000);
   assert.equal(String(db.prepare('PRAGMA journal_mode').get().journal_mode).toLowerCase(), 'wal');
 });
+
+
+test('concept expansion retrieves paraphrased emotional memories', () => {
+  const { db } = fixture();
+  addFact(db, {
+    subjectQq: '123', subjectName: '爸爸', attr: '心情', value: '长期努力学习却不知道生活的意义，感到迷茫',
+    category: 'profile', confidence: 0.9, scope: 'group:1', visibility: 'group'
+  });
+  globalThis.__MEMORY_CONF__ = { recallV4: true, lifecycleEnabled: true };
+  const result = retrieveMemoryForPrompt(db, {
+    convKey: 'group:1', speakerQqs: ['123'], text: '你记得我以前为什么不开心吗', budgetTokens: 600
+  });
+  assert.match(result.text, /迷茫/);
+});
+
+
+test('empty recall is still written to diagnostics', () => {
+  const { db } = fixture();
+  globalThis.__MEMORY_CONF__ = { recallV4: true, lifecycleEnabled: true };
+  const result = retrieveMemoryForPrompt(db, { convKey: 'group:1', speakerQqs: ['123'], text: '完全不存在的内容', budgetTokens: 100 });
+  assert.equal(result.hits, 0);
+  const row = db.prepare('SELECT filters FROM memory_recall_diagnostics ORDER BY id DESC LIMIT 1').get();
+  assert.ok(row);
+  assert.equal(JSON.parse(row.filters).stage, 'retrieval-empty');
+});

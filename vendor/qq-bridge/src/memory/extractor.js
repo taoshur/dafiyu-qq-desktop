@@ -257,7 +257,7 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
     for (const f of validated.facts) {
       const dedupe = `f|${f.subjectQq || ''}|${normalize(f.subjectName)}|${normalize(f.attr)}|${normalize(f.value)}|${f.scope}`;
       const judge = classifyCandidate({ ...f, kind: 'fact', category: f.category, evidenceCount: f.evidenceCount, selfStated: f.selfStated, certainty: f.certainty, ttlDays: f.ttlDays, expiresAt: f.expiresAt }, { convKey: batch.convKey });
-      const status = judge.reject ? 'rejected' : 'pending';
+      const status = judge.decision === 'reject' ? 'rejected' : 'pending';
       const expiresAt = judge.expiresAt || f.expiresAt || null;
       if (observeOnly) {
         const info = db.prepare(`INSERT OR IGNORE INTO memory_candidates
@@ -267,10 +267,10 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
           VALUES('fact',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
           .run(f.subjectQq, f.subjectName, f.attr, f.value, f.confidence, f.scope, f.visibility,
             judge.expiresAt ? 'temporal' : f.kind, dedupe, batch.batchKey, batch.convKey, sourceType,
-            status, judge.reject || '', judge.quality, f.category || null,
+            status, judge.reason || '', judge.quality, f.category || null,
             f.evidenceCount || 0, f.selfStated ? 1 : 0, expiresAt, Date.now());
         if (Number(info.changes) > 0) { if (status === 'pending') written += 1; else rejected += 1; } else duplicates += 1;
-      } else if (status === 'pending') {
+      } else if (judge.decision === 'allow') {
         const r = addFact(db, {
           subjectQq: f.subjectQq, subjectName: f.subjectName, attr: f.attr, value: f.value,
           kind: judge.expiresAt ? 'temporal' : f.kind, confidence: f.confidence, scope: f.scope, visibility: f.visibility,
@@ -278,26 +278,37 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
           sourceType, sourceConv: batch.convKey, sourceKey: `${batch.batchKey}|${dedupe}`
         });
         if (r.skipped) duplicates += 1; else written += 1;
+      } else if (judge.decision === 'review') {
+        const info = db.prepare(`INSERT OR IGNORE INTO memory_candidates
+          (kind, subject_qq, subject_name, attr, value, confidence, scope, visibility, kind_of_fact,
+           dedupe_key, batch_key, conv_key, source_type, status, reason, quality, category,
+           evidence_count, self_stated, expires_at, created_at)
+          VALUES('fact',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+          .run(f.subjectQq, f.subjectName, f.attr, f.value, f.confidence, f.scope, f.visibility,
+            judge.expiresAt ? 'temporal' : f.kind, dedupe, batch.batchKey, batch.convKey, sourceType,
+            'pending', judge.reason || '', judge.quality, f.category || null,
+            f.evidenceCount || 0, f.selfStated ? 1 : 0, expiresAt, Date.now());
+        if (Number(info.changes) > 0) written += 1; else duplicates += 1;
       }
     }
     for (const e of validated.events) {
       const dedupe = `e|${normalize(e.summary)}|${e.happenedAt ? new Date(e.happenedAt).toISOString().slice(0, 10) : ''}`;
       const judge = classifyCandidate({ ...e, kind: 'event', category: e.category, certainty: e.certainty }, { convKey: batch.convKey });
-      if (judge.reject === 'ops_event') {
-        // 技术/运维事件进短期运行日志，不进人物记忆
+      if (judge.quality.split(',').includes('ops_event')) {
+        // Keep an ops log entry, but do not discard the experience itself.
         recordOpsEvent(db, e, { convKey: batch.convKey, sourceKey: `${batch.batchKey}|${dedupe}` });
       }
-      const status = judge.reject ? 'rejected' : 'pending';
+      const status = judge.decision === 'reject' ? 'rejected' : 'pending';
       if (observeOnly) {
         const evCols = ['kind','summary','detail','participants','confidence','scope','visibility',
           'happened_at','time_precision','dedupe_key','batch_key','conv_key','source_type','status','reason','quality','category','created_at'];
         const evVals = ['event', e.summary, e.detail, JSON.stringify(e.participants), e.confidence, e.scope,
           e.visibility, e.happenedAt || null, e.timePrecision || 'unknown', dedupe, batch.batchKey, batch.convKey, sourceType,
-          status, judge.reject || '', judge.quality, e.category || null, Date.now()];
+          status, judge.reason || '', judge.quality, e.category || null, Date.now()];
         const info = db.prepare(`INSERT OR IGNORE INTO memory_candidates
           (${evCols.join(',')}) VALUES(${evCols.map(() => '?').join(',')})`).run(...evVals);
         if (Number(info.changes) > 0) { if (status === 'pending') written += 1; else rejected += 1; } else duplicates += 1;
-      } else if (status === 'pending') {
+      } else if (judge.decision === 'allow') {
         const r = addEvent(db, {
           summary: e.summary, detail: e.detail, participants: e.participants,
           happenedAt: e.happenedAt, confidence: e.confidence, scope: e.scope,
@@ -306,6 +317,15 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
           sourceKey: `${batch.batchKey}|${dedupe}`
         });
         if (r.skipped) duplicates += 1; else written += 1;
+      } else if (judge.decision === 'review') {
+        const evCols = ['kind','summary','detail','participants','confidence','scope','visibility',
+          'happened_at','time_precision','dedupe_key','batch_key','conv_key','source_type','status','reason','quality','category','created_at'];
+        const evVals = ['event', e.summary, e.detail, JSON.stringify(e.participants), e.confidence, e.scope,
+          e.visibility, e.happenedAt || null, e.timePrecision || 'unknown', dedupe, batch.batchKey, batch.convKey, sourceType,
+          'pending', judge.reason || '', judge.quality, e.category || null, Date.now()];
+        const info = db.prepare(`INSERT OR IGNORE INTO memory_candidates
+          (${evCols.join(',')}) VALUES(${evCols.map(() => '?').join(',')})`).run(...evVals);
+        if (Number(info.changes) > 0) written += 1; else duplicates += 1;
       }
     }
 

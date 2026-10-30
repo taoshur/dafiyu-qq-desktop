@@ -150,6 +150,15 @@ function memoryPage() {
         </tr>`).join('')}</tbody>
       </table></div>
     </section>` : ''}
+    <section class="card panel" style="margin-top:14px">
+      <div class="section-title"><h3>审核状态总览</h3><span>事实、人格与候选分开显示</span></div>
+      <div class="grid grid-4 memory-stats">
+        <div class="stat"><span>正式记忆</span><b>${counts.facts} 事实 / ${counts.events} 事件</b><small>已进入 facts/events</small></div>
+        <div class="stat"><span>待审记忆候选</span><b class="${counts.pending ? 'warn' : ''}">${counts.pending}</b><small>observeOnly=${status.observeOnly ? '开启' : '关闭'}</small></div>
+        <div class="stat"><span>人格成长</span><b>${status.growth?.activeTraits || 0} 生效 / ${status.growth?.candidateTraits || 0} 候选</b><small>另有 ${status.growth?.pendingCandidates || 0} 条成长候选待审</small></div>
+        <div class="stat"><span>自动表达调整</span><b class="${status.growth?.autoApplyExpression ? 'warn' : 'ok'}">${status.growth?.autoApplyExpression ? '允许小步自动' : '仅候选'}</b><small>与事实提取 observeOnly 是两个独立开关</small></div>
+      </div>
+    </section>
     <div class="notice" style="margin-top:12px">数据库位置：${esc(status.dbPath)} ${status.error ? ` · 读取错误：${esc(status.error)}` : ''}</div>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>查找记忆</h3><span>当前查看：${sourceLabel}</span></div>

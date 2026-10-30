@@ -27,26 +27,32 @@ const OPS_PATTERNS = [
 export function classifyCandidate(item, { convKey, now = Date.now() } = {}) {
   const isPrivate = String(convKey || '').startsWith('private:');
   const quality = [];
-  let reject = null;
+  let decision = 'allow';
+  let reason = '';
+
+  const markReview = (code) => {
+    quality.push(code);
+    if (decision === 'allow') { decision = 'review'; reason = code; }
+  };
+  const markReject = (code) => {
+    quality.push(code);
+    decision = 'reject';
+    reason = code;
+  };
 
   const text = [item.attr, item.value, item.summary, item.detail].filter(Boolean).join(' ');
 
-  // 1) 隐私风险：敏感字段一律不进长期记忆（不论公私）
-  if (PRIVATE_PATTERNS.some((re) => re.test(text))) {
-    quality.push('privacy_risk');
-    reject = reject || 'privacy_risk';
-  }
+  // Sensitive content is not automatically worthless. Keep it reviewable; the
+  // operator can reject it. Only explicit secrets/credentials are hard-rejected.
+  if (PRIVATE_PATTERNS.some((re) => re.test(text))) markReview('privacy_risk');
 
-  // 2) 技术/运维事件：走 ops_log，不进人物记忆
+  // Technical/ops wording can also describe a meaningful shared experience.
+  // Put it in the review tier and still keep an ops_log entry.
   if (item.kind === 'event' && (item.category === 'tech' || item.category === 'ops' || OPS_PATTERNS.some((re) => re.test(text)))) {
-    quality.push('ops_event');
-    reject = reject || 'ops_event';
+    markReview('ops_event');
   }
 
-  // 3) 证据门槛（不看模型自报的 confidence）：
-  //    本人明确自述的爱好/偏好/习惯 → 单条即可
-  //    推断出来的偏好/兴趣 → 至少 2 条独立证据
-  //    推断出来的人格/性格 → 至少 3 条独立证据
+  // Evidence thresholds are review signals, not proof that the memory is false.
   if (item.kind === 'fact') {
     const evidence = Number(item.evidence_count ?? item.evidenceCount) || 0;
     const selfStated = item.selfStated === true || item.self_stated === true;
@@ -54,39 +60,39 @@ export function classifyCandidate(item, { convKey, now = Date.now() } = {}) {
     if (!selfStated) {
       const needTrait = cat === 'trait' || cat === 'personality';
       const needPref = cat === 'preference' || cat === 'hobby' || cat === 'interest' || cat === 'habit';
-      if ((needTrait && evidence < 3) || (needPref && evidence < 2)) {
-        quality.push('over_inference');
-        reject = reject || 'over_inference';
-      }
+      if ((needTrait && evidence < 3) || (needPref && evidence < 2)) markReview('over_inference');
     }
   }
 
-  // 4) 玩笑/反讽/引用/身份不确定
+  // These are unsafe to save without an explicit human decision.
   if (item.certainty === 'joke' || item.certainty === 'quote' || item.certainty === 'uncertain') {
-    quality.push('uncertain');
-    reject = reject || 'uncertain';
+    markReject('uncertain');
   }
   if (item.kind === 'fact' && !item.subjectQq && !item.subjectName) {
-    quality.push('misattribution');
-    reject = reject || 'misattribution';
+    markReject('misattribution');
   }
 
-  // 5) 过期事件：太久远的事不进长期记忆
+  // Old events can be foundational life history; never discard solely by age.
   if (item.kind === 'event' && Number(item.happenedAt) > 0 && now - Number(item.happenedAt) > 45 * 86400000) {
-    quality.push('expired_event');
-    reject = reject || 'expired_event';
+    markReview('expired_event');
   }
 
-  // 6) 临时计划：必须有有效期，转 temporal
   let expiresAt = Number(item.expiresAt) || null;
   if (item.kind === 'fact' && item.category === 'plan') {
     const ttlDays = Number(item.ttlDays ?? item.ttl_days) > 0 ? Number(item.ttlDays ?? item.ttl_days) : 7;
     expiresAt = expiresAt || now + ttlDays * 86400000;
-    if (quality.length === 0) quality.push('valid');
+    if (!quality.length) quality.push('valid');
   }
 
   if (!quality.length) quality.push('valid');
-  return { quality: quality.join(','), reject, expiresAt };
+  return {
+    quality: quality.join(','),
+    decision,
+    reason,
+    reject: decision === 'reject' ? reason : null,
+    review: decision === 'review' ? reason : null,
+    expiresAt
+  };
 }
 
 export function recordOpsEvent(db, item, { convKey, sourceKey } = {}) {

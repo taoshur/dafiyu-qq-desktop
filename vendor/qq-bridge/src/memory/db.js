@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { tokenize } from './tokenize.js';
+import { conceptTokens } from './concepts.js';
 import { ensureLifecycleSchema, importanceFor } from './lifecycle.js';
 
 const SCHEMA = `
@@ -134,6 +135,7 @@ export function openMemoryDb(dbPath) {
   db.exec(SCHEMA);
   ensureLifecycleSchema(db);
   db.prepare('INSERT OR IGNORE INTO meta(key, value) VALUES(?, ?)').run('schema_version', '4.0.0');
+  ensureConceptIndex(db);
   return db;
 }
 
@@ -258,6 +260,30 @@ export function addMessage(db, input) {
       input.senderName || null, input.text || null, input.mediaNote || null,
       Number(input.sentAt) || Date.now(), input.isSelf ? 1 : 0);
   return { inserted: Number(info.changes) > 0 };
+}
+
+export function ensureConceptIndex(db) {
+  const done = db.prepare("SELECT value FROM meta WHERE key='concept_index_v1'").get();
+  if (done) return { skipped: true };
+  const insert = db.prepare('INSERT OR IGNORE INTO memory_tokens(token, ref_type, ref_id) VALUES(?,?,?)');
+  const add = (type, id, text) => {
+    for (const token of conceptTokens(text)) insert.run(token, type, id);
+  };
+  db.exec('BEGIN');
+  try {
+    for (const row of db.prepare('SELECT id, attr, value, subject_name FROM facts').all()) {
+      add('fact', row.id, [row.attr, row.value, row.subject_name].filter(Boolean).join(' '));
+    }
+    for (const row of db.prepare('SELECT id, summary, detail FROM events').all()) {
+      add('event', row.id, [row.summary, row.detail].filter(Boolean).join(' '));
+    }
+    db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES('concept_index_v1', '1')").run();
+    db.exec('COMMIT');
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+    throw error;
+  }
+  return { skipped: false };
 }
 
 function indexTokens(db, refType, refId, text) {

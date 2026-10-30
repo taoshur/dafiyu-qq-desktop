@@ -86,6 +86,12 @@ function memoryStatus({ settings, paths, mode = 'prod' }) {
     ingest: cfg.memory?.ingest === true,
     model: cfg.memory?.model || '',
     counts: { facts: 0, events: 0, messages: 0, pending: 0, applied: 0 },
+    growth: {
+      activeTraits: 0,
+      candidateTraits: 0,
+      pendingCandidates: 0,
+      autoApplyExpression: cfg.growth?.autoApplyExpression !== false
+    },
     file: dbFileInfo(file),
     wal: dbFileInfo(`${file}-wal`),
     integrity: null,
@@ -106,6 +112,13 @@ function memoryStatus({ settings, paths, mode = 'prod' }) {
       applied: one("SELECT COUNT(*) c FROM memory_candidates WHERE status='applied'")
     };
     out.integrity = db.prepare('PRAGMA quick_check(1)').get()?.quick_check || 'unknown';
+    const growthOne = (sql) => { try { return Number(db.prepare(sql).get()?.c || 0); } catch { return 0; } };
+    out.growth = {
+      ...out.growth,
+      activeTraits: growthOne("SELECT COUNT(*) c FROM traits WHERE status='active'"),
+      candidateTraits: growthOne("SELECT COUNT(*) c FROM traits WHERE status='candidate'"),
+      pendingCandidates: growthOne("SELECT COUNT(*) c FROM growth_candidates WHERE status='pending'")
+    };
     out.stats = readStats(db);
     out.failures = readFailures(db);
     db.close();

@@ -135,9 +135,16 @@ export function parseTimeRange(text, now = Date.now()) {
     return make('day', startOfDay(x.y, x.m, x.d), endOfDay(x.y, x.m, x.d), '一周前');
   }
 
-  // 模糊：前几天 / 最近几天 / 前些天 → 最近 7 个自然日
-  if (/前几天|前些天|最近几天|这几日/.test(s)) {
-    return make('fuzzy', todayStart - 6 * DAY, todayEnd, '前几天');
+  // 模糊时间：区分“前几天”（不含今天）与“最近几天”（含今天）。
+  if (/前几天|前些天/.test(s)) {
+    const cfg = globalThis.__MEMORY_CONF__ || {};
+    const days = Math.max(2, Math.min(14, Number(cfg.timeFuzzyDays) || 7));
+    return make('fuzzy-before-today', todayStart - days * DAY, todayStart - 1, '前几天');
+  }
+  if (/最近几天|这几日|这几天/.test(s)) {
+    const cfg = globalThis.__MEMORY_CONF__ || {};
+    const days = Math.max(2, Math.min(14, Number(cfg.timeFuzzyDays) || 7));
+    return make('fuzzy-recent', todayStart - (days - 1) * DAY, todayEnd, '最近几天');
   }
   if (/最近一周|近一周|过去一周|最近7天/.test(s)) {
     return make('range', todayStart - 6 * DAY, todayEnd, '最近一周');

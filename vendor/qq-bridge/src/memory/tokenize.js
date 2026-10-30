@@ -13,6 +13,8 @@ const STOP_BIGRAMS = new Set([
   '但是', '如果', '这样', '那样', '一下', '现在', '时候', '知道', '觉得'
 ]);
 
+import { conceptTokens } from './concepts.js';
+
 const PUNCT_RE = /[\s\u3000-\u303f\uff00-\uffef!-/:-@[-`{-~]+/g;
 
 export function normalizeText(input) {
@@ -48,6 +50,7 @@ export function tokenize(input) {
       }
     }
   }
+  for (const token of conceptTokens(text)) out.add(token);
   return [...out];
 }
 

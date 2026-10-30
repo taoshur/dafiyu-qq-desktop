@@ -11,18 +11,19 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.8.3 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.8.3/Dafiyu-Control-Center-Setup.exe
-- 大小：123,433,791 字节
+- **v0.8.4 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.8.4/Dafiyu-Control-Center-Setup.exe
+- 大小：123,435,909 字节
 - SHA256：
   ```text
-  A5F6C535B9CFAFD5A1A246C85C8713D02A825BFA623D7C46BFDE74093CBC6351
+  E14F816A562AA4A2BF4CCCFD534322ADAAA9EEE8F881F8B32E9CC8E238882512
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 DSH。
 
 ## 最近更新
 
+- **0.8.4**：长期记忆三层质量过滤、概念召回、模糊时间、空召回诊断、成长审核面板
 - **0.8.3**：复审修复：租约原子接管、更新字节复核、死信 UI、Windows 进程测试
 - **0.8.2**：审查修复批次 1–5（安全、恢复、Memory、工程）
 - **0.8.1**：修复页面拆分导致的 `PAGE_META` 缺失，恢复总览加载
@@ -83,7 +84,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 - **快速通道**：短纯文字优先直连 DeepSeek API；复杂/媒体/工具请求回退 DSH Agent
 - **表情包**：自动补表情、表情库同步、收藏、备注、按场景发送
-- **Memory V3/V4**：消息入库、批量抽取、候选审核、多信号召回、可逆归档
+- **Memory V3/V4**：消息入库、批量抽取、三层质量过滤、概念扩展召回、多信号评分、可逆归档；记忆页有事实/候选/人格成长审核总览
 - **B站活动**：搜索、热榜、排行、视频详情、字幕、评论、弹幕、UP 主、收藏等
 - **QQ 空间**：看动态、点赞、评论、回复、发说说、改签名
 - **语音/唱歌**：语音库、TTS、RVC 翻唱（默认关闭，需要本机模型/音频）
