@@ -86,7 +86,23 @@ CREATE TABLE IF NOT EXISTS growth_candidates (
   status TEXT NOT NULL DEFAULT 'pending',
   applied_at INTEGER,
   created_at INTEGER NOT NULL,
-  reviewed_at INTEGER
+  reviewed_at INTEGER,
+  reconcile_state TEXT NOT NULL DEFAULT 'current',
+  stale_reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS growth_reconcile (
+  candidate_id INTEGER PRIMARY KEY,
+  trait_key TEXT NOT NULL,
+  state TEXT NOT NULL,
+  snapshot_evidence_count INTEGER,
+  current_evidence_count INTEGER,
+  consumed_count INTEGER NOT NULL DEFAULT 0,
+  unconsumed_count INTEGER NOT NULL DEFAULT 0,
+  ambiguous_count INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS trait_versions (
@@ -186,6 +202,8 @@ export function ensureGrowthSchema(db) {
   if (!tCols.includes('evidence_cursor')) db.exec('ALTER TABLE traits ADD COLUMN evidence_cursor INTEGER NOT NULL DEFAULT 0');
   const cCols = db.prepare('PRAGMA table_info(growth_candidates)').all().map((c) => c.name);
   if (!cCols.includes('basis_cursor')) db.exec('ALTER TABLE growth_candidates ADD COLUMN basis_cursor INTEGER');
+  if (!cCols.includes('reconcile_state')) db.exec("ALTER TABLE growth_candidates ADD COLUMN reconcile_state TEXT NOT NULL DEFAULT 'current'");
+  if (!cCols.includes('stale_reason')) db.exec('ALTER TABLE growth_candidates ADD COLUMN stale_reason TEXT');
   // Old schema used UNIQUE(trait_key,kind,status), which allowed only one applied
   // strengthen candidate forever. Rebuild once so history can retain many applied
   // versions while only one pending candidate is allowed.
@@ -208,7 +226,9 @@ export function ensureGrowthSchema(db) {
         status TEXT NOT NULL DEFAULT 'pending',
         applied_at INTEGER,
         created_at INTEGER NOT NULL,
-        reviewed_at INTEGER
+        reviewed_at INTEGER,
+        reconcile_state TEXT NOT NULL DEFAULT 'current',
+        stale_reason TEXT
       )`);
       const nowCols = db.prepare('PRAGMA table_info(growth_candidates)').all().map((c) => c.name);
       const copyCols = nowCols.filter((name) => name !== 'basis_cursor');
@@ -222,7 +242,31 @@ export function ensureGrowthSchema(db) {
       throw error;
     }
   }
-  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uniq_growth_pending ON growth_candidates(trait_key, kind) WHERE status='pending'");
+  db.exec('DROP INDEX IF EXISTS uniq_growth_pending');
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uniq_growth_pending ON growth_candidates(trait_key, kind) WHERE status='pending' AND reconcile_state='current'");
+  db.exec('CREATE TABLE IF NOT EXISTS growth_meta(key TEXT PRIMARY KEY, value TEXT)');
+  if (!db.prepare("SELECT 1 FROM growth_meta WHERE key='legacy_reconcile_v1'").get()) {
+    const legacy = db.prepare("SELECT * FROM growth_candidates WHERE basis_cursor IS NULL").all();
+    for (const c of legacy) {
+      const currentEvidence = Number(db.prepare('SELECT COUNT(*) c FROM trait_evidence WHERE trait_key=?').get(c.trait_key).c);
+      const state = c.status === 'applied' ? 'legacy-applied' : c.status === 'rejected' ? 'legacy-rejected' : 'legacy-ambiguous';
+      db.prepare('UPDATE growth_candidates SET reconcile_state=?, stale_reason=? WHERE id=?')
+        .run(state, state === 'legacy-ambiguous' ? '旧候选缺少 basis_cursor，需人工对账' : null, c.id);
+      db.prepare(`INSERT OR REPLACE INTO growth_reconcile
+        (candidate_id, trait_key, state, snapshot_evidence_count, current_evidence_count,
+         consumed_count, unconsumed_count, ambiguous_count, note, created_at, updated_at)
+        VALUES(?,?,?,?,?,0,0,?,?,?,?)`).run(
+        c.id, c.trait_key, state, Number(c.evidence_count) || 0, currentEvidence,
+        currentEvidence, state === 'legacy-ambiguous' ? '历史证据消费情况无法可靠确认，禁止自动应用' : '历史已处理，仅保留审计',
+        Date.now(), Date.now());
+      if (state === 'legacy-ambiguous') {
+        db.prepare(`INSERT INTO growth_journal(at, kind, summary, detail, trait_key, evidence_ids, confidence, verified, source)
+          VALUES(?,?,?,?,?,?,?,?,?)`).run(Date.now(), 'legacy_reconcile',
+          '旧成长候选等待人工对账', 'basis_cursor 为空；不自动补算 delta', c.trait_key, '[]', 0.3, 0, 'migration');
+      }
+    }
+    db.prepare("INSERT OR REPLACE INTO growth_meta(key,value) VALUES('legacy_reconcile_v1','1')").run();
+  }
   // One-time migration only: existing traits already consumed their historical
   // evidence when strength was built. A meta flag prevents this from swallowing
   // newly added evidence on every evaluation.
@@ -415,7 +459,7 @@ export function evaluateGrowth(db, conf = {}) {
     const proposed = Math.max(0, Math.min(1, before + delta));
     if (Math.abs(proposed - before) < 0.005) continue;
 
-    const pending = db.prepare("SELECT id FROM growth_candidates WHERE trait_key=? AND kind='strengthen' AND status='pending'").get(t.trait_key);
+    const pending = db.prepare("SELECT id FROM growth_candidates WHERE trait_key=? AND kind='strengthen' AND status='pending' AND reconcile_state='current'").get(t.trait_key);
     if (pending) continue;
 
     const auto = cfg.autoApplyExpression && (t.category === 'expression' || t.category === 'interest' || t.category === 'habit');
@@ -490,6 +534,22 @@ function applyCandidateTx(db, id, { source = 'manual', reason = '' } = {}) {
   const t = db.prepare('SELECT * FROM traits WHERE trait_key=?').get(c.trait_key);
   if (!t) return { ok: false, error: 'trait 不存在' };
 
+  // Re-read current state inside the transaction. A candidate based on an old
+  // snapshot must never overwrite a newer trait strength.
+  if (c.reconcile_state !== 'current') {
+    return { ok: false, error: 'LEGACY_CANDIDATE_AMBIGUOUS: 旧候选需人工对账，禁止自动应用' };
+  }
+  if (c.basis_cursor == null) {
+    db.prepare("UPDATE growth_candidates SET reconcile_state='legacy-ambiguous', stale_reason=? WHERE id=?")
+      .run('缺少 basis_cursor，禁止自动应用', id);
+    return { ok: false, error: 'LEGACY_CANDIDATE_AMBIGUOUS: 缺少证据水位，禁止自动应用' };
+  }
+  if (Math.abs(Number(t.strength) - Number(c.before_strength)) > 0.005) {
+    db.prepare("UPDATE growth_candidates SET reconcile_state='stale', stale_reason=? WHERE id=?")
+      .run(`候选 before=${Number(c.before_strength).toFixed(3)}，当前=${Number(t.strength).toFixed(3)}`, id);
+    return { ok: false, error: `STALE_CANDIDATE: 当前 strength=${Number(t.strength).toFixed(3)}，候选基于 ${Number(c.before_strength).toFixed(3)}` };
+  }
+
   const before = Number(t.strength);
   const after = Math.max(0, Math.min(1, Number(c.proposed_strength)));
   // 复核候选是「人工确认后」才生效的唯一入口：只有它能把 rejected 改回 active。
@@ -497,7 +557,16 @@ function applyCandidateTx(db, id, { source = 'manual', reason = '' } = {}) {
   const nextStatus = c.kind === 'review' && t.status === 'rejected' ? 'active' : t.status;
   db.prepare(`UPDATE traits SET strength=?, status=?, evidence_cursor=MAX(COALESCE(evidence_cursor,0), COALESCE(?,0)), updated_at=? WHERE trait_key=?`)
     .run(after, nextStatus, Number(c.basis_cursor) || null, Date.now(), c.trait_key);
-  db.prepare('UPDATE growth_candidates SET status=?, applied_at=?, reviewed_at=? WHERE id=?').run('applied', Date.now(), Date.now(), id);
+  db.prepare("UPDATE growth_candidates SET status='applied', applied_at=?, reviewed_at=?, reconcile_state='applied', stale_reason=NULL WHERE id=?").run(Date.now(), Date.now(), id);
+  const basis = Number(c.basis_cursor) || 0;
+  const consumed = Number(db.prepare('SELECT COUNT(*) c FROM trait_evidence WHERE trait_key=? AND id<=?').get(c.trait_key, basis).c);
+  const unconsumed = Number(db.prepare('SELECT COUNT(*) c FROM trait_evidence WHERE trait_key=? AND id>?').get(c.trait_key, basis).c);
+  db.prepare(`INSERT OR REPLACE INTO growth_reconcile
+    (candidate_id, trait_key, state, snapshot_evidence_count, current_evidence_count,
+     consumed_count, unconsumed_count, ambiguous_count, note, created_at, updated_at)
+    VALUES(?,?, 'applied', ?, ?, ?, ?, 0, ?, ?, ?)`).run(
+    id, c.trait_key, Number(c.evidence_count) || 0,
+    consumed + unconsumed, consumed, unconsumed, '应用完成', Date.now(), Date.now());
   const evIds = db.prepare('SELECT id FROM trait_evidence WHERE trait_key=? ORDER BY id DESC LIMIT 20').all(c.trait_key).map((r) => r.id);
   db.prepare('INSERT INTO trait_versions(trait_key, before_strength, after_strength, reason, evidence_ids, source, at) VALUES(?,?,?,?,?,?,?)')
     .run(c.trait_key, before, after, reason || c.reason, JSON.stringify(evIds), source, Date.now());
