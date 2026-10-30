@@ -55,7 +55,7 @@ button { font-family: inherit; color: inherit; }
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   padding: 22px 16px 18px;
   background: linear-gradient(180deg, rgba(10, 28, 38, 0.92), rgba(6, 18, 26, 0.86));
   border-right: 1px solid var(--line);
@@ -96,7 +96,8 @@ button { font-family: inherit; color: inherit; }
 
 .brand-text p { margin: 3px 0 0; font-size: 11px; color: var(--text-faint); }
 
-.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; padding-right: 3px; }
+.nav-group-label { padding: 9px 12px 3px; color: var(--text-faint); font-size: 10.5px; letter-spacing: .12em; }
 
 .nav-item {
   display: flex;
@@ -806,4 +807,53 @@ mark { background: rgba(246, 201, 107, 0.35); color: #fff; border-radius: 3px; }
   color: var(--teal);
   font-size: 10.5px;
   white-space: nowrap;
+}
+
+
+.overview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 14px 17px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: linear-gradient(100deg, rgba(125, 230, 212, 0.08), rgba(125, 230, 212, 0.015));
+}
+.overview-banner.is-warn { border-color: rgba(246, 201, 107, 0.3); background: linear-gradient(100deg, rgba(246, 201, 107, 0.09), transparent); }
+.overview-banner b { display: block; font-size: 15px; color: var(--text); margin-top: 2px; }
+.overview-banner p { margin: 4px 0 0; font-size: 12px; color: var(--text-dim); }
+.overview-eyebrow { font-size: 10.5px; color: var(--teal); letter-spacing: .1em; }
+.overview-banner.is-warn .overview-eyebrow { color: var(--amber); }
+
+
+.field-caption { flex-basis: 100%; color: var(--text-faint); font-size: 11.5px; margin: 2px 0 -3px; }
+
+
+.newbie-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: -2px 0 14px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.018);
+}
+.newbie-label { color: var(--text-faint); font-size: 11px; margin-right: 3px; }
+.newbie-bar .btn { padding: 5px 9px; font-size: 11.5px; }
+
+
+.memory-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(330px, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+.memory-split > section.card { margin-top: 0 !important; min-width: 0; }
+.memory-split .memory-table-wrap { max-height: 560px; }
+@media (max-width: 1100px) {
+  .memory-split { grid-template-columns: 1fr; }
 }

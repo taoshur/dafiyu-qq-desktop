@@ -5,14 +5,14 @@ function configPage(snapshot) {
   const paths = cfg.paths || {};
   const yes = (value) => (value ? '是' : '否');
   return `
-    <div class="notice">只读视图：不会显示任何令牌/凭据值，也不会在这里修改 config.json。需要改配置请先备份，再使用外部编辑器。</div>
+    <div class="notice">这里可以修改桌面自身的称呼和路径；不会显示令牌/凭据，也不会直接改写 qq-bridge 的项目 config.json。</div>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>桌面路径设置</h3><span>只写桌面自己的配置，不修改 qq-bridge/config.json</span></div>
       <div class="memory-filters">
-        <input class="input" id="cfg-ownerTitle" style="min-width:240px" maxlength="16" placeholder="大肥鱼对您的称呼（默认：爸爸）" value="${esc(state.settings?.ownerTitle || '爸爸')}" />
-        <input class="input" id="cfg-repoRoot" style="min-width:360px" value="${esc(state.settings?.repoRoot || snapshot.paths.repoRoot)}" />
-        <input class="input" id="cfg-snowlumaRoot" style="min-width:240px" value="${esc(state.settings?.snowlumaRoot || snapshot.paths.snowlumaRoot)}" />
-        <input class="input" id="cfg-dshExe" style="min-width:360px" value="${esc(state.settings?.dshExe || snapshot.paths.dshExe)}" />
+        <span class="field-caption">大肥鱼对您的称呼</span><input class="input" id="cfg-ownerTitle" style="min-width:240px" maxlength="16" placeholder="大肥鱼对您的称呼（默认：爸爸）" value="${esc(state.settings?.ownerTitle || '爸爸')}" />
+        <span class="field-caption">qq-bridge 目录</span><input class="input" id="cfg-repoRoot" style="min-width:360px" value="${esc(state.settings?.repoRoot || snapshot.paths.repoRoot)}" />
+        <span class="field-caption">SnowLuma 目录</span><input class="input" id="cfg-snowlumaRoot" style="min-width:240px" value="${esc(state.settings?.snowlumaRoot || snapshot.paths.snowlumaRoot)}" />
+        <span class="field-caption">DSH 可执行文件</span><input class="input" id="cfg-dshExe" style="min-width:360px" value="${esc(state.settings?.dshExe || snapshot.paths.dshExe)}" />
         <button class="btn primary" id="cfg-save-paths" type="button">保存桌面设置</button>
       </div>
       <p class="service-detail">修改后可重新检测环境；不会自动启动或重启任何服务。</p>

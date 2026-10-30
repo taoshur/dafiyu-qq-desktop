@@ -9,7 +9,30 @@ function overview(snapshot) {
   const memErrors = (mem?.failures || [])
     .filter((item) => Date.now() - Number(item.updated_at || 0) < 24 * 3600 * 1000)
     .slice(0, 2);
+  const serviceList = snapshot.services || [];
+  const onlineCount = serviceList.filter((item) => item.state === 'running').length;
+  const allOnline = serviceList.length > 0 && onlineCount === serviceList.length;
+  const banner = `
+    <section class="overview-banner ${allOnline ? 'is-ok' : 'is-warn'}">
+      <div>
+        <span class="overview-eyebrow">当前状态</span>
+        <b>${allOnline ? '三件套已在线' : `${onlineCount}/${serviceList.length || 3} 在线，需要处理`}</b>
+        <p>${allOnline ? 'QQ 链路正常。需要管理服务时打开「服务」。' : '先看服务页，确认哪个服务和端口没有就绪。'}</p>
+      </div>
+      <button class="btn ${allOnline ? '' : 'primary'}" id="overview-next" type="button">${allOnline ? '查看服务' : '去处理问题'}</button>
+    </section>`;
+  const checklist = `
+    <div class="newbie-bar">
+      <span class="newbie-label">新手清单</span>
+      <button class="btn" data-open-page="env" type="button">1. 检查环境</button>
+      <button class="btn" data-open-page="services" type="button">2. 启动服务</button>
+      <button class="btn" data-open-page="memory" type="button">3. 审核记忆</button>
+      <button class="btn" data-open-page="backups" type="button">4. 创建备份</button>
+      <button class="btn ghost" id="overview-guide" type="button">看手把手教程</button>
+    </div>`;
   return `
+    ${banner}
+    ${checklist}
     ${hero(snapshot)}
     <div class="section-title"><h3>服务状态</h3><span>SnowLuma → DSH → qq-bridge</span></div>
     <div class="grid grid-3">${(snapshot.services || []).map(serviceCard).join('')}</div>

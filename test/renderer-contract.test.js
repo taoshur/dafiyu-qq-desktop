@@ -79,3 +79,15 @@ test('guided tour is loaded before app and covers the first-run flow', () => {
   assert.ok(app.includes('startGuide'));
   assert.ok(fs.readFileSync(path.join(renderer, 'pages', 'about.js'), 'utf8').includes('guide-start'));
 });
+
+
+test('UX structure keeps overview actions, config labels and memory split', () => {
+  const overview = fs.readFileSync(path.join(renderer, 'pages', 'overview.js'), 'utf8');
+  const config = fs.readFileSync(path.join(renderer, 'pages', 'config.js'), 'utf8');
+  const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');
+  assert.ok(overview.includes('overview-next'));
+  assert.ok(overview.includes('newbie-bar'));
+  assert.ok(config.includes('field-caption'));
+  assert.ok(app.includes('layoutMemorySplit'));
+  assert.ok(css.includes('.memory-split'));
+});

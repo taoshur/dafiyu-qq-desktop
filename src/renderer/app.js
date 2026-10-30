@@ -183,6 +183,74 @@ function hero(snapshot) {
     </section>`;
 }
 
+function layoutMemorySplit() {
+  if (state.page !== 'memory') return;
+  const view = $('view');
+  if (!view) return;
+  const sections = [...view.querySelectorAll(':scope > section.card.panel')];
+  const list = sections.find((section) => section.querySelector('#memory-search'));
+  if (!list) return;
+  const detail = sections.find((section) => section !== list && section.querySelector('.memory-detail-head, .memory-audit')) || sections[sections.indexOf(list) + 1];
+  if (!detail || detail === list) return;
+  const split = document.createElement('div');
+  split.className = 'memory-split';
+  list.parentNode.insertBefore(split, list);
+  split.append(list, detail);
+}
+
+function pruneEmptyDetailFields() {
+  document.querySelectorAll('.memory-detail-head + .kv-grid .kv').forEach((row) => {
+    const value = row.querySelector('b')?.textContent?.trim();
+    if (!value || value === '—' || value === '-') row.remove();
+  });
+}
+
+function captureViewState() {
+  const view = $('view');
+  if (!view) return null;
+  const scrollables = [...view.querySelectorAll('.memory-table-wrap, .log-body, .table-wrap')];
+  const details = [...view.querySelectorAll('details')];
+  const active = document.activeElement;
+  return {
+    page: state.page,
+    windowY: window.scrollY || 0,
+    viewTop: view.scrollTop || 0,
+    scrolls: scrollables.map((el) => ({ top: el.scrollTop, left: el.scrollLeft })),
+    openDetails: details.map((el) => el.open),
+    activeId: active && active.id ? active.id : null,
+    activeStart: active && typeof active.selectionStart === 'number' ? active.selectionStart : null,
+    activeEnd: active && typeof active.selectionEnd === 'number' ? active.selectionEnd : null
+  };
+}
+
+function restoreViewState(saved) {
+  if (!saved || saved.page !== state.page) return;
+  const view = $('view');
+  if (!view) return;
+  const scrollables = [...view.querySelectorAll('.memory-table-wrap, .log-body, .table-wrap')];
+  saved.scrolls.forEach((pos, index) => {
+    if (!scrollables[index]) return;
+    scrollables[index].scrollTop = pos.top;
+    scrollables[index].scrollLeft = pos.left;
+  });
+  [...view.querySelectorAll('details')].forEach((el, index) => {
+    if (saved.openDetails[index] != null) el.open = saved.openDetails[index];
+  });
+  if (saved.viewTop) view.scrollTop = saved.viewTop;
+  if (saved.windowY) window.scrollTo(0, saved.windowY);
+  if (saved.activeId) {
+    const active = document.getElementById(saved.activeId);
+    if (active && typeof active.focus === 'function') {
+      active.focus({ preventScroll: true });
+      try {
+        if (saved.activeStart != null && typeof active.setSelectionRange === 'function') {
+          active.setSelectionRange(saved.activeStart, saved.activeEnd ?? saved.activeStart);
+        }
+      } catch { /* not a text control */ }
+    }
+  }
+}
+
 function render() {
   const meta = PAGE_META[state.page] || PAGE_META.overview;
   $('page-title').textContent = meta[0];
@@ -231,7 +299,10 @@ function render() {
   if (state.update.check?.available && state.page !== 'about') {
     html = `<div class="notice">发现新版本 <b>${esc(state.update.check.latestVersion)}</b>，可以到「关于」页检查并更新。<button class="btn" id="update-go-about" type="button" style="margin-left:10px">查看更新</button></div>${html}`;
   }
+  const preserved = captureViewState();
   view.innerHTML = html;
+  layoutMemorySplit();
+  restoreViewState(preserved);
   if (pageChanged) {
     view.classList.remove('fade-in');
     void view.offsetWidth;
@@ -245,6 +316,7 @@ function render() {
     loadLogs();
   }
   if (state.page === 'embed') setTimeout(() => { placeEmbed(); }, 0);
+  pruneEmptyDetailFields();
   renderGuide(state);
 }
 
@@ -1389,6 +1461,10 @@ function bind() {
     if (event.target.closest('#update-download')) { downloadUpdate(); return; }
     if (event.target.closest('#update-release')) { openReleasePage(); return; }
     if (event.target.closest('#update-go-about')) { openPage('about'); return; }
+    if (event.target.closest('#overview-next')) { openPage('services'); return; }
+    if (event.target.closest('#overview-guide')) { startGuide(); return; }
+    const openPageBtn = event.target.closest('[data-open-page]');
+    if (openPageBtn) { openPage(openPageBtn.dataset.openPage); return; }
     const installBtn = event.target.closest('[data-env-install]');
     if (installBtn) { startInstall(installBtn.dataset.envInstall); return; }
     if (event.target.closest('[data-install-cancel]')) { cancelInstall(); return; }
@@ -1621,7 +1697,10 @@ async function boot() {  bind();
     try { seen = localStorage.getItem('dafiyu.guide.completed.v1') === '1'; } catch { /* ignore */ }
     if (!seen) startGuide();
   }, 1600);
-  setInterval(() => { if (state.page !== 'logs') refresh(false); }, 6000);
+  setInterval(() => {
+    if (document.hidden || state.page === 'logs') return;
+    refresh(false);
+  }, 10000);
   setInterval(() => { if (state.page === 'logs' && state.logs.follow) loadLogs(); }, 4000);
 }
 
