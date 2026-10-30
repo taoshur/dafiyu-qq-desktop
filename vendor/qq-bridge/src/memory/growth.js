@@ -91,15 +91,16 @@ CREATE TABLE IF NOT EXISTS growth_candidates (
   stale_reason TEXT
 );
 
+-- Counts are cumulative totals relative to the candidate cursor, not per-apply deltas.
 CREATE TABLE IF NOT EXISTS growth_reconcile (
   candidate_id INTEGER PRIMARY KEY,
   trait_key TEXT NOT NULL,
   state TEXT NOT NULL,
   snapshot_evidence_count INTEGER,
   current_evidence_count INTEGER,
-  consumed_count INTEGER NOT NULL DEFAULT 0,
-  unconsumed_count INTEGER NOT NULL DEFAULT 0,
-  ambiguous_count INTEGER NOT NULL DEFAULT 0,
+  consumed_total INTEGER NOT NULL DEFAULT 0,
+  unconsumed_total INTEGER NOT NULL DEFAULT 0,
+  ambiguous_total INTEGER NOT NULL DEFAULT 0,
   note TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
@@ -200,6 +201,12 @@ export function ensureGrowthSchema(db) {
   const tCols = db.prepare('PRAGMA table_info(traits)').all().map((c) => c.name);
   if (!tCols.includes('tier')) db.exec("ALTER TABLE traits ADD COLUMN tier TEXT DEFAULT 'long'");
   if (!tCols.includes('evidence_cursor')) db.exec('ALTER TABLE traits ADD COLUMN evidence_cursor INTEGER NOT NULL DEFAULT 0');
+  const reconcileCols = db.prepare('PRAGMA table_info(growth_reconcile)').all().map((c) => c.name);
+  for (const [oldName, newName] of [['consumed_count', 'consumed_total'], ['unconsumed_count', 'unconsumed_total'], ['ambiguous_count', 'ambiguous_total']]) {
+    if (reconcileCols.includes(oldName) && !reconcileCols.includes(newName)) {
+      db.exec(`ALTER TABLE growth_reconcile RENAME COLUMN ${oldName} TO ${newName}`);
+    }
+  }
   const cCols = db.prepare('PRAGMA table_info(growth_candidates)').all().map((c) => c.name);
   if (!cCols.includes('basis_cursor')) db.exec('ALTER TABLE growth_candidates ADD COLUMN basis_cursor INTEGER');
   if (!cCols.includes('reconcile_state')) db.exec("ALTER TABLE growth_candidates ADD COLUMN reconcile_state TEXT NOT NULL DEFAULT 'current'");
@@ -254,7 +261,7 @@ export function ensureGrowthSchema(db) {
         .run(state, state === 'legacy-ambiguous' ? '旧候选缺少 basis_cursor，需人工对账' : null, c.id);
       db.prepare(`INSERT OR REPLACE INTO growth_reconcile
         (candidate_id, trait_key, state, snapshot_evidence_count, current_evidence_count,
-         consumed_count, unconsumed_count, ambiguous_count, note, created_at, updated_at)
+         consumed_total, unconsumed_total, ambiguous_total, note, created_at, updated_at)
         VALUES(?,?,?,?,?,0,0,?,?,?,?)`).run(
         c.id, c.trait_key, state, Number(c.evidence_count) || 0, currentEvidence,
         currentEvidence, state === 'legacy-ambiguous' ? '历史证据消费情况无法可靠确认，禁止自动应用' : '历史已处理，仅保留审计',
@@ -563,7 +570,7 @@ function applyCandidateTx(db, id, { source = 'manual', reason = '' } = {}) {
   const unconsumed = Number(db.prepare('SELECT COUNT(*) c FROM trait_evidence WHERE trait_key=? AND id>?').get(c.trait_key, basis).c);
   db.prepare(`INSERT OR REPLACE INTO growth_reconcile
     (candidate_id, trait_key, state, snapshot_evidence_count, current_evidence_count,
-     consumed_count, unconsumed_count, ambiguous_count, note, created_at, updated_at)
+     consumed_total, unconsumed_total, ambiguous_total, note, created_at, updated_at)
     VALUES(?,?, 'applied', ?, ?, ?, ?, 0, ?, ?, ?)`).run(
     id, c.trait_key, Number(c.evidence_count) || 0,
     consumed + unconsumed, consumed, unconsumed, '应用完成', Date.now(), Date.now());

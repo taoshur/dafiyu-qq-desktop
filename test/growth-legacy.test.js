@@ -52,9 +52,9 @@ test('current candidate applies atomically and records reconciliation', () => {
   const result = applyCandidate(db, 2, { source: 'manual' });
   assert.equal(result.ok, true);
   assert.equal(Number(db.prepare("SELECT strength FROM traits WHERE trait_key='expression:legacy'").get().strength), 0.6);
-  const rec = db.prepare('SELECT state, consumed_count, unconsumed_count FROM growth_reconcile WHERE candidate_id=2').get();
+  const rec = db.prepare('SELECT state, consumed_total, unconsumed_total FROM growth_reconcile WHERE candidate_id=2').get();
   assert.equal(rec.state, 'applied');
-  assert.equal(Number(rec.consumed_count), 1);
+  assert.equal(Number(rec.consumed_total), 1);
   db.close();
 });
 
