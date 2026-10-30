@@ -26,3 +26,15 @@ test('renderer page entry points and PAGE_META remain defined', () => {
     assert.ok(sources.some((source) => source.includes(`function ${name}(`)), `${name} missing`);
   }
 });
+
+
+test('select interactions are driven by change, not the opening click', () => {
+  const clickStart = app.indexOf("document.addEventListener('click'");
+  const changeStart = app.indexOf("document.addEventListener('change'");
+  assert.ok(clickStart >= 0 && changeStart > clickStart);
+  const clickHandler = app.slice(clickStart, changeStart);
+  const changeHandler = app.slice(changeStart);
+  assert.ok(clickHandler.includes("closest('select')"), 'click handler must ignore native selects');
+  assert.ok(!clickHandler.includes("memory-sort"), 'memory sort must not refresh on click');
+  assert.ok(changeHandler.includes("memory-sort"), 'memory sort must react on change');
+});

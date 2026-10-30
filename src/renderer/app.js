@@ -892,6 +892,12 @@ async function simulate(id, op) {
   }
 }
 
+function isFormInteractionActive() {
+  const active = document.activeElement;
+  const tag = active && active.tagName;
+  return tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
 async function refresh(showSpin = true) {
   if (state.busy) return;
   state.busy = true;
@@ -911,8 +917,14 @@ async function refresh(showSpin = true) {
   try { state.watchdog = await api.watchdogStatus(); } catch { state.watchdog = null; }
   try { state.startupStatus = await api.startupStatus(); } catch { state.startupStatus = null; }
   try { state.memoryOverview = await api.memoryStatus('prod'); } catch { state.memoryOverview = null; }
-  if (state.page !== 'logs' && state.page !== 'setup') render();
-  else if (state.page === 'logs') updateLogMetaOnly();
+  // The dashboard polls every 6s. Replacing the DOM while a native select or
+  // date input is open closes the popup mid-interaction; defer that auto-render
+  // until focus leaves the control. Explicit refresh still renders immediately.
+  const deferAutoRender = showSpin === false && isFormInteractionActive();
+  if (!deferAutoRender) {
+    if (state.page !== 'logs' && state.page !== 'setup') render();
+    else if (state.page === 'logs') updateLogMetaOnly();
+  }
 }
 
 function updateLogMetaOnly() {
@@ -1284,6 +1296,9 @@ function bind() {
   window.addEventListener('scroll', () => { if (state.page === 'embed') placeEmbed(); }, true);
 
   document.addEventListener('click', (event) => {
+    // Native <select> must be driven by change. Refreshing on the opening click
+    // replaces the element and closes the popup before the user can choose.
+    if (event.target.closest('select')) return;
     if (event.target.closest('[data-env-detect]')) { refreshEnvironment(); return; }
     if (event.target.closest('[data-copy-deepseek]')) { copyDeepSeekPrompt(); return; }
     if (event.target.closest('#bili-refresh')) { refreshBili(); return; }
@@ -1402,7 +1417,6 @@ function bind() {
     if (event.target.closest('#memory-next')) { state.memory.page += 1; refreshMemory(); return; }
     if (event.target.closest('#memory-refresh')) { refreshMemory(); return; }
     if (event.target.closest('#memory-apply-filters')) { state.memory.page = 1; refreshMemory(); return; }
-    if (event.target.id === 'memory-sort') { state.memory.sort = event.target.value; state.memory.page = 1; refreshMemory(); return; }
     if (event.target.closest('#memory-reset-filters')) {
       state.memory.q = ''; state.memory.dateFrom = ''; state.memory.dateTo = ''; state.memory.status = 'pending';
       state.memory.page = 1;
@@ -1486,6 +1500,11 @@ function bind() {
     if (event.target.id === 'memory-from') state.memory.dateFrom = event.target.value;
     if (event.target.id === 'memory-to') state.memory.dateTo = event.target.value;
     if (event.target.id === 'memory-status') state.memory.status = event.target.value;
+    if (event.target.id === 'memory-sort') {
+      state.memory.sort = event.target.value;
+      state.memory.page = 1;
+      refreshMemory();
+    }
   });
 }
 
