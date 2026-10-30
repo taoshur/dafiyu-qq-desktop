@@ -55,7 +55,7 @@ function verifyProcess(record, details) {
   if (!record) return { ok: false, reason: '没有本软件的启动记录' };
   const found = details.find((item) => item.pid === record.pid);
   if (!found) return { ok: false, reason: `PID ${record.pid} 已不存在` };
-  if (record.startMs && Math.abs(found.startMs - record.startMs) > 3000) {
+  if (record.startMs && Math.abs(found.startMs - record.startMs) > 1000) {
     return { ok: false, reason: '进程启动时间与记录不一致（PID 可能被复用）', found };
   }
   if (record.exe && !samePath(found.exe, record.exe)) {

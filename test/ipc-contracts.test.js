@@ -60,3 +60,13 @@ test('router Result mode returns a stable error envelope', async () => {
   assert.equal(result.error.code, 'E_TEST');
   assert.equal(result.error.retryable, true);
 });
+
+
+test('router sanitizes secrets in result errors', async () => {
+  const ipcMain = fakeIpcMain();
+  const router = createIpcRouter({ ipcMain, log: () => {} });
+  router.handleResult('settings:save', async () => { throw new Error('Authorization: Bearer top-secret'); });
+  const result = await ipcMain.invoke('settings:save');
+  assert.equal(result.ok, false);
+  assert.ok(!result.error.message.includes('top-secret'));
+});

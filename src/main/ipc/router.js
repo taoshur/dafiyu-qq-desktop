@@ -1,6 +1,7 @@
 'use strict';
 
 const { isKnownChannel } = require('./contracts');
+const { redact } = require('../core/logger');
 
 class AppError extends Error {
   constructor(code, message, { retryable = false, details = null } = {}) {
@@ -18,13 +19,13 @@ function ok(data) {
 
 function fail(error) {
   if (error instanceof AppError) {
-    return { ok: false, error: { code: error.code, message: error.message, retryable: error.retryable, details: error.details } };
+    return { ok: false, error: { code: error.code, message: redact(error.message), retryable: error.retryable, details: error.details } };
   }
   return {
     ok: false,
     error: {
       code: 'E_INTERNAL',
-      message: String(error?.message || error || 'unknown error'),
+      message: redact(String(error?.message || error || 'unknown error')),
       retryable: false,
       details: null
     }
@@ -54,7 +55,9 @@ function createIpcRouter({ ipcMain, log = () => {} } = {}) {
       } catch (error) {
         log('ipc', `${name} failed: ${error?.code || error?.message || error}`);
         if (result) return fail(asAppError(error, fallbackCode));
-        throw error;
+        const safe = new Error(redact(String(error?.message || error || 'unknown error')));
+        safe.code = error?.code;
+        throw safe;
       }
     });
   }

@@ -178,11 +178,12 @@ export function addFact(db, input) {
 
   const tx = db.prepare('SELECT 1'); // 占位，事务用下面的显式语句
   void tx;
-  db.exec('BEGIN');
+  const atomic = input.atomic !== false;
+  if (atomic) db.exec('BEGIN');
   try {
     // 幂等：同一来源重复写入直接返回已有 id
     const existing = db.prepare('SELECT id FROM facts WHERE source_key = ?').get(sourceKey);
-    if (existing) { db.exec('COMMIT'); return { id: existing.id, skipped: true }; }
+    if (existing) { if (atomic) db.exec('COMMIT'); return { id: existing.id, skipped: true }; }
 
     if (kind !== 'multi') {
       const actives = db.prepare(`SELECT id FROM facts
@@ -195,7 +196,7 @@ export function addFact(db, input) {
       const dup = db.prepare(`SELECT id FROM facts
         WHERE status='active' AND attr=? AND value=? AND COALESCE(subject_qq,'')=COALESCE(?,'') AND scope=?`)
         .get(attr, value, subjectQq, scope);
-      if (dup) { db.exec('COMMIT'); return { id: dup.id, skipped: true }; }
+      if (dup) { if (atomic) db.exec('COMMIT'); return { id: dup.id, skipped: true }; }
     }
 
     const info = db.prepare(`INSERT INTO facts
@@ -211,10 +212,10 @@ export function addFact(db, input) {
     const id = Number(info.lastInsertRowid);
 
     indexTokens(db, 'fact', id, [attr, value, input.subjectName || ''].join(' '));
-    db.exec('COMMIT');
+    if (atomic) db.exec('COMMIT');
     return { id, skipped: false };
   } catch (error) {
-    try { db.exec('ROLLBACK'); } catch {}
+    try { if (atomic) db.exec('ROLLBACK'); } catch {}
     throw error;
   }
 }

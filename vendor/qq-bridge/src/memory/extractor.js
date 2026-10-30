@@ -372,6 +372,8 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
   }
   if (cand.status !== 'pending') throw new Error(`候选 #${id} 状态为 ${cand.status}，不能 apply`);
 
+  db.exec('BEGIN');
+  try {
   let refType = null;
   let refId = null;
   if (cand.kind === 'fact') {
@@ -397,7 +399,8 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
       visibility: cand.visibility,
       sourceType: 'auto:approved',
       sourceKey: `cand:${id}`,
-      sourceConv: cand.conv_key
+      sourceConv: cand.conv_key,
+      atomic: false
     });
     refType = 'fact'; refId = r.id;
   } else {
@@ -442,7 +445,12 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
     SET status='applied', applied_at=?, applied_ref_type=?, applied_ref_id=?, reason=?
     WHERE id=? AND status='pending'`)
     .run(Date.now(), refType, refId, reason || 'manual apply', Number(id));
+  db.exec('COMMIT');
   return { id: Number(id), status: 'applied', refType, refId };
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+    throw error;
+  }
 }
 
 /** 构建抽取 prompt（短、结构化、便宜） */

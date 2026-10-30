@@ -24,6 +24,8 @@ test('verifyProcess 拒绝启动时间不一致（PID 复用）的记录', async
   assert.equal(verifyProcess(good, details).ok, true);
   const stale = { ...good, startMs: self.startMs - 60000 };
   assert.equal(verifyProcess(stale, details).ok, false);
+  const closeButWrong = { ...good, startMs: self.startMs - 2000 };
+  assert.equal(verifyProcess(closeButWrong, details).ok, false);
 });
 
 test('verifyProcess 拒绝可执行路径或命令行不匹配的记录', async () => {

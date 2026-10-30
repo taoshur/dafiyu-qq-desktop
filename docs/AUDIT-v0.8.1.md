@@ -32,15 +32,15 @@
 | M05 0 值配置 | 部分修复：lifecycle 使用有限数判断，其他模块待查 |
 | M06 队列积压 | 已修复：积压不再跳过，按批继续消费 |
 | M07 永久失败重试 | 部分修复：死信表 + `retryDeadLetters()`，尚无 UI 入口 |
-| M08 observeOnly | 产品决策，待用户确认 |
+| M08 observeOnly | 产品决策，保持现有默认观察模式 |
 | M09 hook 永久 disabled | 已修复：连续失败熔断 5 分钟后自动恢复 |
 | M10 ttlDays 字段 | 已修复：兼容 `ttlDays` / `ttl_days` |
 | R01–R03 恢复租约/退避 | 已修复：heartbeat、finally 释放、实际退避等待 |
-| U02/U04 下载清理/版本语义 | U04 已修复 prerelease；U02 待补 |
+| U02/U04 下载清理/版本语义 | 已修复：U04 prerelease；U02 abort 监听清理 |
 | S04–S06 进程身份细节 | 待验证 |
-| I02 IPC 错误语义 | 待修 |
+| I02 IPC 错误语义 | 已修复：错误消息脱敏 |
 | F01 B站历史总数 | 已修复：total 按完整行数，recent 为窗口内条数 |
-| X01–X07 | X02/X05 部分；X01/X04/X06/X07 待验证 |
+| X01–X07 | X01 已事务化；X02/X06/X07 已验证；X04 保持共享 Session；X05 手工截图 |
 
 ## 新增测试
 

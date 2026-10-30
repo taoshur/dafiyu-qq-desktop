@@ -123,6 +123,13 @@ function isAllowedDownloadHost(url) {
 function downloadFile(url, target, { signal, onProgress } = {}) {
   return new Promise((resolve, reject) => {
     let request = null;
+    let activeAbort = null;
+    const cleanupAbort = () => {
+      if (activeAbort && signal) {
+        try { signal.removeEventListener('abort', activeAbort); } catch { /* ignore */ }
+      }
+      activeAbort = null;
+    };
     const follow = (current, redirects = 0) => {
       if (!isAllowedDownloadHost(current)) {
         reject(new Error('更新下载地址不是 GitHub 官方域名')); return;
@@ -132,6 +139,7 @@ function downloadFile(url, target, { signal, onProgress } = {}) {
       request = https.get(current, { timeout: 30000, headers: { 'user-agent': 'dafiyu-updater' } }, (response) => {
         const status = Number(response.statusCode || 0);
         if ([301, 302, 303, 307, 308].includes(status) && response.headers.location) {
+          cleanupAbort();
           response.resume();
           follow(new URL(response.headers.location, current).href, redirects + 1);
           return;
@@ -145,18 +153,20 @@ function downloadFile(url, target, { signal, onProgress } = {}) {
         let received = 0;
         const stream = fs.createWriteStream(target, { flags: 'w' });
         const abort = () => {
+          cleanupAbort();
           try { request?.destroy(); } catch { /* ignore */ }
           try { stream.destroy(new Error('已取消')); } catch { /* ignore */ }
           reject(Object.assign(new Error('已取消'), { cancelled: true }));
         };
+        activeAbort = abort;
         if (signal) signal.addEventListener('abort', abort, { once: true });
         response.on('data', (chunk) => {
           received += chunk.length;
           if (onProgress) onProgress({ received, total });
         });
-        response.on('error', reject);
-        stream.on('error', reject);
-        stream.on('finish', () => resolve({ bytes: received, total }));
+        response.on('error', (error) => { cleanupAbort(); reject(error); });
+        stream.on('error', (error) => { cleanupAbort(); reject(error); });
+        stream.on('finish', () => { cleanupAbort(); resolve({ bytes: received, total }); });
         response.pipe(stream);
       });
       request.on('timeout', () => { request.destroy(new Error('更新下载超时')); });
