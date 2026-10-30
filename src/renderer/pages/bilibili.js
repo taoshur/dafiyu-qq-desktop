@@ -103,7 +103,7 @@ function biliPage() {
       <span class="backup-hint">桌面只读台账，不控制 B 站账号，也不读取 cookie</span>
     </div>
     <section class="card panel" style="margin-top:14px">
-      <div class="section-title"><h3>它最近看了什么</h3><span>按本机时间倒序</span></div>
+      <div class="section-title"><h3>它最近看了什么</h3><span>按本地时间倒序；旧记录只有数量，新记录可展开具体列表</span></div>
       <div class="memory-table-wrap">
         <table class="table">
           <thead><tr><th>时间</th><th>动作</th><th>内容</th><th>BV 号</th></tr></thead>
