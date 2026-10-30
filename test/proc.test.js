@@ -64,3 +64,10 @@ test('taskkill 只作用于指定 PID', async () => {
   await new Promise((resolve) => setTimeout(resolve, 400));
   assert.equal(isAlive(child.pid), false);
 });
+
+
+test('command signature matching requires a token boundary', () => {
+  const { commandMatchesSignature } = require('../src/main/proc');
+  assert.equal(commandMatchesSignature('node.exe "C:/app/start-bridge.mjs" --x', 'start-bridge.mjs'), true);
+  assert.equal(commandMatchesSignature('node.exe C:/app/start-bridge.mjs.bak', 'start-bridge.mjs'), false);
+});

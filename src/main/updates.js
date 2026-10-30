@@ -11,17 +11,40 @@ const RELEASES_API = `https://api.github.com/repos/${REPO}/releases/latest`;
 const ASSET_NAME = 'Dafiyu-Control-Center-Setup.exe';
 
 function parseVersion(value) {
-  return String(value || '').replace(/^v/i, '').split(/[.+-]/).slice(0, 3).map((part) => Number(part) || 0);
+  const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/);
+  if (!match) return { parts: [0, 0, 0], prerelease: [] };
+  return {
+    parts: [Number(match[1]) || 0, Number(match[2]) || 0, Number(match[3]) || 0],
+    prerelease: match[4] ? match[4].split('.').filter(Boolean) : []
+  };
+}
+
+function comparePrerelease(a, b) {
+  if (!a.length && !b.length) return 0;
+  if (!a.length) return 1;
+  if (!b.length) return -1;
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    if (a[i] === undefined) return -1;
+    if (b[i] === undefined) return 1;
+    const an = /^\d+$/.test(a[i]) ? Number(a[i]) : a[i];
+    const bn = /^\d+$/.test(b[i]) ? Number(b[i]) : b[i];
+    if (an === bn) continue;
+    if (typeof an === 'number' && typeof bn === 'number') return an > bn ? 1 : -1;
+    if (typeof an === 'number') return -1;
+    if (typeof bn === 'number') return 1;
+    return an > bn ? 1 : -1;
+  }
+  return 0;
 }
 
 function compareVersion(actual, latest) {
   const a = parseVersion(actual);
   const b = parseVersion(latest);
   for (let i = 0; i < 3; i += 1) {
-    if (a[i] > b[i]) return 1;
-    if (a[i] < b[i]) return -1;
+    if (a.parts[i] > b.parts[i]) return 1;
+    if (a.parts[i] < b.parts[i]) return -1;
   }
-  return 0;
+  return comparePrerelease(a.prerelease, b.prerelease);
 }
 
 function requestJson(url, timeoutMs = 8000) {

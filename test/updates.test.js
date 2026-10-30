@@ -52,3 +52,10 @@ test('trusted update digest requires full sha256', () => {
   assert.equal(isTrustedDigest('sha256:abc'), false);
   assert.equal(isTrustedDigest(''), false);
 });
+
+
+test('semver prerelease ordering is not treated as stable', () => {
+  assert.equal(compareVersion('1.0.0-beta', '1.0.0'), -1);
+  assert.equal(compareVersion('1.0.0-rc.1', '1.0.0-rc.2'), -1);
+  assert.equal(compareVersion('1.0.0', '1.0.0-rc.2'), 1);
+});

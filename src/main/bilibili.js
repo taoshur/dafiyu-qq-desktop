@@ -23,8 +23,8 @@ function readTail(file, maxBytes = MAX_LOG_BYTES) {
   }
 }
 
-function readEntries(file) {
-  const text = readTail(file);
+function readEntries(file, maxBytes = MAX_LOG_BYTES) {
+  const text = readTail(file, maxBytes);
   if (!text) return [];
   const entries = [];
   for (const line of text.split(/\r?\n/)) {
@@ -57,6 +57,34 @@ function readEntries(file) {
   }
   entries.sort((a, b) => b.at - a.at);
   return entries;
+}
+
+function countLines(file) {
+  try {
+    const stat = fs.statSync(file);
+    if (!stat.isFile()) return 0;
+    const fd = fs.openSync(file, 'r');
+    const buffer = Buffer.alloc(1024 * 1024);
+    let count = 0;
+    let last = '\n';
+    let position = 0;
+    try {
+      while (position < stat.size) {
+        const read = fs.readSync(fd, buffer, 0, Math.min(buffer.length, stat.size - position), position);
+        if (!read) break;
+        const chunk = buffer.subarray(0, read);
+        for (let i = 0; i < chunk.length; i += 1) if (chunk[i] === 10) count += 1;
+        last = chunk[chunk.length - 1];
+        position += read;
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+    if (last !== 10) count += 1;
+    return count;
+  } catch {
+    return 0;
+  }
 }
 
 function readSeen(file) {
@@ -128,7 +156,8 @@ function status({ settings, paths }) {
   const pythonFile = repoRoot ? path.join(repoRoot, 'tools', 'bili-venv', 'Scripts', 'python.exe') : '';
   const credentialFile = mcpRoot ? path.join(mcpRoot, 'bili_credential.json') : '';
   const seenFile = path.join(paths.stateDir, 'bili-seen.json');
-  const entries = watchLog ? readEntries(watchLog) : [];
+  const entries = watchLog ? readEntries(watchLog, 8 * 1024 * 1024) : [];
+  const totalHistory = watchLog ? countLines(watchLog) : 0;
   const seenAt = readSeen(seenFile);
   const unread = entries.filter((item) => item.at > seenAt).length;
   const profiles = detectDshProfiles();
@@ -145,7 +174,9 @@ function status({ settings, paths }) {
     watchLog,
     entries: entries.slice(0, MAX_ENTRIES),
     counts: {
-      total: entries.length,
+      total: totalHistory,
+      recent: entries.length,
+      windowLimited: Boolean(watchLog && fs.existsSync(watchLog) && fs.statSync(watchLog).size > 8 * 1024 * 1024),
       today: todayEntries.length,
       todayVideos: new Set(todayEntries.map((item) => item.bvid).filter(Boolean)).size,
       videos: new Set(videoEntries.map((item) => item.bvid)).size,
@@ -172,4 +203,4 @@ function ack({ paths, at }) {
   return { ok: true, seenAt };
 }
 
-module.exports = { status, ack, readEntries, kindLabel };
+module.exports = { status, ack, readEntries, countLines, kindLabel };

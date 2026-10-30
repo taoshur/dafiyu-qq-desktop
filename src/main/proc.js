@@ -78,6 +78,27 @@ function verifyProcess(record, details) {
   return { ok: true, found };
 }
 
+function normalizeCommandLine(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function commandMatchesSignature(cmdline, signature) {
+  const hay = normalizeCommandLine(cmdline);
+  const needle = normalizeCommandLine(signature);
+  if (!hay || !needle) return false;
+  let from = 0;
+  while (from <= hay.length - needle.length) {
+    const at = hay.indexOf(needle, from);
+    if (at < 0) return false;
+    const before = at === 0 ? '' : hay[at - 1];
+    const after = at + needle.length >= hay.length ? '' : hay[at + needle.length];
+    const boundary = (ch) => !ch || /[\s"'=()[\]{}\\/]/.test(ch);
+    if (boundary(before) && boundary(after)) return true;
+    from = at + 1;
+  }
+  return false;
+}
+
 function isAlive(pid) {
   if (!pid) return false;
   try {
@@ -140,7 +161,7 @@ function verifyTree(record, details, { exeIncludes = [], signatures = [] } = {})
   const { descendants } = collectTree(details, record.pid);
   const unknown = [];
   for (const child of descendants) {
-    const sigOk = signatures.some((needle) => child.cmdline.toLowerCase().includes(String(needle).toLowerCase()));
+    const sigOk = signatures.some((needle) => commandMatchesSignature(child.cmdline, needle));
     const exeOk = exeIncludes.some((needle) => child.exe.toLowerCase().includes(String(needle).toLowerCase()));
     // Windows 控制台宿主 conhost 是 Node 子进程自动派生的，不属于业务子进程。
     const consoleHost = String(child.name || '').toLowerCase() === 'conhost.exe';
@@ -159,4 +180,4 @@ function verifyTree(record, details, { exeIncludes = [], signatures = [] } = {})
   return { ok: true, rootOk: true, descendants, unknown: [] };
 }
 
-module.exports = { listProcessDetails, verifyProcess, collectTree, verifyTree, isAlive, taskkill, waitUntilGone, samePath, runPowershell };
+module.exports = { listProcessDetails, verifyProcess, collectTree, verifyTree, isAlive, taskkill, waitUntilGone, samePath, commandMatchesSignature, runPowershell };
