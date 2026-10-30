@@ -62,5 +62,9 @@ contextBridge.exposeInMainWorld('dafiyu', {
   memoryReviewAudit: (candidateId) => ipcRenderer.invoke('memory:review-audit', { candidateId }),
   memoryMaiBotPick: () => ipcRenderer.invoke('memory:maibot-pick'),
   memoryMaiBotPreview: (sourcePath) => ipcRenderer.invoke('memory:maibot-preview', { sourcePath }),
-  memoryMaiBotImport: (sourcePath, mode) => ipcRenderer.invoke('memory:maibot-import', { sourcePath, mode })
+  memoryMaiBotImport: (sourcePath, mode) => ipcRenderer.invoke('memory:maibot-import', { sourcePath, mode }),
+  configExport: () => ipcRenderer.invoke('data:config-export'),
+  configPick: () => ipcRenderer.invoke('data:config-pick'),
+  configPreview: (filePath) => ipcRenderer.invoke('data:config-preview', { path: filePath }),
+  configImport: (filePath) => ipcRenderer.invoke('data:config-import', { path: filePath })
 });

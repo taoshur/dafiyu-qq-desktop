@@ -55,6 +55,10 @@ const CHANNELS = Object.freeze([
   'memory:maibot-pick',
   'memory:maibot-preview',
   'memory:maibot-import',
+  'data:config-export',
+  'data:config-pick',
+  'data:config-preview',
+  'data:config-import',
   'settings:get',
   'settings:save'
 ]);

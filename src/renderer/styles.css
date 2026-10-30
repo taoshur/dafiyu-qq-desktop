@@ -857,3 +857,8 @@ mark { background: rgba(246, 201, 107, 0.35); color: #fff; border-radius: 3px; }
 @media (max-width: 1100px) {
   .memory-split { grid-template-columns: 1fr; }
 }
+
+
+.service-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; padding:13px 16px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.025); }
+.service-summary b { display:block; margin-top:2px; font-size:16px; }
+.service-summary p { margin:4px 0 0; color:var(--text-dim); font-size:12px; }

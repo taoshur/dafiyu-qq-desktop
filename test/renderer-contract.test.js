@@ -91,3 +91,14 @@ test('UX structure keeps overview actions, config labels and memory split', () =
   assert.ok(app.includes('layoutMemorySplit'));
   assert.ok(css.includes('.memory-split'));
 });
+
+
+test('config data management and services summary are wired', () => {
+  const config = fs.readFileSync(path.join(renderer, 'pages', 'config.js'), 'utf8');
+  const services = fs.readFileSync(path.join(renderer, 'pages', 'services.js'), 'utf8');
+  assert.ok(config.includes('cfg-export'));
+  assert.ok(config.includes('cfg-import'));
+  assert.ok(services.includes('control-start-all'));
+  assert.ok(app.includes('exportDesktopConfig'));
+  assert.ok(app.includes('startAllServices'));
+});

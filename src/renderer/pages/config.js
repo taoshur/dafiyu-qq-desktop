@@ -17,6 +17,14 @@ function configPage(snapshot) {
       </div>
       <p class="service-detail">修改后可重新检测环境；不会自动启动或重启任何服务。</p>
     </section>
+    <section class="card panel" style="margin-top:14px">
+      <div class="section-title"><h3>数据管理</h3><span>只导出桌面配置，不含令牌、API Key 或记忆库</span></div>
+      <div class="memory-filters">
+        <button class="btn primary" id="cfg-export" type="button">导出桌面配置</button>
+        <button class="btn" id="cfg-import" type="button">导入桌面配置</button>
+      </div>
+      <p class="service-detail">配置文件只包含称呼、路径和启动开关。完整记忆/角色数据请使用「数据备份」。导入会先显示差异，确认后才写入；不会启动或重启服务。</p>
+    </section>
     <div class="section-title" style="margin-top:16px"><h3>项目配置（只读）</h3><span>来自项目 config.json</span></div>
     <div class="section-title" style="margin-top:16px"><h3>端口</h3><span>来自项目 config.json</span></div>
     <div class="kv-grid">

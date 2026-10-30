@@ -94,6 +94,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const { registerSettingsHandlers } = require('./ipc/handlers/settings');
   const { registerBackupHandlers } = require('./ipc/handlers/backups');
   const { registerStartupHandlers } = require('./ipc/handlers/startup');
+  const { registerDataHandlers } = require('./ipc/handlers/data');
   registerSystemHandlers(router, { paths, getSettings, cache: cached });
   registerUpdateHandlers(router, { taskService });
   registerBilibiliHandlers(router, { paths, getSettings });
@@ -105,6 +106,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   registerSettingsHandlers(router, { paths, getSettings, setSettings, resetCache: () => { cached.at = 0; cached.value = null; }, log });
   registerBackupHandlers(router, { paths, getSettings, log });
   registerStartupHandlers(router, { getSettings, allowAutostart, controlStateDir, getStartupStatus, resetStartupCache: () => { startupCache = { at: 0, value: null }; }, autostart, recoveryEngine });
+  registerDataHandlers(router, { paths, getSettings, setSettings, log });
 
   return {
     stopOwnedServices: () => supervisor.stopOwnedServices(),

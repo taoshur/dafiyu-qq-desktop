@@ -60,7 +60,15 @@ function servicesPage(snapshot) {
           </div>`).join('')}
       </section>`
     : '';
+  const onlineCount = plan.filter((item) => byId[item.id]?.state === 'running').length;
+  const startable = plan.filter((item) => !item.detectOnlyByDefault && byId[item.id]?.state !== 'running').length;
+  const summary = `
+    <div class="service-summary">
+      <div><span class="overview-eyebrow">当前状态</span><b>${onlineCount}/${plan.length} 在线</b><p>${onlineCount === plan.length ? '三件套完整，QQ 链路可用。' : '按依赖顺序启动，遇到失败先看对应卡片的提示。'}</p></div>
+      <button class="btn primary" id="control-start-all" type="button" ${controlOn && startable ? '' : 'disabled'}>${controlOn ? (startable ? '一键启动未运行服务' : '全部已启动') : '先启用真实控制'}</button>
+    </div>`;
   return `
+    ${summary}
     <div class="control-bar">
       <div class="control-text">
         <h4>真实服务控制 <span class="${controlOn ? 'control-on' : 'control-off'}">${controlOn ? '已启用' : '未启用'}</span></h4>

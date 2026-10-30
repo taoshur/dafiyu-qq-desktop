@@ -592,6 +592,27 @@ function askRestart(id) {
   });
 }
 
+async function startAllServices() {
+  if (!state.control?.enabled) { toast('请先启用真实控制'); return; }
+  const plan = [...(state.snap?.plan || [])].sort((a, b) => a.order - b.order);
+  const byId = Object.fromEntries((state.snap?.services || []).map((item) => [item.id, item]));
+  const targets = plan.filter((item) => !item.detectOnlyByDefault && byId[item.id]?.state !== 'running');
+  if (!targets.length) { toast('没有需要启动的服务'); return; }
+  for (const item of targets) {
+    try {
+      const result = await api.controlStart(item.id);
+      if (!result.ok && !result.starting) {
+        toast(`${item.name} 启动失败：${result.reason || '未知错误'}`);
+        break;
+      }
+    } catch (error) {
+      toast(`${item.name} 启动失败：${error.message}`);
+      break;
+    }
+  }
+  await refresh(true);
+}
+
 function toggleControl() {
   if (state.control.enabled) {
     showModal({
@@ -677,6 +698,63 @@ async function saveOwnerTitle(title) {
   state.settings = await api.settingsSave({ ...current, ownerTitle: title });
   state.wizard.ownerTitle = state.settings.ownerTitle;
   return state.settings;
+}
+
+async function exportDesktopConfig() {
+  try {
+    const result = await api.configExport();
+    if (!result?.ok) {
+      if (!result?.cancelled) toast('导出失败');
+      return;
+    }
+    toast(`桌面配置已导出：${result.path}`);
+  } catch (error) {
+    toast(`导出失败：${error.message}`);
+  }
+}
+
+async function importDesktopConfig() {
+  try {
+    const picked = await api.configPick();
+    if (!picked?.ok) {
+      if (!picked?.cancelled) toast('未选择配置文件');
+      return;
+    }
+    const preview = await api.configPreview(picked.path);
+    if (!preview?.ok) { toast('配置文件无效'); return; }
+    const labels = {
+      ownerTitle: '称呼', repoRoot: 'qq-bridge 目录', snowlumaRoot: 'SnowLuma 目录',
+      dshExe: 'DSH 可执行文件', controlEnabled: '真实控制', managerAutostart: '管理器登录自启',
+      botAutostart: '机器人自启', autoRecovery: '异常自动恢复'
+    };
+    const diff = (preview.diff || []).map((row) => `${labels[row.key] || row.key}: ${row.before ?? '空'} → ${row.after ?? '空'}`);
+    showModal({
+      title: '导入桌面配置',
+      body: [
+        `来源：${preview.path}`,
+        preview.meta?.exportedAt ? `导出时间：${preview.meta.exportedAt}` : '',
+        '',
+        diff.length ? '将要修改：' : '配置与当前一致。',
+        ...diff,
+        '',
+        '只影响桌面配置；不会写入 token、Cookie、API Key 或记忆库。'
+      ].filter(Boolean).join('\n'),
+      confirmText: '确认导入',
+      onConfirm: async () => {
+        try {
+          const result = await api.configImport(picked.path);
+          if (!result?.ok) { toast(`导入失败：${result?.reason || '未知错误'}`); return; }
+          state.settings = result.settings;
+          toast('桌面配置已导入');
+          await refresh(true);
+        } catch (error) {
+          toast(`导入失败：${error.message}`);
+        }
+      }
+    });
+  } catch (error) {
+    toast(`导入失败：${error.message}`);
+  }
 }
 
 async function saveDesktopPaths() {
@@ -1547,6 +1625,7 @@ function bind() {
     const restartBtn = event.target.closest('[data-control-restart]');
     if (restartBtn) { askRestart(restartBtn.dataset.controlRestart); return; }
     if (event.target.closest('#control-toggle')) { toggleControl(); return; }
+    if (event.target.closest('#control-start-all')) { startAllServices(); return; }
     const toggleBtn = event.target.closest('[data-toggle-setting]');
     if (toggleBtn) { toggleStartupSetting(toggleBtn.dataset.toggleSetting); return; }
     if (event.target.closest('#autostart-register')) { askAutostartRegister(); return; }
@@ -1568,6 +1647,8 @@ function bind() {
     if (event.target.closest('#memory-init-test')) { initMemoryTest(); return; }
     if (event.target.closest('#memory-maibot-import')) { importMaiBotMemory(); return; }
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
+    if (event.target.closest('#cfg-export')) { exportDesktopConfig(); return; }
+    if (event.target.closest('#cfg-import')) { importDesktopConfig(); return; }
     const deadRetry = event.target.closest('[data-memory-dead-retry]');
     if (deadRetry) { askMemoryDeadRetry(deadRetry.dataset.memoryDeadRetry); return; }
     if (event.target.closest('#memory-unlock')) { unlockMemoryReview(); return; }
