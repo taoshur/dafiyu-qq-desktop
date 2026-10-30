@@ -161,7 +161,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 只读：
 
-`bili_check_credential`、`bili_search`、`bili_comments`、`bili_subtitle`、`bili_danmaku`、`bili_video_info`、`bili_crawl`、`bili_hot_videos`、`bili_hot_buzzwords`、`bili_weekly_hot`、`bili_rank`、`bili_user_info`、`bili_user_videos`、`bili_favorite_lists`、`bili_favorite_content`、`bili_unread_messages`、`bili_received_replies`、`bili_received_at_and_likes`
+`bili_check_credential`、`bili_search`、`bili_comments`、`bili_subtitle`、`bili_danmaku`、`bili_video_info`、`bili_crawl`、`bili_hot_videos`、`bili_hot_buzzwords`、`bili_weekly_hot`、`bili_rank`、`bili_video_zones`、`bili_user_info`、`bili_user_videos`、`bili_favorite_lists`、`bili_favorite_content`、`bili_unread_messages`、`bili_received_replies`、`bili_received_at_and_likes`
 
 登录/写入/发布：
 
