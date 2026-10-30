@@ -58,6 +58,117 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - qq-bridge 控制台令牌只由主进程从 `state/console-token` 注入，不进入 URL、不写日志
 - 不包含任何 API Key、QQ 登录态、聊天记录或生产配置
 
+## 功能详解
+
+### 桌面端页面
+
+| 页面 | 能做什么 | 边界 |
+|---|---|---|
+| 总览 | 三件套在线状态、端口、PID、QQ 链路、Memory 计数、数据库完整性、模型、运行时长 | 只展示，不自动修改服务 |
+| 服务 | 按 SnowLuma → DSH → qq-bridge 顺序启动；停止/重启；查看归属和恢复策略 | 真实控制默认关闭；只停止本软件启动且身份校验通过的实例 |
+| 服务网页 | 内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100） | 只允许回环地址；独立 `WebContentsView` |
+| 首次设置 | 分步向导、称呼设置、SnowLuma WebUI 密码 bootstrap、部署提示词 | 密码只作为一次环境变量传入，不落盘 |
+| 环境安装 | 检测 SnowLuma / qq-bridge / DSH、依赖、路径、端口、官方来源；按目录安装 | qq-bridge 内置源码；SnowLuma 需接受 LICENSE/EULA 后从官方下载；DSH 手动安装 |
+| 启动与恢复 | 登录自启、机器人自启、异常自动恢复三个独立开关；恢复历史与所有权 | 默认全关；外部实例不接管 |
+| 运行日志 | 只读 tail、来源切换、跟随刷新、复制排查信息 | 不删除、不截断原日志；展示时脱敏 |
+| 环境检查 | Node/目录/配置/依赖/state 可写性/端口预检 | 只读检查，不自动修复 |
+| 配置 | 路径、称呼、控制开关、恢复开关；只显示非机密字段 | 令牌、Cookie、API Key 不返回界面 |
+| 长期记忆 | facts/events/candidates 浏览搜索；证据、置信度、时间精度、质量；隔离测试库审核 | 生产库只读；审核只写测试库 |
+| B站活动 | 搜索/热榜/排行/视频/字幕/评论/弹幕等动作；未读提示；按 BV 去重 | 只读本地 JSONL 台账，不上传 |
+| 数据备份 | SQLite `VACUUM INTO` 快照、manifest/SHA256、恢复演练、保留策略 | 只删除本软件创建的 `desktop-*` 备份 |
+| 关于 | 版本、架构、许可、数据路径、更新入口 | 不包含账号凭据 |
+
+### qq-bridge / DSH 侧能力
+
+- **快速通道**：短纯文字优先直连 DeepSeek API；复杂/媒体/工具请求回退 DSH Agent
+- **表情包**：自动补表情、表情库同步、收藏、备注、按场景发送
+- **Memory V3/V4**：消息入库、批量抽取、候选审核、多信号召回、可逆归档
+- **B站活动**：搜索、热榜、排行、视频详情、字幕、评论、弹幕、UP 主、收藏等
+- **QQ 空间**：看动态、点赞、评论、回复、发说说、改签名
+- **语音/唱歌**：语音库、TTS、RVC 翻唱（默认关闭，需要本机模型/音频）
+- **Android 模拟器**：截图、UI 树、点击、滑动、输入、启动/关闭 App、受控 adb
+- **联网搜索**：只读 `web_search` / `web_fetch`
+- **游戏/画图**：通过可选 MCP 工具完成，是否启用取决于配置
+
+### 数据安全
+
+- 桌面配置自动迁移，迁移前备份，保留未知字段
+- Memory V4 迁移前自动 `VACUUM INTO` 备份；备份失败停止迁移
+- 只增量加列，不删除 facts/events/messages
+- 候选 apply 使用事务，状态更新失败会回滚正式写入
+- 升级不覆盖已有 qq-bridge / SnowLuma / DSH 目录
+- 日志、IPC 错误和结构化日志做递归脱敏
+
+详见：[docs/DATA-MIGRATION.md](docs/DATA-MIGRATION.md)
+
+## MCP 工具清单
+
+> 工具由内置 qq-bridge 的 MCP server 提供，实际启用状态由 `config.json` 的 `socialV2.tools`、表情、语音、RVC 等开关决定。
+> 运行时以 `qq_get_prompt` 返回的 `enabledTools` 为准；下面列的是代码中已存在的工具，不表示每个安装都默认全部开启。
+
+实现位置：
+
+- QQ/宿主工具：`src/mcp-snowluma-safe.js`
+- Android：`src/mcp-android.js`
+- 搜索：`src/mcp-web-search-safe.js`
+- B站：`tools/bilibili-mcp/mcp_server.py`
+
+### QQ 会话读取
+
+`qq_status`、`qq_list_groups`、`qq_get_group_members`、`qq_get_group_history`、`qq_get_prompt`、`qq_get_unread_messages`、`qq_get_recent_messages`、`qq_get_my_recent_messages`、`qq_get_message_detail`、`qq_get_active_members`、`qq_social_state`、`qq_get_forward_msg`、`qq_get_message_images`
+
+### QQ 发送与互动
+
+`qq_send_group_message`、`qq_send_private_message`、`qq_reply`、`qq_send_burst`、`qq_send_message`、`qq_send_poke`、`qq_send_image`、`qq_send_image_data`、`qq_set_poke_style`
+
+### 唤醒与已读
+
+`qq_mark_read`、`qq_set_wake_config`、`qq_wait_for_messages`
+
+### 记忆与黑话
+
+`qq_memory_append`、`qq_memory_query`、`qq_memory_remove`、`qq_memory_clear`、`qq_slang_query`、`qq_slang_submit`
+
+### 表情包
+
+`qq_list_stickers`、`qq_get_sticker_image`、`qq_send_sticker`、`qq_collect_sticker`、`qq_sticker_note`、`qq_set_sticker_remark`
+
+### 语音与唱歌
+
+`qq_list_voices`、`qq_send_voice`、`qq_say`、`qq_sing`
+
+默认关闭，需要本机语音库/模型；`qq_send_voice` 默认只允许语音库目录，不能读任意本地路径。
+
+### QQ 空间与好友
+
+`qq_qzone_feeds`、`qq_qzone_detail`、`qq_qzone_like`、`qq_qzone_comment`、`qq_qzone_reply`、`qq_qzone_images`、`qq_post_qzone`、`qq_set_signature`、`qq_handle_friend_request`、`qq_approve_friend_request`、`qq_whitelist_add`
+
+### 画图与宿主
+
+`qq_draw`、`qq_get_self_image`、`snowluma_status`
+
+### Android 模拟器
+
+`android_status`、`android_screenshot`、`android_ui`、`android_tap`、`android_swipe`、`android_key`、`android_batch`、`android_text`、`android_launch`、`android_close`、`android_packages`、`android_adb`、`android_listen`、`android_capture_share`
+
+### 联网搜索
+
+`web_search`、`web_fetch`
+
+### B站 MCP（可选）
+
+需要本机 `tools/bili-venv`、B站凭证和 MCP 配置。
+
+只读：
+
+`bili_check_credential`、`bili_search`、`bili_comments`、`bili_subtitle`、`bili_danmaku`、`bili_video_info`、`bili_crawl`、`bili_hot_videos`、`bili_hot_buzzwords`、`bili_weekly_hot`、`bili_rank`、`bili_user_info`、`bili_user_videos`、`bili_favorite_lists`、`bili_favorite_content`、`bili_unread_messages`、`bili_received_replies`、`bili_received_at_and_likes`
+
+登录/写入/发布：
+
+`bili_login`、`bili_login_check`、`bili_reply`、`bili_send_dynamic`、`bili_upload_video`、`bili_upload_video_multi`、`bili_send_opus`、`bili_send_message`
+
+> B站写操作需要用户自己的登录凭证；本项目不会内置或上传 Cookie。工具是否出现在 DSH 中取决于本机 MCP 配置。
+
 ## SnowLuma 署名与授权
 
 SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
