@@ -26,7 +26,7 @@ function fixture() {
     JSON.stringify({ at: 1000, bvid: 'BV1xx', title: '旧视频', kind: 'info', author: 'UP' }),
     JSON.stringify({ at: 2000, bvid: 'BV1xx', title: '新视频', kind: 'subtitle', segments: 2, chars: 10 }),
     JSON.stringify({ at: 3000, bvid: '', title: '', kind: 'search', query: '大肥鱼', count: 10 }),
-    JSON.stringify({ at: 4000, bvid: '', title: '', kind: 'hot', count: 20 })
+    JSON.stringify({ at: 4000, bvid: '', title: '', kind: 'hot', count: 20, items: [{ bvid: 'BV1hot', title: '热一', author: 'UP1', play: 100 }, { bvid: 'BV2hot', title: '热二', author: 'UP2', play: 200 }] })
   ].join('\n') + '\n');
   const paths = createPaths(path.join(root, 'userData'));
   return { root, repo, paths };
@@ -40,6 +40,8 @@ test('B站活动只读台账、登录状态和未读计数', () => {
   assert.equal(result.counts.searches, 1);
   assert.equal(result.counts.unread, 4);
   assert.equal(result.entries[0].kind, 'hot');
+  assert.equal(result.entries[0].items.length, 2);
+  assert.equal(result.entries[0].items[0].title, '热一');
   assert.equal(result.credential.loggedIn, true);
   assert.equal(result.mcp.serverExists, true);
   const text = JSON.stringify(result);

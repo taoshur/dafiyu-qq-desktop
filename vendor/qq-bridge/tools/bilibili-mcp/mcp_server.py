@@ -61,6 +61,23 @@ def _log_watch(bvid, title, kind, extra=None):
     except Exception:
         pass
 
+def _watch_items(videos, keys=("bvid", "title", "author", "play")):
+    """Keep a small, display-safe snapshot of list results in the local log."""
+    items = []
+    for video in list(videos or [])[:20]:
+        if not isinstance(video, dict):
+            continue
+        item = {}
+        for key in keys:
+            value = video.get(key)
+            if value is None:
+                continue
+            item[key] = str(value)[:160] if key in ("title", "author") else value
+        if item:
+            items.append(item)
+    return items
+
+
 mcp = FastMCP("bilibili-mcp")
 
 # ⭐ 工具白名单（2026-10-17 审查里的 H3）：宿主通过 overlay 的 env 下发 BILI_MCP_TOOLS（逗号分隔）。
@@ -264,7 +281,7 @@ async def bili_search(keyword: str, num: int = 10, order: str = "totalrank") -> 
             "description": item.get("description", "")[:200],
         })
 
-    _log_watch("", "", "search", {"query": str(keyword)[:120], "count": len(videos), "order": order})
+    _log_watch("", "", "search", {"query": str(keyword)[:120], "count": len(videos), "order": order, "items": _watch_items(videos)})
     return json.dumps({"keyword": keyword, "count": len(videos), "videos": videos}, ensure_ascii=False)
 
 
@@ -1027,7 +1044,7 @@ async def bili_hot_videos(pn: int = 1, ps: int = 20) -> str:
             "duration": item.get("duration", 0),
             "tname": item.get("tname", ""),
         })
-    _log_watch("", "", "hot", {"page": pn, "count": len(videos)})
+    _log_watch("", "", "hot", {"page": pn, "count": len(videos), "items": _watch_items(videos)})
     return json.dumps({"page": pn, "count": len(videos), "videos": videos}, ensure_ascii=False)
 
 
@@ -1122,7 +1139,7 @@ async def bili_rank(category: str = "all", day: int = 3) -> str:
             "score": item.get("score", 0),
             "tname": item.get("tname", ""),
         })
-    _log_watch("", "", "rank", {"category": category, "day": day, "count": len(videos)})
+    _log_watch("", "", "rank", {"category": category, "day": day, "count": len(videos), "items": _watch_items(videos)})
     return json.dumps({"category": category, "day": day, "count": len(videos), "videos": videos}, ensure_ascii=False)
 
 
@@ -1212,7 +1229,7 @@ async def bili_user_videos(uid: int, pn: int = 1, ps: int = 30, order: str = "pu
             "length": item.get("length", ""),
             "description": (item.get("description", "") or "")[:100],
         })
-    _log_watch("", "", "user_videos", {"uid": uid, "page": pn, "count": len(videos)})
+    _log_watch("", "", "user_videos", {"uid": uid, "page": pn, "count": len(videos), "items": _watch_items(videos)})
     return json.dumps({
         "uid": uid,
         "page": pn,

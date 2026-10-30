@@ -51,7 +51,16 @@ function readEntries(file, maxBytes = MAX_LOG_BYTES) {
         week: Number(item.week) || null,
         uid: Number(item.uid) || null,
         name: String(item.name || '').slice(0, 80),
-        error: item.error === true
+        error: item.error === true,
+        items: Array.isArray(item.items) ? item.items.slice(0, 20).map((entry) => {
+          if (!entry || typeof entry !== 'object') return null;
+          return {
+            bvid: String(entry.bvid || '').slice(0, 20),
+            title: String(entry.title || '').slice(0, 160),
+            author: String(entry.author || '').slice(0, 80),
+            play: Number(entry.play) || null
+          };
+        }).filter(Boolean) : []
       });
     } catch { /* skip malformed line */ }
   }

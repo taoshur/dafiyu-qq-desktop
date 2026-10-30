@@ -37,6 +37,16 @@ function biliEntryText(item) {
   return biliKindLabel(item.kind);
 }
 
+function biliEntryItems(item) {
+  const items = Array.isArray(item.items) ? item.items : [];
+  if (!items.length) return '';
+  const rows = items.map((entry, index) => {
+    const meta = [entry.author, fmtBiliView(entry.play), entry.bvid].filter(Boolean).join(' · ');
+    return `<li>${index + 1}. ${esc(entry.title || entry.bvid || '未命名')}${meta ? `<span class="memory-detail"> · ${esc(meta)}</span>` : ''}</li>`;
+  }).join('');
+  return `<details class="bili-watch-items"><summary>查看具体 ${items.length} 条</summary><ol>${rows}</ol></details>`;
+}
+
 function biliPromptText(watchLog = '') {
   const repoRoot = String(watchLog || '').replace(/[\\/]state[\\/]bili-watch\.jsonl$/i, '') || '<qq-bridge 路径>';
   return `你是我的 Windows 部署助手。我要让“大肥鱼”在 DeepSeek Harness 里能刷 B 站。
@@ -69,7 +79,7 @@ function biliPage() {
     return `<tr>
       <td>${esc(fmtTime(item.at))}</td>
       <td><span class="tag">${esc(biliKindLabel(item.kind))}</span></td>
-      <td><b>${esc(biliEntryText(item))}</b><span class="memory-detail">${esc(item.bvid || '')}${meta ? ` · ${esc(meta)}` : ''}</span></td>
+      <td><b>${esc(biliEntryText(item))}</b><span class="memory-detail">${esc(item.bvid || '')}${meta ? ` · ${esc(meta)}` : ''}</span>${biliEntryItems(item)}</td>
       <td>${esc(item.bvid || '—')}</td>
     </tr>`;
   }).join('');
