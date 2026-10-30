@@ -1068,7 +1068,10 @@ async def bili_hot_buzzwords(page_num: int = 1, page_size: int = 20) -> str:
         热搜词列表
     """
     result = await hot.get_hot_buzzwords(page_num=page_num, page_size=page_size)
-    buzz_items = result.get("list", []) if isinstance(result, dict) else (result if isinstance(result, list) else [])
+    if isinstance(result, dict):
+        buzz_items = result.get("list") or result.get("buzzwords") or []
+    else:
+        buzz_items = result if isinstance(result, list) else []
     _log_watch("", "", "buzzwords", {"page": page_num, "count": len(buzz_items) or page_size, "items": _watch_items(buzz_items)})
     return json.dumps(result, ensure_ascii=False)
 
