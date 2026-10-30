@@ -6,23 +6,26 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 > 上游代码与文档以 MIT 许可发布；本仓库保留其版权与许可声明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 > 这不是机器人本体，也不包含 SnowLuma、DSH 的安装包或账号；qq-bridge 以 MIT 源码形式内置在安装包中。
-> 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 + V4 只读浏览、服务网页内嵌和首次设置向导。
+> 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 + V4 浏览与审核、MaiBot 记忆导入、服务网页内嵌和首次设置向导。
 
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.8.6 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.8.6/Dafiyu-Control-Center-Setup.exe
-- 大小：123,441,030 字节
+- **v0.8.9 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.8.9/Dafiyu-Control-Center-Setup.exe
+- 大小：123,446,783 字节
 - SHA256：
   ```text
-  E14F816A562AA4A2BF4CCCFD534322ADAAA9EEE8F881F8B32E9CC8E238882512
+  329EA9326D2F5F364BADB79922D597593CDE5E8C864B2850535601E9C9A7B978
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 DSH。
 
 ## 最近更新
 
+- **0.8.9**：MaiBot 记忆一键导入（待审核候选、自动去重/备份）、更新下载进度
+- **0.8.8**：凌晨 0–5 点“明天”按当天写入、原生下拉框不再被轮询刷新关闭
+- **0.8.7**：Legacy Growth 候选 stale guard、历史证据对账、旧候选隔离
 - **0.8.6**：人格证据消费水位、撤销召回隔离、重要经历排序保护、回答评测框架
 - **0.8.5**：生产候选审核、脱敏回放评测、全链路追踪增强
 - **0.8.4**：长期记忆三层质量过滤、概念召回、模糊时间、空召回诊断、成长审核面板
@@ -43,9 +46,9 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **恢复引擎**：崩溃识别、退避、租约、BusyGuard、整树停止、watchdog 协调
 - **运行日志**：只读 tail，不删除、不截断原文件
 - **环境检查**：Node、目录、配置、依赖、state 可写性
-- **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4；支持生产候选审核（显式解锁、批准/编辑/拒绝/撤销、审计与幂等）、三层质量过滤、概念扩展召回、生命周期；默认观察模式、不自动晋升
+- **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4；支持生产候选审核（显式解锁、批准/编辑/拒绝/撤销、审计与幂等）、三层质量过滤、概念扩展召回、生命周期；支持 MaiBot 记忆一键导入为待审核候选；默认观察模式、不自动晋升
 - **B站活动**：记录搜索、热榜、排行、视频详情、字幕、评论等动作；区分“累计动作”和“按 BV 去重的视频数”；侧边栏未读提示
-- **更新检查**：从 GitHub Releases 检查新版本，SHA256 校验后打开安装包，不静默升级
+- **更新检查**：从 GitHub Releases 检查新版本，显示下载进度，SHA256 校验后打开安装包，不静默升级
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
@@ -58,7 +61,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 - 只操作**由本软件启动**的进程；外部实例只检测，不误杀
 - 真实服务控制默认关闭，必须在服务页显式开启
-- 生产 Memory 库只读；候选审核只写隔离测试库
+- 生产 Memory 库默认只读；审核动作必须显式解锁，事务写入并留下审计记录；`observeOnly` 保持不变
 - qq-bridge 控制台令牌只由主进程从 `state/console-token` 注入，不进入 URL、不写日志
 - 不包含任何 API Key、QQ 登录态、聊天记录或生产配置
 
@@ -77,7 +80,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 | 运行日志 | 只读 tail、来源切换、跟随刷新、复制排查信息 | 不删除、不截断原日志；展示时脱敏 |
 | 环境检查 | Node/目录/配置/依赖/state 可写性/端口预检 | 只读检查，不自动修复 |
 | 配置 | 路径、称呼、控制开关、恢复开关；只显示非机密字段 | 令牌、Cookie、API Key 不返回界面 |
-| 长期记忆 | facts/events/candidates 浏览搜索；证据、置信度、时间精度、质量；隔离测试库审核 | 生产库只读；审核只写测试库 |
+| 长期记忆 | facts/events/candidates 浏览搜索；证据、置信度、时间精度、质量；生产审核；MaiBot 记忆导入 | 生产默认只读；审核需显式解锁；导入只写待审核候选 |
 | B站活动 | 搜索/热榜/排行/视频/字幕/评论/弹幕等动作；未读提示；按 BV 去重 | 只读本地 JSONL 台账，不上传 |
 | 数据备份 | SQLite `VACUUM INTO` 快照、manifest/SHA256、恢复演练、保留策略 | 只删除本软件创建的 `desktop-*` 备份 |
 | 关于 | 版本、架构、许可、数据路径、更新入口 | 不包含账号凭据 |
@@ -231,6 +234,7 @@ SnowLuma 使用 **WebUI 密码**，不是控制台令牌。
 B站活动与接入：[docs/BILIBILI.md](docs/BILIBILI.md)
 更新检查：[docs/UPDATE.md](docs/UPDATE.md)
 Memory V4 召回与生命周期：[docs/MEMORY-V4.md](docs/MEMORY-V4.md)
+MaiBot 记忆导入：[docs/MAIBOT-IMPORT.md](docs/MAIBOT-IMPORT.md)
 数据迁移与兼容性：[docs/DATA-MIGRATION.md](docs/DATA-MIGRATION.md)
 
 ### qq-bridge
@@ -334,8 +338,8 @@ QQ 消息
 - **候选层**：模型输出先进入 `memory_candidates`，不直接污染长期事实；`facts/events` 只接收审核后的内容。
 - **证据与质量**：候选带来源会话、批次、证据、质量/置信度、时间精度和作用域，方便回溯。
 - **去重与幂等**：`dedupe_key`、`batch_key`、消息唯一键避免重复抽取和重复候选。
-- **观察模式**：生产库 `observeOnly=true` 时只读；候选审核只在隔离测试库演练。
-- **只读桌面**：桌面用 SQLite `query_only` 打开生产 `memory.db`，不写、不迁移、不清理 WAL。
+- **观察模式**：生产库 `observeOnly=true` 时不会自动晋升候选；审核动作需显式解锁并使用事务。
+- **桌面边界**：浏览默认用 SQLite `query_only`；审核和 MaiBot 导入是显式动作，分别写审计/备份，不清理 WAL。
 - **测试库隔离**：`%APPDATA%\dafiyu-desktop\state\memory-test.db` 可安全演练 apply/reject，不与生产库混用。
 - **备份一致性**：`VACUUM INTO` 生成包含已提交 WAL 数据的一致性快照，并校验 manifest/SHA256/表计数。
 
@@ -364,8 +368,10 @@ QQ 消息
 
 - facts / events / pending candidates 浏览与搜索
 - 候选证据、置信度、时间精度、作用域、质量
+- 生产候选审核（显式解锁、批准/编辑/拒绝/撤销、审计）
 - 隔离测试库审核
-- 生产库只读告警和完整性检查
+- MaiBot 记忆一键导入为待审核候选
+- 数据库完整性检查
 
 ### 环境安装架构
 
@@ -395,6 +401,7 @@ IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING �
 - 生产记忆：`<qq-bridge>/state/memory.db`
 - B站活动台账：`<qq-bridge>/state/bili-watch.jsonl`
 - 备份：`<qq-bridge>/backups/desktop-*`（以实际配置为准）
+- MaiBot 导入前备份：`%APPDATA%\dafiyu-desktop\state\maibot-import-*.db`
 - 更新缓存：`%APPDATA%\dafiyu-desktop\cache\updates`
 
 这些目录中的用户数据**不进入仓库**。
