@@ -84,21 +84,32 @@ function updateTrayMenu() {
     { label: '打开日志目录', click: () => { shell.openPath(paths.logDir).catch(() => {}); } },
     { type: 'separator' },
     {
-      label: '退出并停止本软件启动的 bridge / SnowLuma',
+      label: '退出并停止我启动的服务（快速）',
       click: async () => {
+        if (isQuitting) return;
         isQuitting = true;
+        const started = Date.now();
         try {
-          const results = await trayIpc?.stopOwnedServices?.();
-          desktopLog('app', `quit stop services: ${JSON.stringify(results || [])}`);
+          const stop = trayIpc?.stopOwnedServicesFast?.();
+          const timeout = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 3500));
+          const results = await Promise.race([stop, timeout]);
+          desktopLog('app', `fast quit stop services ${JSON.stringify(results || [])}`);
         } catch (error) {
-          desktopLog('error', `quit stop services failed: ${error.message}`);
+          desktopLog('error', `fast quit stop services failed: ${error.message}`);
+        } finally {
+          desktopLog('app', `manager fast quit after ${Date.now() - started}ms`);
+          app.exit(0);
         }
-        app.quit();
       }
     },
     {
       label: '仅退出界面（服务继续运行）',
-      click: () => { isQuitting = true; app.quit(); }
+      click: () => {
+        if (isQuitting) return;
+        isQuitting = true;
+        desktopLog('app', 'manager quit UI only');
+        app.exit(0);
+      }
     }
   ]);
   tray.setContextMenu(menu);
@@ -144,6 +155,7 @@ function createWindow() {
     if (isQuitting) return;
     event.preventDefault();
     win.hide();
+    try { win.webContents.send('app:hidden-to-tray'); } catch { /* window may be closing */ }
     desktopLog('window', 'close requested -> hidden to tray');
   });
 

@@ -5,7 +5,9 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const {
   listProcessDetails,
+  listFastProcessDetails,
   verifyProcess,
+  verifyProcessFast,
   verifyTree,
   isAlive,
   taskkill,
@@ -452,7 +454,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     return { ok: true, record };
   }
 
-  async function stopUnlocked(id, { force = false, confirmBusy = false, ignoreEnabled = false } = {}) {
+  async function stopUnlocked(id, { force = false, confirmBusy = false, ignoreEnabled = false, fast = false } = {}) {
     if (!enabled() && !ignoreEnabled) return { ok: false, reason: '真实控制未启用，请先在服务页显式开启' };
     const defs = buildDefinitions();
     const def = defs[id];
@@ -477,11 +479,21 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
       };
     }
 
-    const details = await listProcessDetails();
-    const tree = verifyTree(record, details, {
-      exeIncludes: def.treeExeIncludes || [],
-      signatures: def.treeSignatures || []
-    });
+    const fastPids = fast ? [record.pid, record.child?.pid].filter(Boolean) : null;
+    const details = fast ? await listFastProcessDetails({ pids: fastPids }) : await listProcessDetails();
+    let tree;
+    if (fast) {
+      const rootCheck = verifyProcessFast(record, details);
+      const childCheck = record.child ? verifyProcessFast(record.child, details) : { ok: true };
+      tree = rootCheck.ok && childCheck.ok
+        ? { ok: true, descendants: [], rootOk: true }
+        : { ok: false, rootOk: rootCheck.ok, reason: rootCheck.reason || childCheck.reason, unknown: [] };
+    } else {
+      tree = verifyTree(record, details, {
+        exeIncludes: def.treeExeIncludes || [],
+        signatures: def.treeSignatures || []
+      });
+    }
     if (!tree.ok) {
       return {
         ok: false,
@@ -493,7 +505,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     }
 
     const sentinel = id === 'bridge' ? ensureSentinel() : { created: false };
-    const targets = [record, ...tree.descendants];
+    const targets = [record, ...(record.child ? [record.child] : []), ...(tree.descendants || [])];
 
     // TOCTOU：真正发终止信号前，用最新的进程快照再校验一次根/子进程身份。
     const recheckIdentity = async () => {
@@ -507,7 +519,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
       return { ok: true };
     };
 
-    const beforeKill = await recheckIdentity();
+    const beforeKill = fast ? { ok: true } : await recheckIdentity();
     if (!beforeKill.ok) {
       if (sentinel.created) restoreSentinel();
       return { ok: false, identity: false, reason: beforeKill.reason };
@@ -515,10 +527,21 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     log('control', `stop ${id} tree=${targets.map((t) => t.pid).join(',')} force=${force}`);
 
     // 先对根进程发正常退出（taskkill /T 会把退出信号覆盖整棵树），再逐个检查。
-    await taskkill(record.pid, { force: false, tree: true });
     const alive = [];
-    for (const target of targets) {
-      if (!(await waitUntilGone(target.pid, stopTimeoutMs / Math.max(1, targets.length)))) alive.push(target);
+    if (fast) {
+      // Quit is an explicit stop request: skip the graceful wait. Root/child
+      // identity was verified with the filtered snapshot above.
+      await taskkill(record.pid, { force: true, tree: true });
+      const deadline = Date.now() + Math.min(1500, stopTimeoutMs);
+      for (const target of targets) {
+        const left = Math.max(150, deadline - Date.now());
+        if (!(await waitUntilGone(target.pid, left))) alive.push(target);
+      }
+    } else {
+      await taskkill(record.pid, { force: false, tree: true });
+      for (const target of targets) {
+        if (!(await waitUntilGone(target.pid, stopTimeoutMs / Math.max(1, targets.length)))) alive.push(target);
+      }
     }
 
     if (alive.length && !force) {
@@ -553,7 +576,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
       }
       forced = true;
       for (const target of alive) await taskkill(target.pid, { force: true, tree: true });
-      for (const target of alive) await waitUntilGone(target.pid, 5000);
+      for (const target of alive) await waitUntilGone(target.pid, fast ? 300 : 5000);
     }
 
     const stillAlive = targets.filter((target) => isAlive(target.pid));
@@ -742,7 +765,6 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
   async function stopOwnedServices() {
     const order = ['bridge', 'snowluma'];
     const results = [];
-    // DSH 是智能体宿主，可能是用户外部实例；退出管理器不自动终止它。
     for (const id of order) {
       const record = loadState().services[id];
       if (!record) continue;
@@ -754,6 +776,18 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
       }
     }
     return results;
+  }
+
+  async function stopOwnedServicesFast() {
+    return Promise.all(['bridge', 'snowluma'].map(async (id) => {
+      const record = loadState().services[id];
+      if (!record) return { id, ok: true, skipped: 'not-owned' };
+      try {
+        return { id, ...(await stop(id, { force: true, confirmBusy: true, ignoreEnabled: true, fast: true })) };
+      } catch (error) {
+        return { id, ok: false, reason: error.message };
+      }
+    }));
   }
 
   const serviceLocks = new Map();
@@ -778,6 +812,7 @@ function createController({ stateDir, getSettings, log = () => {}, extraDefiniti
     start,
     stop,
     stopOwnedServices,
+    stopOwnedServicesFast,
     reconcile,
     describe,
     recoverSentinel,

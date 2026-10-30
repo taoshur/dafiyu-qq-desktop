@@ -4,12 +4,12 @@ const { execFile } = require('node:child_process');
 
 // 通过 CIM 读取进程的 PID / 启动时间 / 可执行路径 / 命令行，用于防止 PID 复用误杀。
 // 固定脚本 + EncodedCommand，避免任何命令行拼接与 shell 注入。
-const PROCESS_SCRIPT = [
-  'Get-CimInstance Win32_Process |',
+const PROCESS_SELECT = [
   'Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine,',
   '@{n="StartMs";e={[int64]([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds()}} |',
   'ConvertTo-Json -Compress'
 ].join(' ');
+const PROCESS_SCRIPT = `Get-CimInstance Win32_Process | ${PROCESS_SELECT}`;
 
 function runPowershell(script, timeoutMs = 30000) {
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
@@ -25,8 +25,47 @@ function runPowershell(script, timeoutMs = 30000) {
   });
 }
 
-async function listProcessDetails() {
-  const raw = (await runPowershell(PROCESS_SCRIPT)).trim();
+async function listFastProcessDetails({ pids = [] } = {}) {
+  const ids = Array.isArray(pids) ? pids.map(Number).filter(Number.isInteger).filter((pid) => pid > 0) : [];
+  if (!ids.length) return [];
+  const script = [
+    `Get-Process -Id ${ids.join(',')} -ErrorAction SilentlyContinue |`,
+    'Select-Object Id,Path,@{n="StartMs";e={[int64]([DateTimeOffset]$_.StartTime).ToUnixTimeMilliseconds()}} |',
+    'ConvertTo-Json -Compress'
+  ].join(' ');
+  const raw = (await runPowershell(script)).trim();
+  if (!raw) return [];
+  const parsed = JSON.parse(raw);
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+  return list.map((item) => ({
+    pid: Number(item.Id) || 0,
+    name: '',
+    exe: item.Path ? String(item.Path) : '',
+    cmdline: '',
+    parentPid: 0,
+    startMs: Number(item.StartMs) || 0
+  })).filter((item) => item.pid > 0);
+}
+
+function verifyProcessFast(record, details) {
+  if (!record) return { ok: false, reason: '没有本软件的启动记录' };
+  const found = details.find((item) => item.pid === Number(record.pid));
+  if (!found) return { ok: false, reason: `PID ${record.pid} 已不存在` };
+  if (record.startMs && Math.abs(Number(found.startMs) - Number(record.startMs)) > 1000) {
+    return { ok: false, reason: '进程启动时间与记录不一致（PID 可能被复用）' };
+  }
+  if (record.exe && found.exe && !samePath(found.exe, record.exe)) {
+    return { ok: false, reason: '可执行文件路径不一致' };
+  }
+  return { ok: true, found };
+}
+
+async function listProcessDetails({ pids = null } = {}) {
+  const ids = Array.isArray(pids) ? pids.map(Number).filter(Number.isInteger).filter((pid) => pid > 0) : [];
+  const script = ids.length
+    ? `Get-CimInstance Win32_Process -Filter "${ids.map((pid) => `ProcessId=${pid}`).join(' OR ')}" | ${PROCESS_SELECT}`
+    : PROCESS_SCRIPT;
+  const raw = (await runPowershell(script)).trim();
   if (!raw) return [];
   const parsed = JSON.parse(raw);
   const list = Array.isArray(parsed) ? parsed : [parsed];
@@ -180,4 +219,4 @@ function verifyTree(record, details, { exeIncludes = [], signatures = [] } = {})
   return { ok: true, rootOk: true, descendants, unknown: [] };
 }
 
-module.exports = { listProcessDetails, verifyProcess, collectTree, verifyTree, isAlive, taskkill, waitUntilGone, samePath, commandMatchesSignature, runPowershell };
+module.exports = { listProcessDetails, listFastProcessDetails, verifyProcess, verifyProcessFast, collectTree, verifyTree, isAlive, taskkill, waitUntilGone, samePath, commandMatchesSignature, runPowershell };

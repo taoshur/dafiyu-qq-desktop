@@ -48,6 +48,7 @@ const state = {
   environment: { status: null, busy: false, error: null },
   install: { task: null, targetDir: '', timer: null, busy: false },
   wizard: { open: false, step: 0, status: null, busy: false, error: null, ownerTitle: '爸爸' },
+  guide: { open: false, step: 0 },
   busy: false,
   error: null,
   recent: null
@@ -244,6 +245,7 @@ function render() {
     loadLogs();
   }
   if (state.page === 'embed') setTimeout(() => { placeEmbed(); }, 0);
+  renderGuide(state);
 }
 
 async function loadRecentLog() {
@@ -1165,6 +1167,12 @@ function downloadUpdate() {
   });
 }
 
+async function startGuide() {
+  if (state.page !== 'overview') await openPage('overview');
+  guideStart(state);
+  renderGuide(state);
+}
+
 async function openReleasePage() {
   const url = state.update.check?.releaseUrl;
   if (!url) return;
@@ -1351,13 +1359,28 @@ function bind() {
   });
 
   $('refresh-btn').addEventListener('click', () => refresh(true));
-  window.addEventListener('resize', () => { placeEmbed(); });
+  try {
+    api.onHiddenToTray?.(() => toast('已隐藏到托盘；机器人仍在运行。要完全退出，请右键托盘图标。'));
+  } catch { /* optional bridge event */ }
+  window.addEventListener('resize', () => { placeEmbed(); renderGuide(state); });
   window.addEventListener('scroll', () => { if (state.page === 'embed') placeEmbed(); }, true);
 
   document.addEventListener('click', (event) => {
     // Native <select> must be driven by change. Refreshing on the opening click
     // replaces the element and closes the popup before the user can choose.
     if (event.target.closest('select')) return;
+    if (event.target.closest('[data-guide-close]')) { guideClose(state); return; }
+    if (event.target.closest('[data-guide-next]')) {
+      if (state.guide.step >= GUIDE_STEPS.length - 1) guideClose(state); else guideAdvance(state);
+      return;
+    }
+    if (event.target.closest('[data-guide-back]')) { guideAdvance(state, -1); return; }
+    if (state.guide.open) {
+      const guideStep = GUIDE_STEPS[state.guide.step];
+      if (guideStep?.waitFor && event.target.closest(guideStep.waitFor)) {
+        setTimeout(() => { if (state.guide.open) guideAdvance(state); }, 0);
+      }
+    }
     if (event.target.closest('[data-env-detect]')) { refreshEnvironment(); return; }
     if (event.target.closest('[data-copy-deepseek]')) { copyDeepSeekPrompt(); return; }
     if (event.target.closest('#bili-refresh')) { refreshBili(); return; }
@@ -1375,6 +1398,7 @@ function bind() {
     const jump = event.target.closest('[data-page-jump]');
     if (jump) { openPage(jump.dataset.pageJump); return; }
     if (event.target.closest('#setup-wizard')) { openWizard(0); return; }
+    if (event.target.closest('#guide-start')) { startGuide(); return; }
     if (event.target.closest('[data-wizard-close]') || event.target.matches('[data-wizard-backdrop]')) { closeWizard(); return; }
     if (event.target.closest('[data-wizard-next]')) {
       if (state.wizard.step >= 4) { closeWizard(); return; }
@@ -1591,6 +1615,12 @@ async function boot() {  bind();
   render();
   refreshUpdate({ silent: true }).catch(() => {});
   maybeOpenWizard();
+  setTimeout(() => {
+    if (state.guide.open || state.wizard.open) return;
+    let seen = false;
+    try { seen = localStorage.getItem('dafiyu.guide.completed.v1') === '1'; } catch { /* ignore */ }
+    if (!seen) startGuide();
+  }, 1600);
   setInterval(() => { if (state.page !== 'logs') refresh(false); }, 6000);
   setInterval(() => { if (state.page === 'logs' && state.logs.follow) loadLogs(); }, 4000);
 }

@@ -106,7 +106,10 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   registerBackupHandlers(router, { paths, getSettings, log });
   registerStartupHandlers(router, { getSettings, allowAutostart, controlStateDir, getStartupStatus, resetStartupCache: () => { startupCache = { at: 0, value: null }; }, autostart, recoveryEngine });
 
-  return { stopOwnedServices: () => supervisor.stopOwnedServices() };
+  return {
+    stopOwnedServices: () => supervisor.stopOwnedServices(),
+    stopOwnedServicesFast: () => supervisor.stopOwnedServicesFast()
+  };
 }
 
 module.exports = { registerIpc };

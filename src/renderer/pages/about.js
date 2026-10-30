@@ -9,6 +9,7 @@ function aboutPage() {
         Electron ${esc(info.electron || '—')} · Chromium ${esc(info.chrome || '—')} · Node ${esc(info.node || '—')}</p>
         <p style="margin-top:10px">一个只负责「看着家」的桌面外壳：启动管理、状态监控、日志、体检与备份。机器人核心仍是 SnowLuma + qq-bridge + DSH，本软件不改写它们。</p>
       </div>
+      <button class="btn primary" id="guide-start" type="button" style="align-self:flex-start">重新观看新手教程</button>
     </section>
     <div class="grid grid-2" style="margin-top:16px">
       <section class="card panel">

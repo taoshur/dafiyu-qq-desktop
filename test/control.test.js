@@ -368,3 +368,20 @@ test('SnowLuma 未就绪时拒绝启动 bridge（依赖顺序）', async () => {
     await cleanup(env);
   }
 });
+
+
+test('快速退出停止路径不等待正常退出超时', async () => {
+  const env = makeEnv();
+  try {
+    const started = await env.controller.start('fake');
+    assert.equal(started.ok, true, started.reason);
+    const at = Date.now();
+    const stopped = await env.controller.stop('fake', { force: true, confirmBusy: true, ignoreEnabled: true, fast: true });
+    const elapsed = Date.now() - at;
+    assert.equal(stopped.ok, true, stopped.reason);
+    assert.ok(elapsed < 4000, `fast stop took ${elapsed}ms`);
+    assert.equal(isAlive(started.record.pid), false);
+  } finally {
+    await cleanup(env);
+  }
+});

@@ -4,6 +4,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('dafiyu', {
   info: () => ipcRenderer.invoke('app:info'),
+  onHiddenToTray: (callback) => {
+    const listener = () => { try { callback(); } catch { /* ignore */ } };
+    ipcRenderer.on('app:hidden-to-tray', listener);
+    return () => ipcRenderer.removeListener('app:hidden-to-tray', listener);
+  },
   snapshot: () => ipcRenderer.invoke('health:snapshot'),
   logsList: () => ipcRenderer.invoke('logs:list'),
   logsTail: (payload) => ipcRenderer.invoke('logs:tail', payload),

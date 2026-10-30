@@ -16,7 +16,8 @@ function createServiceSupervisor({ controller }) {
     preflight: () => controller.preflight(),
     recoverSentinel: () => controller.recoverSentinel(),
     startOriginalBridge: () => controller.startOriginalBridge(),
-    stopOwnedServices: () => controller.stopOwnedServices()
+    stopOwnedServices: () => controller.stopOwnedServices(),
+    stopOwnedServicesFast: () => controller.stopOwnedServicesFast()
   };
 }
 
