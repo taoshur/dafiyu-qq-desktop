@@ -682,6 +682,58 @@ function askAutostartUnregister() {
   });
 }
 
+async function importMaiBotMemory() {
+  try {
+    const picked = await api.memoryMaiBotPick();
+    if (!picked?.ok) {
+      if (!picked?.cancelled) toast('未选择 MaiBot 数据库');
+      return;
+    }
+    const preview = await api.memoryMaiBotPreview(picked.path);
+    if (!preview?.ok) {
+      toast(`读取 MaiBot 数据库失败：${preview?.error || '未知错误'}`);
+      return;
+    }
+    if (!preview.total) {
+      toast('这个 MaiBot 数据库里没有可导入的聊天摘要');
+      return;
+    }
+    const sample = (preview.sample || []).slice(0, 3).map((row, index) => {
+      const when = row.happenedAt ? new Date(row.happenedAt).toLocaleDateString('zh-CN') : '时间未知';
+      return `${index + 1}. ${when} · ${row.scope || '未知范围'} · ${row.summary}`;
+    });
+    showModal({
+      title: '导入 MaiBot 记忆',
+      body: [
+        `数据表：${preview.table}`,
+        `可导入：${preview.importable} / ${preview.total} 条${preview.truncated ? '（单次上限 10000 条）' : ''}`,
+        '',
+        '导入后会写入「待确认候选」，不会直接写入正式记忆，也不会修改人格强度。',
+        '重复导入会自动去重；导入前会自动备份一次目标记忆库。',
+        '',
+        '预览：',
+        ...sample
+      ].join('\n'),
+      confirmText: '导入为待审核候选',
+      onConfirm: async () => {
+        try {
+          const result = await api.memoryMaiBotImport(picked.path, state.memory.mode);
+          if (!result?.ok) {
+            toast(`导入失败：${result?.error || '未知错误'}`);
+            return;
+          }
+          toast(`MaiBot 导入完成：新增 ${result.imported} 条，重复 ${result.duplicates} 条，跳过 ${result.skipped} 条`);
+          await refreshMemory();
+        } catch (error) {
+          toast(`导入失败：${error.message}`);
+        }
+      }
+    });
+  } catch (error) {
+    toast(`导入失败：${error.message}`);
+  }
+}
+
 async function refreshMemory(doRender = true) {
   const m = state.memory;
   m.busy = true;
@@ -1414,6 +1466,7 @@ function bind() {
       return;
     }
     if (event.target.closest('#memory-init-test')) { initMemoryTest(); return; }
+    if (event.target.closest('#memory-maibot-import')) { importMaiBotMemory(); return; }
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
     const deadRetry = event.target.closest('[data-memory-dead-retry]');
     if (deadRetry) { askMemoryDeadRetry(deadRetry.dataset.memoryDeadRetry); return; }

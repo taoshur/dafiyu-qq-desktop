@@ -183,6 +183,7 @@ function memoryPage() {
         </select>` : ''}
         <button class="btn primary" id="memory-apply-filters" type="button">筛选</button>
         <button class="btn" id="memory-reset-filters" type="button">重置</button>
+        <button class="btn" id="memory-maibot-import" type="button">导入 MaiBot 记忆</button>
       </div>
       <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条
         ${m.type === 'candidates' ? `<select id="memory-sort" class="input" style="max-width:160px;display:inline-block"><option value="newest" ${m.sort === 'newest' ? 'selected' : ''}>最新优先</option><option value="oldest" ${m.sort === 'oldest' ? 'selected' : ''}>最早优先</option><option value="confidence" ${m.sort === 'confidence' ? 'selected' : ''}>可信度优先</option><option value="happened" ${m.sort === 'happened' ? 'selected' : ''}>发生时间优先</option></select>` : ''}

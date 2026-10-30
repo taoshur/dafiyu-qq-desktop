@@ -3,6 +3,9 @@
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
 const { listDeadLetters, retryDeadLetter } = require('../../memory');
 const { unlockProductionReview, reviewProductionCandidate, listAudit } = require('../../memory-review');
+const { memoryDbPath } = require('../../memory');
+const { previewMaiBotImport, importMaiBot } = require('../../maibot-import');
+const path = require('node:path');
 
 function memoryMode(payload) {
   return payload?.mode === 'test' ? 'test' : 'prod';
@@ -63,6 +66,37 @@ function registerMemoryHandlers(router, { paths, getSettings, log }) {
 
   router.handle('memory:review-audit', async (_event, payload) => {
     return listAudit({ settings: getSettings(), paths, candidateId: payload?.candidateId || null, limit: 50 });
+  });
+
+  router.handle('memory:maibot-pick', async () => {
+    const { dialog } = require('electron');
+    const result = await dialog.showOpenDialog({
+      title: '选择 MaiBot 记忆数据库',
+      properties: ['openFile'],
+      filters: [
+        { name: 'SQLite 数据库', extensions: ['db', 'sqlite', 'sqlite3'] },
+        { name: '所有文件', extensions: ['*'] }
+      ]
+    });
+    if (result.canceled || !result.filePaths?.[0]) return { ok: false, cancelled: true };
+    return { ok: true, path: path.resolve(result.filePaths[0]) };
+  });
+
+  router.handle('memory:maibot-preview', async (_event, payload) => {
+    return previewMaiBotImport({ sourcePath: String(payload?.sourcePath || '') });
+  });
+
+  router.handle('memory:maibot-import', async (_event, payload) => {
+    const settings = getSettings();
+    const targetPath = memoryMode(payload) === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
+    const result = importMaiBot({
+      sourcePath: String(payload?.sourcePath || ''),
+      targetPath,
+      limit: 10000,
+      backupDir: paths.stateDir
+    });
+    log('memory', `maibot import imported=${result.imported} duplicates=${result.duplicates} skipped=${result.skipped} table=${result.table}`);
+    return result;
   });
 
   router.handle('memory:review', async (_event, payload) => {

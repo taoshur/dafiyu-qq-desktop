@@ -52,6 +52,9 @@ const CHANNELS = Object.freeze([
   'memory:retry-dead',
   'memory:review-unlock',
   'memory:review-audit',
+  'memory:maibot-pick',
+  'memory:maibot-preview',
+  'memory:maibot-import',
   'settings:get',
   'settings:save'
 ]);

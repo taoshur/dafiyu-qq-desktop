@@ -51,3 +51,11 @@ test('update progress polls before the long update download IPC resolves', () =>
   assert.ok(poll.includes('startedAt'), 'poll must tolerate the task not appearing immediately');
   assert.ok(poll.includes('15000'), 'poll must have a bounded startup grace period');
 });
+
+
+test('memory page exposes the MaiBot import entry point', () => {
+  const memory = fs.readFileSync(path.join(renderer, 'pages', 'memory.js'), 'utf8');
+  assert.ok(memory.includes('memory-maibot-import'));
+  assert.ok(app.includes('importMaiBotMemory'));
+  assert.ok(app.includes('memoryMaiBotImport'));
+});

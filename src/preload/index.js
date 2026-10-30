@@ -54,5 +54,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   memoryDeadLetters: (mode) => ipcRenderer.invoke('memory:dead-letters', { mode }),
   memoryRetryDead: (batchKey, mode) => ipcRenderer.invoke('memory:retry-dead', { batchKey, mode, confirm: true }),
   memoryReviewUnlock: (confirmText) => ipcRenderer.invoke('memory:review-unlock', { confirmText }),
-  memoryReviewAudit: (candidateId) => ipcRenderer.invoke('memory:review-audit', { candidateId })
+  memoryReviewAudit: (candidateId) => ipcRenderer.invoke('memory:review-audit', { candidateId }),
+  memoryMaiBotPick: () => ipcRenderer.invoke('memory:maibot-pick'),
+  memoryMaiBotPreview: (sourcePath) => ipcRenderer.invoke('memory:maibot-preview', { sourcePath }),
+  memoryMaiBotImport: (sourcePath, mode) => ipcRenderer.invoke('memory:maibot-import', { sourcePath, mode })
 });
