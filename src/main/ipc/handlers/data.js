@@ -2,8 +2,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { saveSettings, loadSettings } = require('../paths');
-const { buildConfigExport, validateConfigImport, configDiff } = require('../data-transfer');
+const { saveSettings, loadSettings } = require('../../paths');
+const { buildConfigExport, validateConfigImport, configDiff } = require('../../data-transfer');
 
 function assertJsonPath(file) {
   const target = path.resolve(String(file || ''));
@@ -21,7 +21,7 @@ function registerDataHandlers(router, { paths, getSettings, setSettings, log }) 
     });
     if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
     const file = assertJsonPath(result.filePath);
-    const payload = buildConfigExport(getSettings(), { appVersion: require('../../../package.json').version });
+    const payload = buildConfigExport(getSettings(), { appVersion: require('../../../../package.json').version });
     fs.writeFileSync(file, JSON.stringify(payload, null, 2) + '\n', 'utf8');
     log('data', `config exported ${path.basename(file)}`);
     return { ok: true, path: file, bytes: fs.statSync(file).size };

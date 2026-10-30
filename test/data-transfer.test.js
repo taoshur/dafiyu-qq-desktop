@@ -39,3 +39,8 @@ test('config import validates fields and computes diff', () => {
   assert.equal(diff.length, 2);
   assert.equal(diff[0].key, 'ownerTitle');
 });
+
+
+test('data IPC handler module loads with production-relative paths', () => {
+  assert.doesNotThrow(() => require('../src/main/ipc/handlers/data'));
+});
