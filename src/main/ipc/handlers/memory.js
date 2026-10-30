@@ -1,6 +1,7 @@
 'use strict';
 
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
+const { listDeadLetters, retryDeadLetter } = require('../../memory');
 
 function memoryMode(payload) {
   return payload?.mode === 'test' ? 'test' : 'prod';
@@ -37,6 +38,18 @@ function registerMemoryHandlers(router, { paths, getSettings, log }) {
     if (payload?.confirm !== true) throw new Error('初始化隔离测试库需要确认');
     const result = await initTestDb({ settings: getSettings(), paths, reset: payload?.reset === true });
     log('memory', `test db init created=${result.created}`);
+    return result;
+  });
+
+  router.handle('memory:dead-letters', async (_event, payload) => {
+    const settings = getSettings();
+    return listDeadLetters({ settings, paths, mode: memoryMode(payload) });
+  });
+
+  router.handle('memory:retry-dead', async (_event, payload) => {
+    const settings = getSettings();
+    const result = retryDeadLetter({ settings, paths, mode: memoryMode(payload), batchKey: payload?.batchKey, confirm: payload?.confirm === true });
+    log('memory', `dead-letter retry ${result.batchKey} messages=${result.messages}`);
     return result;
   });
 

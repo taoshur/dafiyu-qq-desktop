@@ -75,3 +75,18 @@ test('租约文件损坏时按过期处理并可恢复', () => {
   const result = a.acquire();
   assert.equal(result.acquired, true);
 });
+
+
+test('expired lease takeover is guarded by an atomic lock', () => {
+  const file = tempFile();
+  const clock = { now: 1000 };
+  const a = createLease({ file, ownerId: 'a', ttlMs: 1000, now: () => clock.now });
+  const b = createLease({ file, ownerId: 'b', ttlMs: 1000, now: () => clock.now });
+  assert.equal(a.acquire().acquired, true);
+  clock.now = 3000;
+  fs.writeFileSync(`${file}.takeover`, 'busy', 'utf8');
+  const blocked = b.acquire();
+  assert.equal(blocked.acquired, false);
+  assert.equal(blocked.reason, 'takeover-busy');
+  fs.rmSync(`${file}.takeover`, { force: true });
+});

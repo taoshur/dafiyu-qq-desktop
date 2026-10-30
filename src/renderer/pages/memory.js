@@ -135,6 +135,21 @@ function memoryPage() {
       <section class="card stat"><span>待你确认</span><b class="${counts.pending ? 'warn' : ''}">${counts.pending}</b><small>其中已采纳 ${counts.applied} 条</small></section>
       <section class="card stat"><span>数据库自检</span><b class="${status.integrity === 'ok' ? 'ok' : 'warn'}">${status.integrity === 'ok' ? '正常' : '需检查'}</b><small>数据库 ${fmtSize(status.file.size)} + 写日志 ${fmtSize(status.wal.size)}</small></section>
     </div>
+    ${m.dead && m.dead.length ? `<section class="card panel" style="margin-top:14px">
+      <div class="section-title"><h3>提取死信</h3><span>${m.dead.length} 个失败批次</span></div>
+      <p class="service-detail">这些批次已超过最大重试次数，消息被暂时跳过。重试只会重新排队抽取，不会删除已有记忆。</p>
+      <div class="memory-table-wrap"><table class="table memory-table">
+        <thead><tr><th>批次</th><th>会话</th><th>消息数</th><th>尝试</th><th>错误</th><th>操作</th></tr></thead>
+        <tbody>${m.dead.map((row) => `<tr>
+          <td><code>${esc(String(row.batch_key).slice(0, 14))}</code></td>
+          <td>${esc(memoryScopeLabel(row.conv_key))}</td>
+          <td>${Number(row.messageCount) || 0}</td>
+          <td>${Number(row.attempts) || 0}</td>
+          <td title="${esc(row.error || '')}">${esc(String(row.error || '—').slice(0, 50))}</td>
+          <td><button class="btn" data-memory-dead-retry="${esc(row.batch_key)}" type="button">重试</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </section>` : ''}
     <div class="notice" style="margin-top:12px">数据库位置：${esc(status.dbPath)} ${status.error ? ` · 读取错误：${esc(status.error)}` : ''}</div>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>查找记忆</h3><span>当前查看：${sourceLabel}</span></div>

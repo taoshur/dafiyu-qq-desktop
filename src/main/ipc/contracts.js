@@ -48,6 +48,8 @@ const CHANNELS = Object.freeze([
   'memory:candidate',
   'memory:test-init',
   'memory:review',
+  'memory:dead-letters',
+  'memory:retry-dead',
   'settings:get',
   'settings:save'
 ]);

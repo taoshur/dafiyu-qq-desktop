@@ -253,6 +253,55 @@ async function reviewCandidate({ settings, paths, id, action = 'apply', reason =
   }
 }
 
+function memoryFile({ settings, paths, mode }) {
+  return mode === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
+}
+
+function listDeadLetters({ settings, paths, mode = 'prod' }) {
+  const file = memoryFile({ settings, paths, mode });
+  if (!fs.existsSync(file)) return { exists: false, rows: [] };
+  let db;
+  try {
+    db = openReadonly(file);
+    const rows = db.prepare(`SELECT batch_key, conv_key, message_ids, attempts, error, created_at
+      FROM extract_dead_letters ORDER BY created_at DESC LIMIT 100`).all();
+    return { exists: true, rows: rows.map((row) => ({
+      ...row,
+      messageCount: (() => { try { return JSON.parse(row.message_ids || '[]').length; } catch { return 0; } })()
+    })) };
+  } catch {
+    return { exists: true, rows: [] };
+  } finally {
+    try { db?.close(); } catch { /* ignore */ }
+  }
+}
+
+function retryDeadLetter({ settings, paths, mode = 'prod', batchKey, confirm = false }) {
+  if (confirm !== true) throw new Error('重试死信需要显式确认');
+  if (!batchKey) throw new Error('batchKey 为空');
+  const file = memoryFile({ settings, paths, mode });
+  if (!fs.existsSync(file)) throw new Error('记忆库不存在');
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA busy_timeout=8000');
+  try {
+    db.exec('BEGIN');
+    try {
+      const row = db.prepare('SELECT * FROM extract_dead_letters WHERE batch_key=?').get(String(batchKey));
+      if (!row) throw new Error('死信批次不存在或已重试');
+      const ids = JSON.parse(row.message_ids || '[]').map(Number).filter(Number.isFinite);
+      if (ids.length) db.prepare(`UPDATE messages SET extracted=0 WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+      db.prepare('DELETE FROM extract_dead_letters WHERE batch_key=?').run(String(batchKey));
+      db.exec('COMMIT');
+      return { ok: true, batchKey: String(batchKey), messages: ids.length };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+      throw error;
+    }
+  } finally {
+    try { db.close(); } catch { /* ignore */ }
+  }
+}
+
 module.exports = {
   memoryDbPath,
   memoryStatus,
@@ -260,6 +309,8 @@ module.exports = {
   getCandidate,
   initTestDb,
   reviewCandidate,
+  listDeadLetters,
+  retryDeadLetter,
   dayStart,
   dayEnd
 };

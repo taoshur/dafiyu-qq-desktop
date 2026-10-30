@@ -28,6 +28,7 @@ const state = {
     dateFrom: '',
     dateTo: '',
     status: 'pending',
+    dead: [],
     selected: null,
     detail: null,
     busy: false,
@@ -684,6 +685,7 @@ async function refreshMemory(doRender = true) {
       mode: m.mode, type: m.type, q: m.q, dateFrom: m.dateFrom, dateTo: m.dateTo,
       status: m.statusFilter || m.status, limit: 80
     });
+    try { m.dead = (await api.memoryDeadLetters(m.mode)).rows || []; } catch { m.dead = []; }
     m.error = null;
     if (m.selected) {
       await loadMemoryDetail(m.selected, m.selectedKind);
@@ -738,6 +740,27 @@ async function initMemoryTest() {
         await switchMemoryMode('test');
       } catch (error) {
         toast(`创建失败：${error.message}`);
+      }
+    }
+  });
+}
+
+function askMemoryDeadRetry(batchKey) {
+  showModal({
+    title: '重试这个死信批次？',
+    body: [
+      '只会把该批次的消息重新标记为“待抽取”，不会删除记忆、事实或事件。',
+      '重试后 worker 会再次调用模型；失败仍会重新进入死信。',
+      '真实记忆库是写入操作，请确认当前没有重要任务正在使用记忆。'
+    ],
+    confirmText: '确认重试',
+    onConfirm: async () => {
+      try {
+        const result = await api.memoryRetryDead(batchKey, state.memory.mode);
+        toast(`已重新排队 ${result.messages} 条消息`);
+        await refreshMemory();
+      } catch (error) {
+        toast(`重试失败：${error.message}`);
       }
     }
   });
@@ -1288,6 +1311,8 @@ function bind() {
     }
     if (event.target.closest('#memory-init-test')) { initMemoryTest(); return; }
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
+    const deadRetry = event.target.closest('[data-memory-dead-retry]');
+    if (deadRetry) { askMemoryDeadRetry(deadRetry.dataset.memoryDeadRetry); return; }
     if (event.target.closest('#memory-refresh')) { refreshMemory(); return; }
     if (event.target.closest('#memory-apply-filters')) { refreshMemory(); return; }
     if (event.target.closest('#memory-reset-filters')) {

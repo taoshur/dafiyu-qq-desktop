@@ -50,5 +50,7 @@ contextBridge.exposeInMainWorld('dafiyu', {
   memoryList: (payload) => ipcRenderer.invoke('memory:list', payload),
   memoryCandidate: (payload) => ipcRenderer.invoke('memory:candidate', payload),
   memoryInitTest: () => ipcRenderer.invoke('memory:test-init', { confirm: true }),
-  memoryReview: (payload) => ipcRenderer.invoke('memory:review', payload)
+  memoryReview: (payload) => ipcRenderer.invoke('memory:review', payload),
+  memoryDeadLetters: (mode) => ipcRenderer.invoke('memory:dead-letters', { mode }),
+  memoryRetryDead: (batchKey, mode) => ipcRenderer.invoke('memory:retry-dead', { batchKey, mode, confirm: true })
 });

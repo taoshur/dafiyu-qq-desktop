@@ -237,7 +237,7 @@ function createUpdateManager({ currentVersion, paths, log = () => {}, journal = 
     fs.mkdirSync(dir, { recursive: true });
     const target = path.join(dir, ASSET_NAME);
     try {
-      await downloadFile(release.asset.url, target, {
+      const downloaded = await downloadFile(release.asset.url, target, {
         signal: controller.signal,
         onProgress: ({ received, total }) => {
           task.received = received;
@@ -247,6 +247,9 @@ function createUpdateManager({ currentVersion, paths, log = () => {}, journal = 
           recordJournal();
         }
       });
+      if (release.asset.size && Number(downloaded.bytes) !== Number(release.asset.size)) {
+        throw new Error(`更新包大小不一致：期望 ${release.asset.size}，实际 ${downloaded.bytes}`);
+      }
       if (controller.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
       const expected = digest.replace(/^sha256:/i, '').toUpperCase();
       const actual = await hashFile(target);

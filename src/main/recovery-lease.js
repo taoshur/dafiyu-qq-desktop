@@ -38,6 +38,19 @@ function createLease({ file, ownerId, ttlMs = 30000, pid = process.pid, startMs 
 
   const acquire = ({ pidAlive } = {}) => {
     const payload = { ownerId, pid, startMs, heartbeatAt: now(), ttlMs };
+    const takeoverLock = `${file}.takeover`;
+    const openTakeoverLock = () => {
+      try {
+        return fs.openSync(takeoverLock, 'wx');
+      } catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+        try {
+          const stat = fs.statSync(takeoverLock);
+          if (Date.now() - stat.mtimeMs > 10000) fs.rmSync(takeoverLock, { force: true });
+        } catch { /* ignore */ }
+        return null;
+      }
+    };
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(payload, null, 2) + '\n', { encoding: 'utf8', flag: 'wx' });
@@ -50,13 +63,26 @@ function createLease({ file, ownerId, ttlMs = 30000, pid = process.pid, startMs 
     if (isValid(existing, { pidAlive })) {
       return { acquired: false, holder: existing, reason: 'held' };
     }
-    // 过期/失主：接管。rename 是原子覆盖，随后回读确认自己是否赢得竞争。
-    writeAtomic(file, payload);
-    const verify = readJson(file);
-    if (!verify || verify.ownerId !== ownerId) {
-      return { acquired: false, holder: verify, reason: 'lost-race' };
+    // Expired/ownerless: take over under an atomic guard. Without this guard,
+    // two processes can both read an expired lease, both rename, and both
+    // believe they won after their own write.
+    const fd = openTakeoverLock();
+    if (fd == null) return { acquired: false, holder: existing, reason: 'takeover-busy' };
+    try {
+      const current = readJson(file);
+      if (isValid(current, { pidAlive })) {
+        return { acquired: false, holder: current, reason: 'held' };
+      }
+      writeAtomic(file, payload);
+      const verify = readJson(file);
+      if (!verify || verify.ownerId !== ownerId) {
+        return { acquired: false, holder: verify, reason: 'lost-race' };
+      }
+      return { acquired: true, lease: verify, reason: current ? 'taken-over' : 'created' };
+    } finally {
+      try { fs.closeSync(fd); } catch { /* ignore */ }
+      try { fs.rmSync(takeoverLock, { force: true }); } catch { /* ignore */ }
     }
-    return { acquired: true, lease: verify, reason: existing ? 'taken-over' : 'created' };
   };
 
   const heartbeat = () => {
