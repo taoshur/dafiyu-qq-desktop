@@ -198,6 +198,21 @@ function layoutMemorySplit() {
   split.append(list, detail);
 }
 
+function polishBiliTable() {
+  if (state.page !== 'bilibili') return;
+  const table = document.querySelector('#view .memory-table');
+  if (!table) return;
+  const headers = [...table.querySelectorAll('thead th')];
+  const bvidIndex = headers.findIndex((th) => th.textContent.trim() === 'BV 号');
+  if (bvidIndex < 0) return;
+  const rows = [...table.querySelectorAll('tbody tr')];
+  const hasBvid = rows.some((tr) => tr.children[bvidIndex]?.textContent.trim() !== '—');
+  if (!hasBvid) {
+    headers[bvidIndex].style.display = 'none';
+    rows.forEach((tr) => { if (tr.children[bvidIndex]) tr.children[bvidIndex].style.display = 'none'; });
+  }
+}
+
 function pruneEmptyDetailFields() {
   document.querySelectorAll('.memory-detail-head + .kv-grid .kv').forEach((row) => {
     const value = row.querySelector('b')?.textContent?.trim();
@@ -317,6 +332,7 @@ function render() {
   }
   if (state.page === 'embed') setTimeout(() => { placeEmbed(); }, 0);
   pruneEmptyDetailFields();
+  polishBiliTable();
   renderGuide(state);
 }
 
@@ -723,7 +739,7 @@ async function importDesktopConfig() {
     const preview = await api.configPreview(picked.path);
     if (!preview?.ok) { toast('配置文件无效'); return; }
     const labels = {
-      ownerTitle: '称呼', repoRoot: 'qq-bridge 目录', snowlumaRoot: 'SnowLuma 目录',
+      ownerTitle: '称呼', theme: '界面主题', repoRoot: 'qq-bridge 目录', snowlumaRoot: 'SnowLuma 目录',
       dshExe: 'DSH 可执行文件', controlEnabled: '真实控制', managerAutostart: '管理器登录自启',
       botAutostart: '机器人自启', autoRecovery: '异常自动恢复'
     };
@@ -745,6 +761,7 @@ async function importDesktopConfig() {
           const result = await api.configImport(picked.path);
           if (!result?.ok) { toast(`导入失败：${result?.reason || '未知错误'}`); return; }
           state.settings = result.settings;
+          applyTheme(result.settings?.theme);
           toast('桌面配置已导入');
           await refresh(true);
         } catch (error) {
@@ -762,10 +779,12 @@ async function saveDesktopPaths() {
   const repoRoot = $('cfg-repoRoot')?.value.trim();
   const snowlumaRoot = $('cfg-snowlumaRoot')?.value.trim();
   const dshExe = $('cfg-dshExe')?.value.trim();
+  const theme = $('cfg-theme')?.value || state.settings?.theme || 'dark';
   try {
     const current = await api.settingsGet();
-    const saved = await api.settingsSave({ ...current, ownerTitle, repoRoot, snowlumaRoot, dshExe });
+    const saved = await api.settingsSave({ ...current, ownerTitle, repoRoot, snowlumaRoot, dshExe, theme });
     state.settings = saved;
+    applyTheme(saved.theme);
     toast('桌面设置已保存（未重启服务，未改项目配置）');
     await refresh(true);
   } catch (error) {
@@ -1759,10 +1778,19 @@ function startClock() {
   setInterval(tick, 1000);
 }
 
+function applyTheme(theme = state.settings?.theme || 'dark') {
+  const resolved = theme === 'auto'
+    ? (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+    : (theme === 'light' ? 'light' : 'dark');
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+}
+
 async function boot() {  bind();
   startClock();
   try { state.info = await api.info(); } catch { state.info = {}; }
   try { state.settings = await api.settingsGet(); } catch { state.settings = null; }
+  applyTheme();
   await refreshControl();
   try { state.logsList = await api.logsList(); } catch { state.logsList = []; }
   try { state.backups = await api.backups(); } catch { state.backups = []; }
@@ -1778,6 +1806,9 @@ async function boot() {  bind();
     try { seen = localStorage.getItem('dafiyu.guide.completed.v1') === '1'; } catch { /* ignore */ }
     if (!seen) startGuide();
   }, 1600);
+  try {
+    window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', () => applyTheme());
+  } catch { /* optional */ }
   setInterval(() => {
     if (document.hidden || state.page === 'logs') return;
     refresh(false);

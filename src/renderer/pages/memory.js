@@ -171,7 +171,7 @@ function memoryPage() {
       <div class="section-title"><h3>查找记忆</h3><span>当前查看：${sourceLabel}</span></div>
       <div class="memory-filters">
         <div class="segmented">
-          ${['candidates', 'events', 'facts'].map((t) => `<button class="btn ${m.type === t ? 'primary' : ''}" data-memory-type="${t}" type="button">${t === 'candidates' ? '待确认候选' : t === 'events' ? '已记录事件' : '已确认事实'}</button>`).join('')}
+          ${['candidates', 'events', 'facts'].map((t) => `<button class="btn ${m.type === t ? 'primary' : ''}" data-memory-type="${t}" ${t === 'candidates' ? 'data-guide-target="memory-candidates"' : ''} type="button">${t === 'candidates' ? '待确认候选' : t === 'events' ? '已记录事件' : '已确认事实'}</button>`).join('')}
         </div>
         <input id="memory-search" class="input" placeholder="搜索内容、人物或关键词" value="${esc(m.q)}" />
         <input id="memory-from" class="input" type="date" value="${esc(m.dateFrom)}" title="起始日期" />
@@ -183,7 +183,7 @@ function memoryPage() {
         </select>` : ''}
         <button class="btn primary" id="memory-apply-filters" type="button">筛选</button>
         <button class="btn" id="memory-reset-filters" type="button">重置</button>
-        <button class="btn" id="memory-maibot-import" type="button">导入 MaiBot 记忆</button>
+        <button class="btn" id="memory-maibot-import" data-guide-target="maibot-import" type="button">导入 MaiBot 记忆</button>
       </div>
       <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条
         ${m.type === 'candidates' ? `<select id="memory-sort" class="input" style="max-width:160px;display:inline-block"><option value="newest" ${m.sort === 'newest' ? 'selected' : ''}>最新优先</option><option value="oldest" ${m.sort === 'oldest' ? 'selected' : ''}>最早优先</option><option value="confidence" ${m.sort === 'confidence' ? 'selected' : ''}>可信度优先</option><option value="happened" ${m.sort === 'happened' ? 'selected' : ''}>发生时间优先</option></select>` : ''}

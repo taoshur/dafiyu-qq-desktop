@@ -7,6 +7,7 @@ const { buildConfigExport, validateConfigImport, configDiff } = require('../src/
 test('desktop config export only contains allowlisted fields', () => {
   const payload = buildConfigExport({
     ownerTitle: '爸爸',
+    theme: 'light',
     repoRoot: 'C:/qq-bridge',
     controlEnabled: true,
     apiKey: 'SECRET',
@@ -16,6 +17,7 @@ test('desktop config export only contains allowlisted fields', () => {
   assert.equal(payload.format, 'dafiyu-config');
   assert.equal(payload.formatVersion, 1);
   assert.equal(payload.settings.ownerTitle, '爸爸');
+  assert.equal(payload.settings.theme, 'light');
   assert.equal(payload.settings.repoRoot, 'C:/qq-bridge');
   assert.equal(payload.settings.apiKey, undefined);
   assert.equal(payload.settings.consoleToken, undefined);

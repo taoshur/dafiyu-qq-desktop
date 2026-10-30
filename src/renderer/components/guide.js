@@ -7,52 +7,52 @@
 const GUIDE_STEPS = Object.freeze([
   {
     page: 'overview',
-    selector: '#view .grid.grid-3',
+    selector: '[data-guide-target="overview-status"]',
     title: '先看三个服务',
     body: '绿色表示在线。SnowLuma 是 QQ 网关，DSH 是智能体宿主，qq-bridge 负责收发消息。三个都绿色，QQ 链路才算完整。'
   },
   {
     page: 'overview',
-    selector: '[data-page="services"]',
-    waitFor: '[data-page="services"]',
+    selector: '[data-guide-target="services-nav"]',
+    waitFor: '[data-guide-target="services-nav"]',
     title: '打开服务页',
     body: '以后启动、停止、重启服务都在这里。点击高亮的「服务」继续。'
   },
   {
     page: 'services',
-    selector: '#control-toggle',
+    selector: '[data-guide-target="control-toggle"]',
     title: '真实控制开关',
     body: '默认关闭是安全保护。如果这里显示「启用真实控制」，可以点它开启；如果已经显示「关闭真实控制」，说明已开启，直接点下一步，不要为了教程把它关掉。'
   },
   {
     page: 'services',
-    selector: '[data-control-start="bridge"]',
-    waitFor: '[data-control-start="bridge"]',
+    selector: '[data-guide-target="bridge-start"]',
+    waitFor: '[data-guide-target="bridge-start"]',
     title: '按顺序启动',
     body: '顺序是 SnowLuma → DSH → qq-bridge。先保证网关在线，再启动 bridge；点击高亮的启动按钮试试。'
   },
   {
     page: 'services',
-    selector: '[data-page="memory"]',
-    waitFor: '[data-page="memory"]',
+    selector: '[data-guide-target="memory-nav"]',
+    waitFor: '[data-guide-target="memory-nav"]',
     title: '看看长期记忆',
     body: '这里能看到大肥鱼记住的事。点击「长期记忆」继续。'
   },
   {
     page: 'memory',
-    selector: '[data-memory-type="candidates"]',
+    selector: '[data-guide-target="memory-candidates"]',
     title: '候选需要你确认',
     body: '模型抽出的内容先进入「待确认候选」。你可以批准、编辑或拒绝；observeOnly 开启时不会自动写入正式记忆。'
   },
   {
     page: 'memory',
-    selector: '#memory-maibot-import',
+    selector: '[data-guide-target="maibot-import"]',
     title: '也可以导入旧记忆',
     body: '这里可以导入 MaiBot 记忆。导入只会生成待审核候选，不会直接改人格或正式记忆。'
   },
   {
     page: 'memory',
-    selector: '.sidebar',
+    selector: '[data-guide-target="sidebar"]',
     title: '关闭窗口不是退出程序',
     body: '点右上角 × 只会隐藏到托盘，机器人继续运行。要完全退出，右键托盘图标，选择「退出并停止我启动的服务（快速）」或「仅退出界面」。'
   }

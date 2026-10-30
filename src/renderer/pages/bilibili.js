@@ -75,12 +75,13 @@ function biliPage() {
   if (!s) return '<div class="log-empty" style="padding:30px">正在读取 B 站活动…</div>';
   const entries = s.entries || [];
   const rows = entries.map((item) => {
+    const primaryBvid = item.bvid || (Array.isArray(item.items) ? (item.items.find((x) => x && x.bvid)?.bvid || '') : '');
     const meta = [item.author, fmtBiliDuration(item.duration), fmtBiliView(item.view)].filter(Boolean).join(' · ');
     return `<tr>
       <td>${esc(fmtTime(item.at))}</td>
       <td><span class="tag">${esc(biliKindLabel(item.kind))}</span></td>
       <td><b>${esc(biliEntryText(item))}</b><span class="memory-detail">${esc(item.bvid || '')}${meta ? ` · ${esc(meta)}` : ''}</span>${biliEntryItems(item)}</td>
-      <td>${esc(item.bvid || '—')}</td>
+      <td>${esc(primaryBvid || '—')}</td>
     </tr>`;
   }).join('');
   const mcpReady = s.mcp?.serverExists;

@@ -102,3 +102,14 @@ test('config data management and services summary are wired', () => {
   assert.ok(app.includes('exportDesktopConfig'));
   assert.ok(app.includes('startAllServices'));
 });
+
+
+test('theme, guide targets and Bilibili polish are wired', () => {
+  const config = fs.readFileSync(path.join(renderer, 'pages', 'config.js'), 'utf8');
+  const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');
+  const guide = fs.readFileSync(path.join(renderer, 'components', 'guide.js'), 'utf8');
+  assert.ok(config.includes('cfg-theme'));
+  assert.ok(css.includes('html[data-theme="light"]'));
+  assert.ok(guide.includes('data-guide-target="services-nav"'));
+  assert.ok(app.includes('polishBiliTable'));
+});

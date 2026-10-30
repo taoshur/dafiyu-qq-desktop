@@ -13,6 +13,12 @@ function configPage(snapshot) {
         <span class="field-caption">qq-bridge 目录</span><input class="input" id="cfg-repoRoot" style="min-width:360px" value="${esc(state.settings?.repoRoot || snapshot.paths.repoRoot)}" />
         <span class="field-caption">SnowLuma 目录</span><input class="input" id="cfg-snowlumaRoot" style="min-width:240px" value="${esc(state.settings?.snowlumaRoot || snapshot.paths.snowlumaRoot)}" />
         <span class="field-caption">DSH 可执行文件</span><input class="input" id="cfg-dshExe" style="min-width:360px" value="${esc(state.settings?.dshExe || snapshot.paths.dshExe)}" />
+        <span class="field-caption">界面主题</span>
+        <select class="input" id="cfg-theme">
+          <option value="dark" ${(state.settings?.theme || 'dark') === 'dark' ? 'selected' : ''}>深色</option>
+          <option value="light" ${state.settings?.theme === 'light' ? 'selected' : ''}>浅色</option>
+          <option value="auto" ${state.settings?.theme === 'auto' ? 'selected' : ''}>跟随系统</option>
+        </select>
         <button class="btn primary" id="cfg-save-paths" type="button">保存桌面设置</button>
       </div>
       <p class="service-detail">修改后可重新检测环境；不会自动启动或重启任何服务。</p>

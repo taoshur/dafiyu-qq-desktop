@@ -59,6 +59,10 @@ function registerDataHandlers(router, { paths, getSettings, setSettings, log }) 
     saveSettings(paths, { ...getSettings(), ...parsed.imported });
     const next = loadSettings(paths);
     setSettings(next);
+    try {
+      const { nativeTheme } = require('electron');
+      nativeTheme.themeSource = next.theme === 'light' ? 'light' : next.theme === 'auto' ? 'system' : 'dark';
+    } catch { /* headless tests */ }
     log('data', `config imported ${path.basename(file)} fields=${Object.keys(parsed.imported).join(',')}`);
     return { ok: true, path: file, settings: next, imported: parsed.imported };
   });

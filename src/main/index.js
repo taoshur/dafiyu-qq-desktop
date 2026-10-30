@@ -271,7 +271,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
-    nativeTheme.themeSource = 'dark';
+    nativeTheme.themeSource = settings.theme === 'light' ? 'light' : settings.theme === 'auto' ? 'system' : 'dark';
     app.setAppUserModelId('com.dafiyu.controlcenter');
     session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);

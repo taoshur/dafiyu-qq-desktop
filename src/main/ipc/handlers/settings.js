@@ -9,7 +9,12 @@ function registerSettingsHandlers(router, { paths, getSettings, setSettings, res
     validateSettingsPaths(next);
     const { saveSettings, loadSettings } = require('../../paths');
     saveSettings(paths, next);
-    setSettings(loadSettings(paths));
+    const saved = loadSettings(paths);
+    setSettings(saved);
+    try {
+      const { nativeTheme } = require('electron');
+      nativeTheme.themeSource = saved.theme === 'light' ? 'light' : saved.theme === 'auto' ? 'system' : 'dark';
+    } catch { /* tests/headless */ }
     resetCache();
     log('settings', 'paths updated');
     return getSettings();

@@ -35,7 +35,7 @@ function overview(snapshot) {
     ${checklist}
     ${hero(snapshot)}
     <div class="section-title"><h3>服务状态</h3><span>SnowLuma → DSH → qq-bridge</span></div>
-    <div class="grid grid-3">${(snapshot.services || []).map(serviceCard).join('')}</div>
+    <div class="grid grid-3" data-guide-target="overview-status">${(snapshot.services || []).map(serviceCard).join('')}</div>
     <div class="grid grid-4 memory-stats" style="margin-top:18px">
       <section class="card stat"><span>QQ 连接</span><b class="${qqState === '链路在线' ? 'ok' : 'warn'}">${qqState}</b><small>SnowLuma + bridge</small></section>
       <section class="card stat"><span>长期记忆</span><b class="${memState === '正常' ? 'ok' : 'warn'}">${memState}</b><small>${counts.facts || 0} 条事实 / ${counts.events || 0} 条事件 / ${counts.pending || 0} 条待确认</small></section>

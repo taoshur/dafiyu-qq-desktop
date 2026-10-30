@@ -14,6 +14,7 @@ function buildSettingsUpdate(payload, current) {
     snowlumaRoot: String(payload?.snowlumaRoot || '').trim(),
     dshExe: String(payload?.dshExe || '').trim(),
     ownerTitle: payload?.ownerTitle === undefined ? current.ownerTitle : normalizeOwnerTitle(payload.ownerTitle),
+    theme: ['dark', 'light', 'auto'].includes(payload?.theme) ? payload.theme : (current.theme || 'dark'),
     controlEnabled: payload?.controlEnabled === undefined ? Boolean(current.controlEnabled) : payload.controlEnabled === true,
     managerAutostart: payload?.managerAutostart === undefined ? Boolean(current.managerAutostart) : payload.managerAutostart === true,
     botAutostart: payload?.botAutostart === undefined ? Boolean(current.botAutostart) : payload.botAutostart === true,

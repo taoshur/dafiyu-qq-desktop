@@ -27,7 +27,7 @@ function servicesPage(snapshot) {
           ${state.pid ? `<span class="meta-pill">PID ${state.pid}</span>` : ''}
         </div>
         <div class="flow-actions">
-          <button class="btn primary" data-control-start="${item.id}" type="button" ${canStart ? '' : 'disabled'}${dependencyBlocked ? ' title="SnowLuma 未就绪：请先启动 SnowLuma"' : ''}>${starting ? '启动中…' : '启动'}</button>
+          <button class="btn primary" data-control-start="${item.id}" ${item.id === 'bridge' ? 'data-guide-target="bridge-start"' : ''} type="button" ${canStart ? '' : 'disabled'}${dependencyBlocked ? ' title="SnowLuma 未就绪：请先启动 SnowLuma"' : ''}>${starting ? '启动中…' : '启动'}</button>
           <button class="btn" data-control-stop="${item.id}" type="button" ${canStop ? '' : 'disabled'}>停止</button>
           <button class="btn ghost" data-control-restart="${item.id}" type="button" ${canStop ? '' : 'disabled'}>重启</button>
         </div>
@@ -74,7 +74,7 @@ function servicesPage(snapshot) {
         <h4>真实服务控制 <span class="${controlOn ? 'control-on' : 'control-off'}">${controlOn ? '已启用' : '未启用'}</span></h4>
         <p>${controlOn ? '按钮会真实启动/停止本机进程；只操作由本软件启动的实例，外部实例只检测。' : '代码已就绪，但真实操作默认关闭。启用前请确认你了解会影响哪些进程。'}</p>
       </div>
-      <button class="btn ${controlOn ? '' : 'primary'}" id="control-toggle" type="button" ${safeMode ? 'disabled title="安全模式（--safe-mode）下禁止真实控制"' : ''}>${safeMode ? '安全模式' : controlOn ? '关闭真实控制' : '启用真实控制'}</button>
+      <button class="btn ${controlOn ? '' : 'primary'}" id="control-toggle" data-guide-target="control-toggle" type="button" ${safeMode ? 'disabled title="安全模式（--safe-mode）下禁止真实控制"' : ''}>${safeMode ? '安全模式' : controlOn ? '关闭真实控制' : '启用真实控制'}</button>
     </div>
     ${safeMode ? '<div class="notice">当前以安全模式启动：只读检测、备份与日志可用，真实服务控制被强制关闭。</div>' : ''}
     <div class="notice">${controlOn

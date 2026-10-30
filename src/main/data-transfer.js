@@ -2,6 +2,7 @@
 
 const CONFIG_FIELDS = [
   'ownerTitle',
+  'theme',
   'repoRoot',
   'snowlumaRoot',
   'dshExe',
@@ -12,6 +13,7 @@ const CONFIG_FIELDS = [
 ];
 
 const STRING_FIELDS = new Set(['ownerTitle', 'repoRoot', 'snowlumaRoot', 'dshExe']);
+const THEME_VALUES = new Set(['dark', 'light', 'auto']);
 const BOOLEAN_FIELDS = new Set(['controlEnabled', 'managerAutostart', 'botAutostart', 'autoRecovery']);
 
 function buildConfigExport(settings, { appVersion = '' } = {}) {
@@ -40,7 +42,10 @@ function validateConfigImport(raw) {
   const next = {};
   for (const key of CONFIG_FIELDS) {
     if (source[key] === undefined) continue;
-    if (STRING_FIELDS.has(key)) {
+    if (key === 'theme') {
+      if (!THEME_VALUES.has(source[key])) throw new Error('主题值无效');
+      next[key] = source[key];
+    } else if (STRING_FIELDS.has(key)) {
       if (typeof source[key] !== 'string' || source[key].length > 2000) throw new Error(`字段 ${key} 无效`);
       next[key] = source[key].trim();
     } else if (BOOLEAN_FIELDS.has(key)) {

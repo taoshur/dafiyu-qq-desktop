@@ -58,6 +58,7 @@ function loadSettings(paths) {
     snowlumaRoot: path.resolve(String(merged.snowlumaRoot || DEFAULT_PATHS.snowlumaRoot)),
     dshExe: path.resolve(String(merged.dshExe || DEFAULT_PATHS.dshExe)),
     ownerTitle: normalizeOwnerTitle(merged.ownerTitle),
+    theme: ['dark', 'light', 'auto'].includes(merged.theme) ? merged.theme : 'dark',
     controlEnabled: merged.controlEnabled === true,
     // 三个开关完全独立，默认全部关闭；读取时只认显式 true。
     managerAutostart: merged.managerAutostart === true,
@@ -84,6 +85,7 @@ function saveSettings(paths, settings) {  const existing = readJsonSafe(paths.co
     snowlumaRoot: String(settings.snowlumaRoot || ''),
     dshExe: String(settings.dshExe || ''),
     ownerTitle: normalizeOwnerTitle(settings.ownerTitle),
+    theme: ['dark', 'light', 'auto'].includes(settings.theme) ? settings.theme : 'dark',
     controlEnabled: settings.controlEnabled === true,
     managerAutostart: settings.managerAutostart === true,
     botAutostart: settings.botAutostart === true,
