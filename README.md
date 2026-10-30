@@ -11,9 +11,9 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v0.8.4 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.8.4/Dafiyu-Control-Center-Setup.exe
-- 大小：123,435,909 字节
+- **v0.8.5 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v0.8.5/Dafiyu-Control-Center-Setup.exe
+- 大小：123,439,880 字节
 - SHA256：
   ```text
   E14F816A562AA4A2BF4CCCFD534322ADAAA9EEE8F881F8B32E9CC8E238882512
@@ -23,6 +23,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 ## 最近更新
 
+- **0.8.5**：生产候选审核、脱敏回放评测、全链路追踪增强
 - **0.8.4**：长期记忆三层质量过滤、概念召回、模糊时间、空召回诊断、成长审核面板
 - **0.8.3**：复审修复：租约原子接管、更新字节复核、死信 UI、Windows 进程测试
 - **0.8.2**：审查修复批次 1–5（安全、恢复、Memory、工程）
@@ -41,7 +42,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **恢复引擎**：崩溃识别、退避、租约、BusyGuard、整树停止、watchdog 协调
 - **运行日志**：只读 tail，不删除、不截断原文件
 - **环境检查**：Node、目录、配置、依赖、state 可写性
-- **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4 召回/生命周期；新用户从空 SQLite 库开始，默认观察模式、按需检索、可逆归档而非物理删除
+- **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4；支持生产候选审核（显式解锁、批准/编辑/拒绝/撤销、审计与幂等）、三层质量过滤、概念扩展召回、生命周期；默认观察模式、不自动晋升
 - **B站活动**：记录搜索、热榜、排行、视频详情、字幕、评论等动作；区分“累计动作”和“按 BV 去重的视频数”；侧边栏未读提示
 - **更新检查**：从 GitHub Releases 检查新版本，SHA256 校验后打开安装包，不静默升级
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
@@ -84,7 +85,8 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 - **快速通道**：短纯文字优先直连 DeepSeek API；复杂/媒体/工具请求回退 DSH Agent
 - **表情包**：自动补表情、表情库同步、收藏、备注、按场景发送
-- **Memory V3/V4**：消息入库、批量抽取、三层质量过滤、概念扩展召回、多信号评分、可逆归档；记忆页有事实/候选/人格成长审核总览
+- **Memory V3/V4**：消息入库、批量抽取、三层质量过滤、概念扩展召回、多信号评分、可逆归档；记忆页有生产审核、事实/候选/人格成长审核总览
+- **记忆评测**：脱敏基线脚本 `npm run eval:memory`，覆盖准确/模糊/时间/跨人物/多轮/不存在事件；报告在 `artifacts/memory-eval-report.md`
 - **B站活动**：搜索、热榜、排行、视频详情、字幕、评论、弹幕、UP 主、收藏等
 - **QQ 空间**：看动态、点赞、评论、回复、发说说、改签名
 - **语音/唱歌**：语音库、TTS、RVC 翻唱（默认关闭，需要本机模型/音频）

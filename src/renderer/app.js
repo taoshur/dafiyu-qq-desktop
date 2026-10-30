@@ -29,6 +29,12 @@ const state = {
     dateTo: '',
     status: 'pending',
     dead: [],
+    reviewUnlocked: false,
+    reviewToken: null,
+    reviewBusy: false,
+    page: 1,
+    pageSize: 20,
+    sort: 'newest',
     selected: null,
     detail: null,
     busy: false,
@@ -683,7 +689,7 @@ async function refreshMemory(doRender = true) {
     m.status = await api.memoryStatus(m.mode);
     m.list = await api.memoryList({
       mode: m.mode, type: m.type, q: m.q, dateFrom: m.dateFrom, dateTo: m.dateTo,
-      status: m.statusFilter || m.status, limit: 80
+      status: m.statusFilter || m.status, limit: m.pageSize, offset: (m.page - 1) * m.pageSize, sort: m.sort
     });
     try { m.dead = (await api.memoryDeadLetters(m.mode)).rows || []; } catch { m.dead = []; }
     m.error = null;
@@ -710,6 +716,9 @@ async function loadMemoryDetail(id, kind = '') {
   }
   try {
     m.detail = await api.memoryCandidate({ mode: m.mode, id: Number(id) });
+    if (m.mode === 'prod') {
+      try { m.audit = (await api.memoryReviewAudit(Number(id))).rows || []; } catch { m.audit = []; }
+    } else { m.audit = []; }
   } catch (error) {
     m.detail = { candidate: null, evidence: [] };
     toast(`读取候选失败：${error.message}`);
@@ -719,6 +728,7 @@ async function loadMemoryDetail(id, kind = '') {
 
 async function switchMemoryMode(mode) {
   state.memory.mode = mode === 'test' ? 'test' : 'prod';
+  state.memory.page = 1;
   state.memory.selected = null;
   state.memory.detail = null;
   await refreshMemory();
@@ -766,7 +776,78 @@ function askMemoryDeadRetry(batchKey) {
   });
 }
 
+async function unlockMemoryReview() {
+  showModal({
+    title: '解锁生产记忆审核',
+    body: [
+      '生产审核可以直接修改真实记忆库，只允许在你本人操作时使用。',
+      '解锁有效期 10 分钟；不会自动批准任何候选，也不会关闭 observeOnly。',
+      '批准、编辑、拒绝、撤销都会写入本地审计日志。'
+    ],
+    confirmText: '我确认，解锁',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        const result = await api.memoryReviewUnlock('我确认修改生产记忆');
+        state.memory.reviewUnlocked = true;
+        state.memory.reviewToken = result.token;
+        state.memory.reviewExpiresAt = result.expiresAt;
+        toast(`生产审核已解锁（${result.actor}）`);
+        render();
+      } catch (error) {
+        toast(`解锁失败：${error.message}`);
+      }
+    }
+  });
+}
+
+async function reviewProductionCandidate(action, id, edit = null) {
+  if (!state.memory.reviewUnlocked || !state.memory.reviewToken) {
+    toast('请先解锁生产审核');
+    return;
+  }
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  try {
+    state.memory.reviewBusy = true;
+    const result = await api.memoryReview({
+      mode: 'prod', id, action, edit, token: state.memory.reviewToken, requestId,
+      reason: `desktop production ${action}`
+    });
+    toast(`${action === 'undo' ? '已撤销' : action === 'edit' ? '已保存编辑' : action === 'reject' ? '已拒绝' : '已批准'}${result.already ? '（重复请求已幂等处理）' : ''}`);
+    if (action === 'undo' || action === 'apply' || action === 'reject') state.memory.selected = null;
+    await refreshMemory();
+  } catch (error) {
+    toast(`审核失败：${error.message}`);
+  } finally {
+    state.memory.reviewBusy = false;
+  }
+}
+
+function askMemoryEdit(id) {
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  const selected = state.memory.detail?.candidate;
+  if (!selected || Number(selected.id) !== Number(id)) { toast('请先打开候选详情'); return; }
+  const isEvent = String(selected.kind) === 'event';
+  const current = isEvent ? (selected.summary || '') : (selected.value || '');
+  const next = window.prompt(isEvent ? '编辑事件摘要' : '编辑事实内容', current);
+  if (next == null || next.trim() === current) return;
+  const edit = isEvent ? { summary: next.trim() } : { value: next.trim() };
+  reviewProductionCandidate('edit', id, edit);
+}
+
 function askMemoryReview(action, id) {
+  if (state.memory.mode === 'prod') {
+    if (!state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+    const label = action === 'apply' ? '批准写入生产记忆' : action === 'reject' ? '拒绝候选' : action === 'undo' ? '撤销这次写入' : '保存编辑';
+    showModal({
+      title: `${label} #${id}？`,
+      body: action === 'undo' ? '撤销不会物理删除：事实会标记为 retracted，事件会标记为 retracted_at，仍保留审计。' : '这是生产记忆修改，会写入本地审计日志。',
+      danger: action !== 'apply',
+      confirmText: label,
+      onConfirm: () => reviewProductionCandidate(action, id)
+    });
+    return;
+  }
   if (state.memory.mode !== 'test') {
     toast('真实记忆只读：请先切换到「练习副本」再审核');
     return;
@@ -1304,6 +1385,7 @@ function bind() {
     const memoryTypeBtn = event.target.closest('[data-memory-type]');
     if (memoryTypeBtn) {
       state.memory.type = memoryTypeBtn.dataset.memoryType;
+      state.memory.page = 1;
       state.memory.selected = null;
       state.memory.detail = null;
       refreshMemory();
@@ -1313,10 +1395,17 @@ function bind() {
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
     const deadRetry = event.target.closest('[data-memory-dead-retry]');
     if (deadRetry) { askMemoryDeadRetry(deadRetry.dataset.memoryDeadRetry); return; }
+    if (event.target.closest('#memory-unlock')) { unlockMemoryReview(); return; }
+    const editBtn = event.target.closest('[data-memory-edit]');
+    if (editBtn) { askMemoryEdit(Number(editBtn.dataset.memoryEdit)); return; }
+    if (event.target.closest('#memory-prev')) { state.memory.page = Math.max(1, state.memory.page - 1); refreshMemory(); return; }
+    if (event.target.closest('#memory-next')) { state.memory.page += 1; refreshMemory(); return; }
     if (event.target.closest('#memory-refresh')) { refreshMemory(); return; }
-    if (event.target.closest('#memory-apply-filters')) { refreshMemory(); return; }
+    if (event.target.closest('#memory-apply-filters')) { state.memory.page = 1; refreshMemory(); return; }
+    if (event.target.id === 'memory-sort') { state.memory.sort = event.target.value; state.memory.page = 1; refreshMemory(); return; }
     if (event.target.closest('#memory-reset-filters')) {
       state.memory.q = ''; state.memory.dateFrom = ''; state.memory.dateTo = ''; state.memory.status = 'pending';
+      state.memory.page = 1;
       refreshMemory();
       return;
     }

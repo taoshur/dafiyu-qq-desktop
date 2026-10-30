@@ -2,6 +2,7 @@
 
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
 const { listDeadLetters, retryDeadLetter } = require('../../memory');
+const { unlockProductionReview, reviewProductionCandidate, listAudit } = require('../../memory-review');
 
 function memoryMode(payload) {
   return payload?.mode === 'test' ? 'test' : 'prod';
@@ -25,7 +26,8 @@ function registerMemoryHandlers(router, { paths, getSettings, log }) {
       subject: String(payload?.subject || '').slice(0, 60),
       status,
       limit: Number(payload?.limit) || 50,
-      offset: Number(payload?.offset) || 0
+      offset: Number(payload?.offset) || 0,
+      sort: ['newest', 'oldest', 'confidence', 'happened'].includes(payload?.sort) ? payload.sort : 'newest'
     });
   });
 
@@ -53,8 +55,32 @@ function registerMemoryHandlers(router, { paths, getSettings, log }) {
     return result;
   });
 
+  router.handle('memory:review-unlock', async (_event, payload) => {
+    const result = unlockProductionReview({ confirmText: payload?.confirmText });
+    log('memory', `production review unlocked actor=${result.actor} expires=${result.expiresAt}`);
+    return result;
+  });
+
+  router.handle('memory:review-audit', async (_event, payload) => {
+    return listAudit({ settings: getSettings(), paths, candidateId: payload?.candidateId || null, limit: 50 });
+  });
+
   router.handle('memory:review', async (_event, payload) => {
-    if (memoryMode(payload) !== 'test') throw new Error('生产库只读：审核只能在隔离测试库进行');
+    if (memoryMode(payload) === 'prod') {
+      const result = await reviewProductionCandidate({
+        settings: getSettings(), paths,
+        id: Number(payload?.id) || 0,
+        action: String(payload?.action || ''),
+        edit: payload?.edit || null,
+        reason: String(payload?.reason || '').slice(0, 300),
+        requestId: payload?.requestId || null,
+        traceId: payload?.traceId || null,
+        token: payload?.token || ''
+      });
+      log('memory', `production review ${payload?.action} candidate=${Number(payload?.id) || 0} trace=${result.traceId}`);
+      return result;
+    }
+    if (memoryMode(payload) !== 'test') throw new Error('未知记忆模式');
     const action = payload?.action === 'reject' ? 'reject' : 'apply';
     const result = await reviewCandidate({
       settings: getSettings(), paths,

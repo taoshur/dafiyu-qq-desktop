@@ -37,10 +37,10 @@ export function recordRecallDiagnostics(db, diagnostics) {
   ensureRecallSchema(db);
   try {
     db.prepare(`INSERT INTO memory_recall_diagnostics
-      (at, conv_hash, query_hash, candidate_count, selected_ids, tokens, filters)
-      VALUES(?,?,?,?,?,?,?)`).run(
+      (at, conv_hash, query_hash, candidate_count, selected_ids, tokens, filters, trace_id)
+      VALUES(?,?,?,?,?,?,?,?)`).run(
       diagnostics.at, diagnostics.convHash, diagnostics.queryHash, diagnostics.candidateCount,
-      JSON.stringify(diagnostics.selectedIds || []), Number(diagnostics.tokens) || 0, JSON.stringify(diagnostics.filters || {})
+      JSON.stringify(diagnostics.selectedIds || []), Number(diagnostics.tokens) || 0, JSON.stringify(diagnostics.filters || {}), diagnostics.traceId || null
     );
   } catch { /* diagnostics must never break recall */ }
 }
@@ -54,9 +54,13 @@ export function ensureRecallSchema(db) {
     candidate_count INTEGER NOT NULL DEFAULT 0,
     selected_ids TEXT,
     tokens INTEGER NOT NULL DEFAULT 0,
-    filters TEXT
+    filters TEXT,
+    trace_id TEXT
   )`);
+  const cols = db.prepare('PRAGMA table_info(memory_recall_diagnostics)').all().map((c) => c.name);
+  if (!cols.includes('trace_id')) db.exec('ALTER TABLE memory_recall_diagnostics ADD COLUMN trace_id TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS idx_recall_at ON memory_recall_diagnostics(at)');
+  try { db.prepare('DELETE FROM memory_recall_diagnostics WHERE at < ?').run(Date.now() - 90 * 86400000); } catch { /* ignore */ }
 }
 
 export function scoreCandidate(item, { queryTokens = [], qqs = [], timeRange = null, now = Date.now(), config = {} } = {}) {

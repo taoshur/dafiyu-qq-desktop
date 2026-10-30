@@ -343,7 +343,7 @@ export function searchMemory(db, { convKey = 'global', qqs = [], text = '', limi
   // 2) 时间范围命中：按事件真实发生时间取候选（不再只靠关键词）
   if (timeRange) {
     const rows = db.prepare(`SELECT id, happened_at FROM events
-      WHERE happened_at BETWEEN ? AND ? AND happened_at IS NOT NULL AND time_precision != 'unknown'
+      WHERE happened_at BETWEEN ? AND ? AND happened_at IS NOT NULL AND time_precision != 'unknown' AND retracted_at IS NULL
         AND ${visFilter} AND (scope='global' OR scope=?)
       ORDER BY happened_at DESC LIMIT ?`).all(timeRange.from, timeRange.to, convKey, Math.max(60, Number(limit) * 4));
     for (const r of rows) bump('event', r.id, 2.5);
@@ -356,7 +356,7 @@ export function searchMemory(db, { convKey = 'global', qqs = [], text = '', limi
       ? [`%"${String(qq)}"%`, timeRange.from, timeRange.to, convKey]
       : [`%"${String(qq)}"%`, convKey];
     const rows = db.prepare(`SELECT id FROM events
-      WHERE participants LIKE ? ${rangeClause} AND ${visFilter} AND (scope='global' OR scope=?)
+      WHERE participants LIKE ? ${rangeClause} AND retracted_at IS NULL AND ${visFilter} AND (scope='global' OR scope=?)
       ORDER BY happened_at DESC LIMIT ?`).all(...params, Math.max(40, Number(limit) * 3));
     for (const r of rows) bump('event', r.id, 2);
   }
@@ -378,10 +378,14 @@ export function searchMemory(db, { convKey = 'global', qqs = [], text = '', limi
       const f = db.prepare(`SELECT * FROM facts WHERE id=? AND status='active' AND ${visFilter}
         AND (scope='global' OR scope=?)`).get(id, convKey);
       if (!f || !globalFactVisible(f)) continue;
+      // Do not inject another group member's scoped facts into the current
+      // speaker's context; keep global/self/no-subject facts available.
+      const subjectQq = f.subject_qq != null ? String(f.subject_qq) : '';
+      if (qqs.length && subjectQq && !qqs.map(String).includes(subjectQq) && String(selfQq || '') !== subjectQq) continue;
       const ageDays = Math.max(0, (now - Number(f.updated_at || now)) / 86400000);
       out.push({ type: 'fact', score: score * (1 / (1 + ageDays / 14)), row: f });
     } else {
-      const e = db.prepare(`SELECT * FROM events WHERE id=? AND ${visFilter}
+      const e = db.prepare(`SELECT * FROM events WHERE id=? AND retracted_at IS NULL AND ${visFilter}
         AND (scope='global' OR scope=?)`).get(id, convKey);
       if (!e) continue;
       if (timeRange && (e.time_precision === 'unknown' || e.happened_at == null)) continue;

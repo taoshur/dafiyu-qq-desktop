@@ -59,7 +59,7 @@ function backupBeforeMigration(db, missing) {
 export function ensureLifecycleSchema(db) {
   const factCols = db.prepare('PRAGMA table_info(facts)').all().map((c) => c.name);
   const eventColsBefore = db.prepare('PRAGMA table_info(events)').all().map((c) => c.name);
-  backupBeforeMigration(db, !factCols.includes('importance') || !eventColsBefore.includes('importance') || !factCols.includes('activation_updated_at'));
+  backupBeforeMigration(db, !factCols.includes('importance') || !eventColsBefore.includes('importance') || !factCols.includes('activation_updated_at') || !eventColsBefore.includes('retracted_at'));
   for (const [name, type] of [
     ['importance', 'REAL NOT NULL DEFAULT 0.5'],
     ['activation', 'REAL NOT NULL DEFAULT 1'],
@@ -75,6 +75,7 @@ export function ensureLifecycleSchema(db) {
     ['importance', 'REAL NOT NULL DEFAULT 0.5'],
     ['activation', 'REAL NOT NULL DEFAULT 1'],
     ['activation_updated_at', 'INTEGER'],
+    ['retracted_at', 'INTEGER'],
     ['last_recalled_at', 'INTEGER'],
     ['reinforcement_count', 'INTEGER NOT NULL DEFAULT 0'],
     ['lifecycle_state', "TEXT NOT NULL DEFAULT 'active'"]

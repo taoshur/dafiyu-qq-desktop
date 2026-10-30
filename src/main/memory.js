@@ -129,7 +129,7 @@ function memoryStatus({ settings, paths, mode = 'prod' }) {
   return out;
 }
 
-function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '', dateFrom = '', dateTo = '', subject = '', status = 'pending', limit = 50, offset = 0 }) {
+function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '', dateFrom = '', dateTo = '', subject = '', status = 'pending', limit = 50, offset = 0, sort = 'newest' }) {
   const file = mode === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
   if (!fs.existsSync(file)) return { exists: false, type, rows: [], total: 0 };
   const take = Math.max(1, Math.min(100, Number(limit) || 50));
@@ -157,15 +157,16 @@ function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '
       return { exists: true, type, total, rows: rows.map((r) => ({ ...r, type: 'fact' })) };
     }
     if (type === 'events') {
+      const eventCols = tableColumns(db, 'events');
       const where = [];
       const params = [];
+      if (eventCols.has('retracted_at')) where.push('retracted_at IS NULL');
       if (term) { where.push("(summary LIKE ? ESCAPE '\\' OR COALESCE(detail,'') LIKE ? ESCAPE '\\' OR COALESCE(participants,'') LIKE ? ESCAPE '\\')"); params.push(term, term, term); }
       if (subject) { where.push("participants LIKE ? ESCAPE '\\'"); params.push(`%${escapeLike(subject)}%`); }
       if (from != null) { where.push('happened_at >= ?'); params.push(from); }
       if (to != null) { where.push('happened_at <= ?'); params.push(to); }
       const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
       const total = Number(db.prepare(`SELECT COUNT(*) c FROM events ${clause}`).get(...params)?.c || 0);
-      const eventCols = tableColumns(db, 'events');
       const rows = db.prepare(`SELECT id, happened_at, ${optional(eventCols, 'time_precision', "'unknown'")}, summary, detail, participants,
         confidence, scope, visibility, source_type, source_conv, created_at,
         ${optional(eventCols, 'importance', '0.5')}, ${optional(eventCols, 'activation', '1')},
@@ -192,10 +193,11 @@ function listMemory({ settings, paths, mode = 'prod', type = 'candidates', q = '
     }
     const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const total = Number(db.prepare(`SELECT COUNT(*) c FROM memory_candidates ${clause}`).get(...params)?.c || 0);
+    const order = sort === 'oldest' ? 'id ASC' : sort === 'confidence' ? 'confidence DESC, id DESC' : sort === 'happened' ? 'COALESCE(happened_at, created_at) DESC, id DESC' : 'id DESC';
     const rows = db.prepare(`SELECT id, kind, status, subject_qq, subject_name, attr, value, summary, detail, participants,
       confidence, scope, visibility, quality, reason, ${optional(candCols, 'happened_at')}, ${optional(candCols, 'time_precision', "'unknown'")},
       batch_key, conv_key, created_at, ${optional(candCols, 'applied_at')}
-      FROM memory_candidates ${clause} ORDER BY id DESC LIMIT ? OFFSET ?`).all(...params, take, skip);
+      FROM memory_candidates ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...params, take, skip);
     return { exists: true, type, total, rows: rows.map((r) => ({ ...r, type: 'candidate' })) };
   } finally {
     try { db.close(); } catch { /* ignore */ }

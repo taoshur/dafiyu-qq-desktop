@@ -98,10 +98,12 @@ export function ensureExtractSchema(db) {
   for (const [name, type] of [
     ['quality', 'TEXT'], ['category', 'TEXT'], ['evidence_count', 'INTEGER'], ['self_stated', 'INTEGER'],
     ['expires_at', 'INTEGER'], ['happened_at', 'INTEGER'], ['time_precision', 'TEXT'],
-    ['applied_at', 'INTEGER'], ['applied_ref_type', 'TEXT'], ['applied_ref_id', 'INTEGER']
+    ['applied_at', 'INTEGER'], ['applied_ref_type', 'TEXT'], ['applied_ref_id', 'INTEGER'], ['trace_id', 'TEXT']
   ]) {
     if (!candCols.includes(name)) db.exec(`ALTER TABLE memory_candidates ADD COLUMN ${name} ${type}`);
   }
+  const batchCols = db.prepare('PRAGMA table_info(extraction_batches)').all().map((c) => c.name);
+  if (!batchCols.includes('trace_id')) db.exec('ALTER TABLE extraction_batches ADD COLUMN trace_id TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_msgkey ON messages(conv_key, msg_key)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_messages_pending2 ON messages(extracted, id)');
 }
@@ -153,7 +155,7 @@ export function selectBatch(db, { batchSize = 30, maxQueue = 200, contextSize = 
   const batchKey = crypto.createHash('sha1').update(`${convKey}|${keys[0]}|${keys[keys.length - 1]}|${keys.length}`).digest('hex').slice(0, 20);
   const contextRows = db.prepare(`SELECT * FROM messages WHERE conv_key=? AND id < ? ORDER BY id DESC LIMIT ?`)
     .all(convKey, sameConv[0].id, Math.max(0, Number(contextSize) || 0)).reverse();
-  return { convKey, batchKey, rows: sameConv, contextRows, ids: sameConv.map((r) => r.id) };
+  return { convKey, batchKey, traceId: `extract-${batchKey}`, rows: sameConv, contextRows, ids: sameConv.map((r) => r.id) };
 }
 
 /** Reset dead-letter batches so a later operator/console action can retry them. */
@@ -329,13 +331,14 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
       }
     }
 
+    db.prepare(`UPDATE memory_candidates SET trace_id=? WHERE batch_key=?`).run(batch.traceId || `extract-${batch.batchKey}`, batch.batchKey);
     db.prepare(`UPDATE messages SET extracted=1, batch_key=? WHERE id IN (${batch.ids.map(() => '?').join(',')})`)
       .run(batch.batchKey, ...batch.ids);
     db.prepare(`INSERT OR REPLACE INTO extraction_batches
-      (batch_key, conv_key, from_seq, to_seq, status, attempts, created_at, updated_at)
-      VALUES(?,?,?,?, 'done', 0, ?, ?)`)
+      (batch_key, conv_key, from_seq, to_seq, status, attempts, trace_id, created_at, updated_at)
+      VALUES(?,?,?,?, 'done', 0, ?, ?, ?)`)
       .run(batch.batchKey, batch.convKey, batch.rows[0]?.seq ?? null,
-        batch.rows[batch.rows.length - 1]?.seq ?? null, Date.now(), Date.now());
+        batch.rows[batch.rows.length - 1]?.seq ?? null, batch.traceId || `extract-${batch.batchKey}`, Date.now(), Date.now());
     db.exec('COMMIT');
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch {}
@@ -383,7 +386,7 @@ export function decideCandidate(db, id, action, reason = '') {
  * - 失败：addFact/addEvent 内部回滚，候选保持 pending；修复后可重试。
  * - 主体/可见范围校验：global 事实必须有数字 QQ；事件必须有 summary 和发生时间。
  */
-export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}) {
+export function applyCandidate(db, id, { reason = '', allowGlobal = false, audit = null, transaction = true } = {}) {
   ensureExtractSchema(db);
   const cand = db.prepare('SELECT * FROM memory_candidates WHERE id=?').get(Number(id));
   if (!cand) throw new Error(`候选 #${id} 不存在`);
@@ -392,7 +395,7 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
   }
   if (cand.status !== 'pending') throw new Error(`候选 #${id} 状态为 ${cand.status}，不能 apply`);
 
-  db.exec('BEGIN');
+  if (transaction) db.exec('BEGIN');
   try {
   let refType = null;
   let refId = null;
@@ -465,10 +468,11 @@ export function applyCandidate(db, id, { reason = '', allowGlobal = false } = {}
     SET status='applied', applied_at=?, applied_ref_type=?, applied_ref_id=?, reason=?
     WHERE id=? AND status='pending'`)
     .run(Date.now(), refType, refId, reason || 'manual apply', Number(id));
-  db.exec('COMMIT');
+  if (typeof audit === 'function') audit({ db, id: Number(id), candidate: cand, refType, refId });
+  if (transaction) db.exec('COMMIT');
   return { id: Number(id), status: 'applied', refType, refId };
   } catch (error) {
-    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+    if (transaction) { try { db.exec('ROLLBACK'); } catch { /* ignore */ } }
     throw error;
   }
 }

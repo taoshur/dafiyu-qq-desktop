@@ -54,7 +54,7 @@ function memoryPage() {
   const rows = m.list?.rows || [];
   const sourceLabel = modeTest ? '练习副本' : '真实记忆（只读）';
   const testExists = status.testDbExists;
-  const reviewDisabled = !modeTest || !m.selected;
+  const reviewDisabled = !(modeTest || (m.mode === 'prod' && m.reviewUnlocked)) || !m.selected;
   const table = rows.map((item) => {
     const id = Number(item.id);
     const kind = item.kind || item.type;
@@ -101,8 +101,10 @@ function memoryPage() {
       <div class="kv"><span>活跃度</span><b>${selected.activation == null ? '—' : Number(selected.activation).toFixed(2)}</b></div>
       <div class="kv"><span>重要度</span><b>${selected.importance == null ? '—' : Number(selected.importance).toFixed(2)}</b></div>
       <div class="kv"><span>不采纳原因</span><b>${esc(selected.reason || '—')}</b></div>
+      <div class="kv"><span>提取追踪</span><b>${esc(selected.trace_id || selected.batch_key || '—')}</b></div>
     </div>
     ${selected.detail ? `<p class="service-detail">${esc(selected.detail)}</p>` : ''}
+    ${m.audit?.length ? `<div class="section-title" style="margin-top:14px"><h3>审核记录</h3><span>本地审计，不保存聊天原文</span></div><div class="memory-audit">${m.audit.map((a) => `<div class="memory-evidence"><span class="meta-pill">${esc(a.action)}</span><span class="meta-pill">${esc(a.actor || '—')}</span><span class="meta-pill">${fmtTime(a.at)}</span><span class="meta-pill">${esc(a.trace_id || '—')}</span><p>${esc(a.status_before || '—')} → ${esc(a.status_after || '—')}${a.reason ? ` · ${esc(a.reason)}` : ''}${a.source_trace ? ` · 来源 ${esc(a.source_trace)}` : ''}</p></div>`).join('')}</div>` : ''}
     <div class="section-title" style="margin-top:14px"><h3>来源消息</h3><span>仅在本机显示，不导出</span></div>
     ${evidence.length ? evidence.map((msg) => `
       <div class="memory-evidence">
@@ -111,14 +113,17 @@ function memoryPage() {
         <span class="meta-pill">${fmtTime(msg.sent_at)}</span>
         <p>${esc(msg.text || msg.media_note || '（无文本）')}</p>
       </div>`).join('') : '<div class="log-empty" style="padding:12px">这条候选找不到原始消息（可能来自练习副本或旧数据）</div>'}
-    ${modeTest ? `<div class="flow-actions" style="margin-top:14px">
-      <button class="btn primary" data-memory-review="apply" data-memory-id="${selected.id}" type="button">确认并写入练习副本</button>
-      <button class="btn danger" data-memory-review="reject" data-memory-id="${selected.id}" type="button">不记住这条</button>
-    </div>` : '<div class="notice" style="margin-top:14px">真实记忆只能看，不能在这里批准或删除。想练习审核，请切换到「练习副本」。</div>'}
+    ${reviewDisabled ? '<div class="notice" style="margin-top:14px">真实记忆只能看；要审核请先解锁生产审核，或切换到「练习副本」。</div>' : `<div class="flow-actions" style="margin-top:14px">
+      ${selected.status === 'pending' ? `<button class="btn primary" data-memory-review="apply" data-memory-id="${selected.id}" type="button">${modeTest ? '确认并写入练习副本' : '批准写入生产记忆'}</button>
+      ${modeTest ? '' : `<button class="btn" data-memory-edit="${selected.id}" type="button">编辑</button>`}
+      <button class="btn danger" data-memory-review="reject" data-memory-id="${selected.id}" type="button">拒绝</button>` : ''}
+      ${selected.status === 'applied' && selected.applied_ref_type ? `<button class="btn danger" data-memory-review="undo" data-memory-id="${selected.id}" type="button">撤销这次写入</button>` : ''}
+      ${selected.status === 'rejected' ? '<span class="meta-pill">已拒绝，可重新打开候选后编辑</span>' : ''}
+    </div>`}
   `;
 
   return `
-    <div class="notice">${modeTest ? '你正在看「练习副本」：这里的批准/拒绝只影响练习数据，不会改动真实记忆。' : '你正在看真实记忆：只能阅读，不能修改、删除或批准。想练习审核，请切换到「练习副本」。'}</div>
+    <div class="notice">${modeTest ? '你正在看「练习副本」：这里的批准/拒绝只影响练习数据，不会改动真实记忆。' : m.reviewUnlocked ? '生产审核已解锁：批准/编辑/拒绝/撤销都会写入本地审计日志；observeOnly 仍保持。' : '你正在看真实记忆：默认只读。需要审核时请显式解锁生产审核。'}</div>
     <p class="service-detail" style="margin:8px 0 0">这里不是聊天记录，而是大肥鱼对人和事形成的长期印象。AI 先把它觉得值得记的内容放进「待确认」，确认后才会成为正式事实或事件。</p>
     <div class="memory-toolbar" style="margin-top:12px">
       <div class="segmented">
@@ -127,6 +132,8 @@ function memoryPage() {
       </div>
       <span class="meta-pill">${sourceLabel}</span>
       ${modeTest && !testExists ? '<button class="btn" id="memory-init-test" type="button">创建练习副本</button>' : ''}
+      ${m.mode === 'prod' && !m.reviewUnlocked ? '<button class="btn danger" id="memory-unlock" type="button">解锁生产审核</button>' : ''}
+      ${m.mode === 'prod' && m.reviewUnlocked ? '<span class="meta-pill">生产审核已解锁</span>' : ''}
       <button class="btn" id="memory-refresh" type="button">刷新</button>
     </div>
     <div class="grid grid-4 memory-stats">
@@ -177,7 +184,12 @@ function memoryPage() {
         <button class="btn primary" id="memory-apply-filters" type="button">筛选</button>
         <button class="btn" id="memory-reset-filters" type="button">重置</button>
       </div>
-      <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条 · 排序：${m.type === 'events' ? '按发生时间' : m.type === 'facts' ? '按更新时间' : '按产生/发生时间'}</div>
+      <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条
+        ${m.type === 'candidates' ? `<select id="memory-sort" class="input" style="max-width:160px;display:inline-block"><option value="newest" ${m.sort === 'newest' ? 'selected' : ''}>最新优先</option><option value="oldest" ${m.sort === 'oldest' ? 'selected' : ''}>最早优先</option><option value="confidence" ${m.sort === 'confidence' ? 'selected' : ''}>可信度优先</option><option value="happened" ${m.sort === 'happened' ? 'selected' : ''}>发生时间优先</option></select>` : ''}
+        <button class="btn" id="memory-prev" type="button" ${m.page <= 1 ? 'disabled' : ''}>上一页</button>
+        <span class="meta-pill">第 ${m.page} 页</span>
+        <button class="btn" id="memory-next" type="button" ${(m.page * m.pageSize) >= (m.list?.total ?? 0) ? 'disabled' : ''}>下一页</button>
+      </div>
       <div class="memory-table-wrap">
         <table class="table memory-table">
           <thead><tr><th>会变成</th><th>内容</th><th>涉及谁</th><th>时间</th><th>可信度</th><th>范围 / 状态</th></tr></thead>

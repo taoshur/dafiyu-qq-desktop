@@ -7,6 +7,7 @@
  */
 import { searchMemory } from './db.js';
 import { parseTimeRange } from './time-range.js';
+import crypto from 'node:crypto';
 import { recallMemoryV4, recordRecallDiagnostics } from './recall-v4.js';
 import { sweepLifecycle, touchRecalled, lifecycleConfig } from './lifecycle.js';
 
@@ -65,6 +66,7 @@ export function retrieveMemoryForPrompt(db, {
 } = {}) {
   // Current message wins over older quoted/context messages when both contain
   // relative dates such as “昨天” and “今天”.
+  const traceId = `recall-${crypto.createHash('sha1').update(`${convKey}|${text}|${now}`).digest('hex').slice(0, 16)}`;
   const timeRange = parseTimeRange(latestText, now) || parseTimeRange(text, now);
   const cfg = globalThis.__MEMORY_CONF__ || {};
   const useV4 = cfg.recallV4 !== false;
@@ -139,7 +141,8 @@ export function retrieveMemoryForPrompt(db, {
   if (recallDiagnostics) {
     recallDiagnostics.tokens = tokens;
     recallDiagnostics.selectedIds = used.map((item) => `${item.type}:${item.row.id}`);
-    if (recallDiagnostics.filters) recallDiagnostics.filters.stage = lines.length ? 'injected' : 'retrieval-empty';
+    recallDiagnostics.traceId = traceId;
+    if (recallDiagnostics.filters) { recallDiagnostics.filters.stage = lines.length ? 'injected' : 'retrieval-empty'; recallDiagnostics.filters.traceId = traceId; }
     // Even an empty recall is useful evidence: it explains why the answer did
     // not know something. Persist it before the empty return.
     try { recordRecallDiagnostics(db, recallDiagnostics); } catch { /* diagnostics must not break retrieval */ }

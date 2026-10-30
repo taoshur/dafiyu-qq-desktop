@@ -50,6 +50,8 @@ const CHANNELS = Object.freeze([
   'memory:review',
   'memory:dead-letters',
   'memory:retry-dead',
+  'memory:review-unlock',
+  'memory:review-audit',
   'settings:get',
   'settings:save'
 ]);
