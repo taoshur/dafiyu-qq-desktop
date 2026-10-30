@@ -158,3 +158,42 @@ export function inTimeRange(ms, range) {
   const t = Number(ms);
   return Number.isFinite(t) && t >= range.from && t <= range.to;
 }
+
+
+/**
+ * Resolve a relative day written in a message into a concrete timestamp.
+ *
+ * Product rule: between 00:00 and 04:59 local time, "明天" means the
+ * calendar day that has just started (the same date as the message). This
+ * matches the common late-night habit of calling the upcoming day "tomorrow"
+ * even after midnight. At 05:00 and later it means the next calendar day.
+ *
+ * Returns null when the text has no supported relative day, so callers keep
+ * time_precision='unknown' instead of inventing a date.
+ */
+export function resolveRelativeHappenedAt(text, sentAt = Date.now()) {
+  const s = String(text || '');
+  const at = Number(sentAt);
+  if (!Number.isFinite(at) || at <= 0) return null;
+  const p = parts(at);
+  const hour = new Date(at + TZ_OFFSET).getUTCHours();
+  let delta = null;
+  let label = null;
+  if (/明天/.test(s)) {
+    // 00:00-04:59: "明天" is the day already in progress.
+    delta = hour < 5 ? 0 : 1;
+    label = '明天';
+  } else if (/今天|今日/.test(s)) {
+    delta = 0;
+    label = '今天';
+  } else if (/昨天|昨日/.test(s)) {
+    delta = -1;
+    label = '昨天';
+  } else if (/后天/.test(s)) {
+    delta = 2;
+    label = '后天';
+  }
+  if (delta == null) return null;
+  const x = shiftDay(p.y, p.m, p.d, delta);
+  return { at: startOfDay(x.y, x.m, x.d) + 12 * 60 * 60 * 1000, precision: 'day', label };
+}

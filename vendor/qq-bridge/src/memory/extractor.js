@@ -16,6 +16,7 @@ import { addFact, addEvent, resolveQqByName } from './db.js';
 import { ensureLifecycleSchema } from './lifecycle.js';
 import { classifyCandidate, recordOpsEvent } from './quality.js';
 import { tokenize } from './tokenize.js';
+import { resolveRelativeHappenedAt } from './time-range.js';
 
 const APPLY_SCHEMA = `
 CREATE TABLE IF NOT EXISTS extract_cursors (
@@ -206,8 +207,12 @@ export function validateExtraction(raw, { convKey, participants = [], defaultHap
     if (!qq && !name) { errors.push('fact missing subject'); continue; }
     const vis = allowedVis.has(f.visibility) ? f.visibility : defaultVisibility;
     const kind = allowedKind.has(f.kind) ? f.kind : 'multi';
+    const explicitWhen = parseHappenedAt(f.happened_at);
+    const relativeWhen = explicitWhen ? null : resolveRelativeHappenedAt(value, defaultHappenedAt);
     facts.push({
       subjectQq: qq, subjectName: name, attr, value, kind,
+      happenedAt: explicitWhen || relativeWhen?.at || null,
+      timePrecision: explicitWhen ? 'day' : relativeWhen?.precision || 'unknown',
       confidence: clamp01(f.confidence, 0.6),
       scope: isPrivate && vis === 'private' ? convKey : (vis === 'global' ? 'global' : convKey),
       visibility: vis,
@@ -228,14 +233,15 @@ export function validateExtraction(raw, { convKey, participants = [], defaultHap
       ? e.participants.map((x) => String(x)).filter((x) => /^\d{5,12}$/.test(x)).slice(0, 10)
       : participants.slice(0, 10);
     const parsedWhen = parseHappenedAt(e.happened_at);
-    // 发送时间不是发生时间：模型没给日期时保留 unknown，不做默认填充。
-    const happenedAt = parsedWhen || null;
+    // Deterministic relative-day fallback; explicit model dates always win.
+    const relativeWhen = parsedWhen ? null : resolveRelativeHappenedAt(`${summary} ${e.detail || ''}`, defaultHappenedAt);
+    const happenedAt = parsedWhen || relativeWhen?.at || null;
     events.push({
       summary,
       detail: clip(e.detail, 400) || null,
       participants: parts,
       happenedAt,
-      timePrecision: parsedWhen ? 'day' : 'unknown',
+      timePrecision: parsedWhen ? 'day' : relativeWhen?.precision || 'unknown',
       confidence: clamp01(e.confidence, 0.6),
       scope: convKey,
       visibility: defaultVisibility,
@@ -265,12 +271,13 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
         const info = db.prepare(`INSERT OR IGNORE INTO memory_candidates
           (kind, subject_qq, subject_name, attr, value, confidence, scope, visibility, kind_of_fact,
            dedupe_key, batch_key, conv_key, source_type, status, reason, quality, category,
-           evidence_count, self_stated, expires_at, created_at)
-          VALUES('fact',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+           evidence_count, self_stated, expires_at, happened_at, time_precision, created_at)
+          VALUES('fact',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
           .run(f.subjectQq, f.subjectName, f.attr, f.value, f.confidence, f.scope, f.visibility,
             judge.expiresAt ? 'temporal' : f.kind, dedupe, batch.batchKey, batch.convKey, sourceType,
             status, judge.reason || '', judge.quality, f.category || null,
-            f.evidenceCount || 0, f.selfStated ? 1 : 0, expiresAt, Date.now());
+            f.evidenceCount || 0, f.selfStated ? 1 : 0, expiresAt,
+            f.happenedAt || null, f.timePrecision || 'unknown', Date.now());
         if (Number(info.changes) > 0) { if (status === 'pending') written += 1; else rejected += 1; } else duplicates += 1;
       } else if (judge.decision === 'allow') {
         const r = addFact(db, {
@@ -284,12 +291,13 @@ export function writeExtraction(db, batch, validated, { observeOnly = true, sour
         const info = db.prepare(`INSERT OR IGNORE INTO memory_candidates
           (kind, subject_qq, subject_name, attr, value, confidence, scope, visibility, kind_of_fact,
            dedupe_key, batch_key, conv_key, source_type, status, reason, quality, category,
-           evidence_count, self_stated, expires_at, created_at)
-          VALUES('fact',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+           evidence_count, self_stated, expires_at, happened_at, time_precision, created_at)
+          VALUES('fact',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
           .run(f.subjectQq, f.subjectName, f.attr, f.value, f.confidence, f.scope, f.visibility,
             judge.expiresAt ? 'temporal' : f.kind, dedupe, batch.batchKey, batch.convKey, sourceType,
             'pending', judge.reason || '', judge.quality, f.category || null,
-            f.evidenceCount || 0, f.selfStated ? 1 : 0, expiresAt, Date.now());
+            f.evidenceCount || 0, f.selfStated ? 1 : 0, expiresAt,
+            f.happenedAt || null, f.timePrecision || 'unknown', Date.now());
         if (Number(info.changes) > 0) written += 1; else duplicates += 1;
       }
     }
