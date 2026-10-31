@@ -1,6 +1,6 @@
 {
   "name": "dafiyu-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "大肥鱼 QQ 机器人桌面控制台",
   "main": "src/main/index.js",
   "scripts": {

@@ -113,3 +113,8 @@ test('theme, guide targets and Bilibili polish are wired', () => {
   assert.ok(guide.includes('data-guide-target="services-nav"'));
   assert.ok(app.includes('polishBiliTable'));
 });
+
+
+test('candidate detail fetches evidence batch instead of using list shortcut', () => {
+  assert.ok(app.includes("row?.type !== 'candidate'"));
+});

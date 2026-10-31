@@ -931,8 +931,10 @@ async function loadMemoryDetail(id, kind = '') {
   const m = state.memory;
   m.selected = Number(id);
   m.selectedKind = kind;
-  if (kind === 'fact' || kind === 'event') {
-    const row = (m.list?.rows || []).find((item) => Number(item.id) === Number(id));
+  const row = (m.list?.rows || []).find((item) => Number(item.id) === Number(id));
+  // Candidate rows also carry kind=fact/event. Only the real facts/events tabs
+  // may use the list row shortcut; candidates must fetch their evidence batch.
+  if ((kind === 'fact' || kind === 'event') && row?.type !== 'candidate') {
     m.detail = { candidate: row || null, evidence: [] };
     if (state.page === 'memory') render();
     return;
