@@ -654,6 +654,13 @@ html[data-theme="light"] body {
     radial-gradient(800px 560px at 92% 6%, rgba(212, 96, 122, 0.08), transparent 55%),
     var(--bg-0);
 }
+
+html[data-theme="light"] .nav-item.is-active {
+  color: var(--text);
+}
+html[data-theme="light"] .nav-item.is-active svg {
+  stroke: var(--teal);
+}
 html[data-theme="light"] .sidebar {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(240, 250, 250, 0.86));
 }

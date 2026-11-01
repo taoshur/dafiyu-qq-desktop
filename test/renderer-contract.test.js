@@ -118,3 +118,15 @@ test('theme, guide targets and Bilibili polish are wired', () => {
 test('candidate detail fetches evidence batch instead of using list shortcut', () => {
   assert.ok(app.includes("row?.type !== 'candidate'"));
 });
+
+
+test('light theme active navigation remains readable', () => {
+  const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');
+  assert.ok(css.includes('html[data-theme="light"] .nav-item.is-active'));
+});
+
+
+test('startup update check immediately renders the available-version banner', () => {
+  assert.ok(app.includes('notifiedVersion'));
+  assert.ok(app.includes("if (state.page !== 'about') render();"));
+});

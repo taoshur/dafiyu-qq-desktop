@@ -42,7 +42,7 @@ const state = {
   },
   memoryOverview: null,
   bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
-  update: { check: null, busy: false, error: null, task: null, timer: null },
+  update: { check: null, busy: false, error: null, task: null, timer: null, notifiedVersion: null },
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
@@ -1263,8 +1263,14 @@ async function refreshUpdate({ silent = false } = {}) {
   state.update.error = null;
   try {
     state.update.check = await api.updateCheck();
-    if (state.update.check?.available && silent) {
-      toast(`发现新版本 ${state.update.check.latestVersion}，可在「关于」页更新`);
+    if (state.update.check?.available) {
+      const latest = state.update.check.latestVersion;
+      // Every launch gets one visible reminder for each newly discovered version.
+      if (state.update.notifiedVersion !== latest) {
+        state.update.notifiedVersion = latest;
+        if (silent) toast(`发现新版本 ${latest}，可在「关于」页更新`);
+        if (state.page !== 'about') render();
+      }
     }
     if (state.page === 'about') render();
   } catch (error) {
