@@ -41,8 +41,8 @@ test('select interactions are driven by change, not the opening click', () => {
 
 
 test('update progress polls before the long update download IPC resolves', () => {
-  const start = app.indexOf('function downloadUpdate()');
-  const end = app.indexOf('async function openReleasePage()', start);
+  const start = app.indexOf('async function performManagerUpdate()');
+  const end = app.indexOf('function downloadUpdate()', start);
   assert.ok(start >= 0 && end > start);
   const body = app.slice(start, end);
   assert.ok(body.includes('const request = api.updateDownload()'));
@@ -139,4 +139,12 @@ test('qqbridge one-click component update is wired', () => {
   assert.ok(app.includes('componentUpdate'));
   assert.ok(backups.includes('component-update-qqbridge'));
   assert.ok(about.includes('component-live'));
+});
+
+
+test('all-update orchestration updates qqbridge before manager installer', () => {
+  assert.ok(app.includes('async function updateAllComponents'));
+  assert.ok(app.includes('await api.componentUpdate();'));
+  assert.ok(app.indexOf('await api.componentUpdate();') < app.indexOf('await performManagerUpdate();'));
+  assert.ok(fs.readFileSync(path.join(renderer, 'pages', 'backups.js'), 'utf8').includes('update-all'));
 });

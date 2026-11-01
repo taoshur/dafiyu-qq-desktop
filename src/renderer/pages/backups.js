@@ -73,6 +73,7 @@ function updatePanel() {
       ${task?.status === 'cancelled' ? '<div class="notice">更新下载已取消。</div>' : ''}
       <div class="backup-toolbar">
         <button class="btn ${check?.available ? '' : 'primary'}" id="update-check" type="button" ${u.busy || downloading ? 'disabled' : ''}>${u.busy ? '检查中…' : '检查更新'}</button>
+        ${check?.available && state.component?.check?.available ? `<button class="btn primary" id="update-all" type="button" ${u.busy || state.component?.busy || downloading ? 'disabled' : ''}>全部更新（管理器 + qqbridge）</button>` : ''}
         ${check?.available ? `<button class="btn primary" id="update-download" type="button" ${downloading ? 'disabled' : ''}>下载并打开安装包</button>` : ''}
         ${check?.releaseUrl ? `<button class="btn ghost" id="update-release" type="button">打开发布页</button>` : ''}
       </div>

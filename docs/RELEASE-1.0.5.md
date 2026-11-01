@@ -8,6 +8,7 @@
 - 保留 config.json、state/、roles/、node_modules/
 - 启动后检查 3100
 - 失败自动回滚并重新启动旧版本
+- 新增「全部更新（管理器 + qqbridge）」：先更新 qqbridge，健康检查通过后再下载管理器安装包
 
 ## 管理器
 
@@ -22,6 +23,6 @@ qqbridge 组件包单独发布；管理器安装包不内置 qqbridge 代码和�
 ## 构建
 
 ```text
-size: 123,456,953
-sha256: 3FCB249829C3ED81BF2000EC907BAE4231DFD8DC50AE10F8BA70125C4041AC05
+size: 123,457,305
+sha256: 19253CCE89F0806911931BE05E912D28735766E97937593D7C63FBF651EC2980
 ```

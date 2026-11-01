@@ -1357,6 +1357,28 @@ function pollUpdate() {
   }, 800);
 }
 
+async function performManagerUpdate() {
+  state.update.busy = true;
+  try {
+    // Start polling before awaiting the IPC call: update:download only
+    // resolves after the full download, so awaiting first hid all progress.
+    const request = api.updateDownload();
+    pollUpdate();
+    const result = await request;
+    state.update.task = result.task || null;
+    if (!result.ok) {
+      toast(`更新失败：${result.reason}`);
+    } else {
+      toast('安装程序已打开');
+    }
+    if (state.page === 'about') render();
+  } catch (error) {
+    toast(`更新失败：${error.message}`);
+  } finally {
+    state.update.busy = false;
+  }
+}
+
 function downloadUpdate() {
   const check = state.update.check;
   if (!check?.available) { toast('当前没有可用更新'); return; }
@@ -1368,29 +1390,47 @@ function downloadUpdate() {
       '下载完成后会打开安装程序；不会静默安装，也不会自动关闭当前控制中心。'
     ].join('\n'),
     confirmText: '下载并打开',
+    onConfirm: performManagerUpdate
+  });
+}
+
+async function updateAllComponents() {
+  const manager = state.update.check;
+  const component = state.component?.check;
+  if (!manager?.available) { toast('当前没有可用的管理器更新'); return; }
+  if (!component?.available) { toast('当前没有可用的 qqbridge 组件更新'); return; }
+  showModal({
+    title: '全部更新（管理器 + qqbridge）',
+    body: [
+      `管理器：${manager.currentVersion || state.info?.version || '当前'} → ${manager.latestVersion}`,
+      `qqbridge：${component.currentVersion} → ${component.latestVersion}`,
+      '',
+      '先更新 qqbridge，确认 3100 就绪后再下载并打开管理器安装包。',
+      'qqbridge 更新失败时会停止，不会继续更新管理器。',
+      'qqbridge 的 config.json、state/、roles/ 不会被覆盖。'
+    ].join('\n'),
+    confirmText: '开始全部更新',
     onConfirm: async () => {
       state.update.busy = true;
+      state.component.busy = true;
       try {
-        // Start polling before awaiting the IPC call: update:download only
-        // resolves after the full download, so awaiting first hid all progress.
-        const request = api.updateDownload();
-        pollUpdate();
-        const result = await request;
-        state.update.task = result.task || null;
-        if (!result.ok) {
-          toast(`更新失败：${result.reason}`);
-        } else {
-          toast('安装程序已打开');
-        }
-        if (state.page === 'about') render();
+        const result = await api.componentUpdate();
+        toast(`qqbridge 已更新到 ${result.latestVersion}`);
+        state.component.check = null;
+        await refreshControl();
+        await refreshComponent({ silent: true });
+        await performManagerUpdate();
       } catch (error) {
-        toast(`更新失败：${error.message}`);
+        toast(`全部更新已停止：${error.message}`);
       } finally {
         state.update.busy = false;
+        state.component.busy = false;
+        if (state.page === 'about') render();
       }
     }
   });
 }
+
 
 async function startGuide() {
   if (state.page !== 'overview') await openPage('overview');
@@ -1614,6 +1654,7 @@ function bind() {
     if (event.target.closest('#component-check-qqbridge')) { refreshComponent(); return; }
     if (event.target.closest('#component-update-qqbridge')) { updateQqbridgeComponent(); return; }
     if (event.target.closest('#update-download')) { downloadUpdate(); return; }
+    if (event.target.closest('#update-all')) { updateAllComponents(); return; }
     if (event.target.closest('#update-release')) { openReleasePage(); return; }
     if (event.target.closest('#update-go-about')) { openPage('about'); return; }
     if (event.target.closest('#overview-next')) { openPage('services'); return; }
