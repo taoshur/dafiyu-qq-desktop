@@ -141,11 +141,18 @@ function restoreCode(repoRoot, backupRoot) {
 }
 
 function bridgePids(repoRoot) {
-  const escaped = String(repoRoot).replace(/'/g, "''");
-  const script = `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*${escaped}*' -and ($_.CommandLine -like '*src\\bridge.js*' -or $_.CommandLine -like '*start-bridge.mjs*') } | Select-Object -ExpandProperty ProcessId`;
+  const script = `$owners = @(Get-NetTCPConnection -LocalPort 3100 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+foreach ($ownerPid in $owners) {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$ownerPid"
+  if (-not $proc -or $proc.Name -ne 'node.exe') { continue }
+  if ($proc.CommandLine -notlike '*bridge.js*') { continue }
+  $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.ParentProcessId)"
+  if ($parent -and $parent.CommandLine -like '*start-bridge.mjs*') { $parent.ProcessId }
+  $proc.ProcessId
+}`;
   try {
     const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
-    return out.split(/\s+/).map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0);
+    return [...new Set(out.split(/\s+/).map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
   } catch {
     return [];
   }
@@ -223,4 +230,4 @@ async function update(repoRoot, { log = () => {} } = {}) {
   }
 }
 
-module.exports = { check, update };
+module.exports = { check, update, bridgePids };
