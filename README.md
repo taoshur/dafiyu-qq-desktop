@@ -403,6 +403,144 @@ IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING �
 
 因此桌面采用“控制台 + 外部服务”的边界，而不是把三个组件改造成一个不可替换的 monolith。这样升级和排障都更可控，也避免桌面崩溃时机器人一起死。
 
+## 配置文件清单（Agent 修改指南）
+
+完整字段级清单见：
+
+**[docs/CONFIG-INVENTORY.md](docs/CONFIG-INVENTORY.md)**
+
+这份文档不是给普通用户“照着改一遍”的模板，而是给用户、维护者和其他 Agent 使用的**配置地图**。它说明每个配置属于哪个组件、控制什么、是否敏感、能不能直接改，以及修改后如何验证和回滚。
+
+### 为什么需要这份清单
+
+大肥鱼桌面端不是单个程序，而是：
+
+```text
+Dafiyu 控制中心
+  + SnowLuma
+  + qqbridge
+  + DeepSeek Harness (DSH)
+```
+
+四者各有配置，而且：
+
+- 管理器只负责控制，不包含 qqbridge 代码
+- qqbridge 的配置里有 QQ 白名单、DSH token、SnowLuma token
+- SnowLuma 有独立 WebUI、OneBot 网络和密码哈希
+- DSH 有模型凭据和插件配置
+- 记忆数据库、日志和凭据不能当普通配置修改
+
+没有清单时，Agent 很容易：
+
+- 猜错路径
+- 把 token 当普通字段输出
+- 覆盖 `state/`
+- 把 qqbridge 的用户配置当成安装包内置文件
+- 为了“更自动”直接把 `observeOnly` 改成 `false`
+
+### 组件与配置文件
+
+| 组件 | 主要配置文件 | 是否可手改 | 说明 |
+|---|---|---|---|
+| 管理器 | `%APPDATA%\dafiyu-desktop\config\config.json` | 可以 | 路径、主题、控制开关；不含 QQ token |
+| qqbridge | `<qq-bridge>\config.json` | 可以，先备份 | 机器人主配置，包含敏感 token |
+| qqbridge 角色 | `<qq-bridge>\roles\*.md` | 可以 | 角色卡，先复制再改 |
+| SnowLuma | `C:\SnowLuma\config\*.json` | 部分可以 | 端口/OneBot 可读；密码哈希只通过 WebUI |
+| SnowLuma 数据 | `C:\SnowLuma\data\` | **不要手改** | 消息、身份数据库 |
+| DSH | `%USERPROFILE%\.dsh\profiles\desktop\` | **不建议手改** | 通过 DSH 界面管理 |
+| DSH 凭据 | `%USERPROFILE%\.dsh\.credentials.yaml` | **绝对不要读给外部** | 模型凭据 |
+
+### 只安装管理器时要注意
+
+管理器安装包只包含控制中心，不包含：
+
+```text
+qqbridge
+SnowLuma
+DSH
+config.json
+roles/
+state/
+```
+
+所以“只装管理器”的用户不会自动拥有大肥鱼，也不会自动发 QQ 消息。  
+qqbridge 的一键组件更新只更新**已经存在的 qqbridge**，不是从零部署。
+
+### 最小配置清单
+
+如果要让大肥鱼真正跑起来，至少需要：
+
+```text
+管理器：
+  repoRoot
+  snowlumaRoot
+  dshExe
+  controlEnabled
+
+qqbridge：
+  dsh.baseUrl / dsh.authToken
+  snowluma.httpUrl / wsUrl / accessToken
+  ownerQQ
+  allow.private / allow.groups
+  agentPreset
+  socialV2.enabled
+
+角色：
+  roles/*.md
+
+SnowLuma：
+  QQ 登录完成
+  OneBot HTTP 3000 / WS 3001 就绪
+
+DSH：
+  provider / model / 凭据
+```
+
+如果要允许主动发消息，还需要：
+
+```text
+socialV2.proactive.enabled = true
+```
+
+但主动模式只给模型“主动机会”，不保证每次一定发言。
+
+### Agent 修改流程
+
+```text
+1. 确认要改哪个组件、哪个文件
+2. 读取当前文件和 config.example.json
+3. 备份 config.json / roles/
+4. 只改目标字段，保留未知字段
+5. 检查 JSON 合法性
+6. 停止受影响的服务
+7. 启动并检查 3000 / 3001 / 3100
+8. 失败立即恢复备份
+```
+
+### 禁止事项
+
+```text
+不要读取或输出：
+  authToken
+  accessToken
+  apiKey
+  ownerQQ
+  cookie
+  passwordHash / passwordSalt
+  .credentials.yaml
+
+不要直接修改：
+  state/*.db
+  state/*.db-wal
+  state/*.db-shm
+  SnowLuma/data/*.db
+  任何 token / key 文件
+```
+
+详细字段表、默认值、敏感标记和 Agent 提示词模板都在：
+
+**[docs/CONFIG-INVENTORY.md](docs/CONFIG-INVENTORY.md)**
+
 ## 数据位置
 
 - 桌面配置/日志/测试库：`%APPDATA%\dafiyu-desktop`
