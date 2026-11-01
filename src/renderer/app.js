@@ -43,6 +43,7 @@ const state = {
   memoryOverview: null,
   bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
   update: { check: null, busy: false, error: null, task: null, timer: null, notifiedVersion: null },
+  component: { check: null, busy: false, error: null },
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
@@ -1281,6 +1282,53 @@ async function refreshUpdate({ silent = false } = {}) {
   }
 }
 
+async function refreshComponent({ silent = false } = {}) {
+  if (state.component.busy) return;
+  state.component.busy = true;
+  state.component.error = null;
+  try {
+    state.component.check = await api.componentCheck();
+    if (state.page === 'about') render();
+  } catch (error) {
+    state.component.error = error.message;
+    if (!silent && state.page === 'about') toast(`检查组件更新失败：${error.message}`);
+    if (state.page === 'about') render();
+  } finally {
+    state.component.busy = false;
+  }
+}
+
+async function updateQqbridgeComponent() {
+  const check = state.component.check;
+  if (!check?.available) { toast('当前没有可用的 qqbridge 更新'); return; }
+  showModal({
+    title: `一键更新 qqbridge ${check.latestVersion}`,
+    body: [
+      `当前版本：${check.currentVersion}`,
+      `目标版本：${check.latestVersion}`,
+      '更新会先备份代码和配置，停止 qqbridge，替换程序文件，然后重新启动并检查 3100。',
+      '不会覆盖 config.json、state/、roles/ 和 node_modules/。',
+      '更新期间 QQ 消息会短暂中断；失败会自动回滚。'
+    ].join('\n'),
+    confirmText: '开始更新',
+    onConfirm: async () => {
+      state.component.busy = true;
+      try {
+        const result = await api.componentUpdate();
+        toast(`qqbridge 已更新到 ${result.latestVersion}`);
+        state.component.check = null;
+        await refreshControl();
+        await refreshComponent({ silent: true });
+      } catch (error) {
+        toast(`qqbridge 更新失败：${error.message}`);
+      } finally {
+        state.component.busy = false;
+        if (state.page === 'about') render();
+      }
+    }
+  });
+}
+
 function renderLiveUpdate() {
   const el = $('update-live');
   if (el) el.innerHTML = updatePanel();
@@ -1563,6 +1611,8 @@ function bind() {
     if (event.target.closest('#bili-refresh')) { refreshBili(); return; }
     if (event.target.closest('#bili-copy-prompt')) { copyBiliPrompt(); return; }
     if (event.target.closest('#update-check')) { refreshUpdate(); return; }
+    if (event.target.closest('#component-check-qqbridge')) { refreshComponent(); return; }
+    if (event.target.closest('#component-update-qqbridge')) { updateQqbridgeComponent(); return; }
     if (event.target.closest('#update-download')) { downloadUpdate(); return; }
     if (event.target.closest('#update-release')) { openReleasePage(); return; }
     if (event.target.closest('#update-go-about')) { openPage('about'); return; }
@@ -1807,6 +1857,7 @@ async function boot() {  bind();
   if (!state.bili.timer) state.bili.timer = setInterval(() => refreshBili({ silent: true }), 20000);
   render();
   refreshUpdate({ silent: true }).catch(() => {});
+  refreshComponent({ silent: true }).catch(() => {});
   maybeOpenWizard();
   setTimeout(() => {
     if (state.guide.open || state.wizard.open) return;

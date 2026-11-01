@@ -46,3 +46,8 @@ test('config import validates fields and computes diff', () => {
 test('data IPC handler module loads with production-relative paths', () => {
   assert.doesNotThrow(() => require('../src/main/ipc/handlers/data'));
 });
+
+
+test('component update module loads', () => {
+  assert.doesNotThrow(() => require('../src/main/component-update'));
+});

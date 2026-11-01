@@ -130,3 +130,13 @@ test('startup update check immediately renders the available-version banner', ()
   assert.ok(app.includes('notifiedVersion'));
   assert.ok(app.includes("if (state.page !== 'about') render();"));
 });
+
+
+test('qqbridge one-click component update is wired', () => {
+  const backups = fs.readFileSync(path.join(renderer, 'pages', 'backups.js'), 'utf8');
+  const about = fs.readFileSync(path.join(renderer, 'pages', 'about.js'), 'utf8');
+  assert.ok(app.includes('componentCheck'));
+  assert.ok(app.includes('componentUpdate'));
+  assert.ok(backups.includes('component-update-qqbridge'));
+  assert.ok(about.includes('component-live'));
+});

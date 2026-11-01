@@ -4,6 +4,8 @@
 const CHANNELS = Object.freeze([
   'app:info',
   'update:check',
+  'component:check',
+  'component:update',
   'update:download',
   'update:status',
   'health:snapshot',

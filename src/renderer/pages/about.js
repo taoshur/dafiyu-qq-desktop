@@ -40,5 +40,6 @@ function aboutPage() {
         <div class="kv"><span>桌面日志</span><b>${esc(info.paths?.logs || '—')}</b></div>
       </div>
     </section>
-    <div id="update-live">${updatePanel()}</div>`;
+    <div id="update-live">${updatePanel()}</div>
+    <div id="component-live">${componentPanel()}</div>`;
 }

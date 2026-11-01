@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   bilibiliStatus: () => ipcRenderer.invoke('bilibili:status'),
   bilibiliAck: (at) => ipcRenderer.invoke('bilibili:ack', { at }),
   updateCheck: () => ipcRenderer.invoke('update:check'),
+  componentCheck: () => ipcRenderer.invoke('component:check'),
+  componentUpdate: () => ipcRenderer.invoke('component:update'),
   updateDownload: () => ipcRenderer.invoke('update:download'),
   updateStatus: () => ipcRenderer.invoke('update:status'),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', { url }),

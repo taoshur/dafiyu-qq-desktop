@@ -32,6 +32,26 @@ function backupsPage() {
     </section>`;
 }
 
+function componentPanel() {
+  const c = state.component || {};
+  const check = c.check;
+  return `
+    <section class="card panel" style="margin-top:16px">
+      <div class="section-title"><h3>qqbridge 组件更新</h3><span>保留 config / state / roles</span></div>
+      <div class="kv-grid">
+        <div class="kv"><span>当前版本</span><b>${esc(check?.currentVersion || '读取中…')}</b></div>
+        <div class="kv"><span>最新组件</span><b>${esc(check?.latestVersion || '—')}</b></div>
+      </div>
+      ${c.error ? `<div class="notice danger">检查组件更新失败：${esc(c.error)}</div>` : ''}
+      ${check && !check.available ? '<p class="embed-hint">当前没有可用的 qqbridge 组件更新。</p>' : ''}
+      ${check?.available ? `<p class="embed-hint">会先备份代码和运行配置，停止 qqbridge，替换程序后重新启动并检查 3100；失败自动回滚。</p>` : ''}
+      <div class="backup-toolbar">
+        <button class="btn" id="component-check-qqbridge" type="button" ${c.busy ? 'disabled' : ''}>${c.busy ? '检查中…' : '检查组件更新'}</button>
+        ${check?.available ? `<button class="btn primary" id="component-update-qqbridge" type="button" ${c.busy ? 'disabled' : ''}>一键更新 qqbridge</button>` : ''}
+      </div>
+    </section>`;
+}
+
 function updatePanel() {
   const u = state.update;
   const check = u.check;
