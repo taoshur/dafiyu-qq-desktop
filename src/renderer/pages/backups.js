@@ -13,7 +13,8 @@ function backupsPage() {
       <td><span class="meta-pill">${esc(item.root.includes('D:') ? 'D 盘' : '备份目录')}</span></td>
       <td class="row-actions">
         ${item.desktop ? `<button class="btn" data-verify="${esc(item.dir)}" type="button">校验</button>
-        <button class="btn ghost" data-restore="${esc(item.dir)}" type="button">恢复演练</button>` : ''}
+        <button class="btn ghost" data-restore="${esc(item.dir)}" type="button">恢复演练</button>
+        <button class="btn" data-export-backup="${esc(item.dir)}" type="button">导出数据包</button>` : ''}
         ${item.desktop ? '' : '<button class="btn ghost" disabled title="只支持桌面备份的恢复演练">恢复</button>'}
       </td>
     </tr>`).join('');

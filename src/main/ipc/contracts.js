@@ -40,6 +40,8 @@ const CHANNELS = Object.freeze([
   'backups:create',
   'backups:verify',
   'backups:restore-drill',
+  'backups:export',
+  'backups:export-latest',
   'startup:status',
   'watchdog:status',
   'autostart:status',

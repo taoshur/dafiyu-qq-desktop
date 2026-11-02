@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   backupCreate: () => ipcRenderer.invoke('backups:create'),
   backupVerify: (dir) => ipcRenderer.invoke('backups:verify', { dir }),
   backupRestoreDrill: (dir) => ipcRenderer.invoke('backups:restore-drill', { dir }),
+  backupExport: (dir) => ipcRenderer.invoke('backups:export', { dir }),
+  backupExportLatest: () => ipcRenderer.invoke('backups:export-latest'),
   embedShow: (service) => ipcRenderer.invoke('embed:show', { service }),
   embedBounds: (rect) => ipcRenderer.invoke('embed:bounds', { rect }),
   embedHide: () => ipcRenderer.invoke('embed:hide'),

@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createBackup, verifyBackup, listBackups, restoreDrill } = require('../../backup');
+const { exportBackup } = require('../../export-backup');
 
 function backupRoots(settings) {
   return [path.join(settings.repoRoot, 'backups'), 'D:\\qq-bridge-backups'];
@@ -54,6 +55,31 @@ function registerBackupHandlers(router, { paths, getSettings, log }) {
     const result = verifyBackup(dir);
     log('backup', `verify ${path.basename(dir)} ok=${result.ok}`);
     return result;
+  });
+
+  async function exportToDialog(dir) {
+    const { dialog } = require('electron');
+    const result = await dialog.showSaveDialog({
+      title: '导出完整数据包',
+      defaultPath: `dafiyu-data-${new Date().toISOString().slice(0, 10)}.zip`,
+      filters: [{ name: 'ZIP 数据包', extensions: ['zip'] }]
+    });
+    if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
+    const exported = exportBackup({ backupDir: dir, targetFile: result.filePath, appVersion: require('../../../../package.json').version });
+    log('backup', `export ${path.basename(dir)} -> ${path.basename(exported.path)} files=${exported.files}`);
+    return exported;
+  }
+
+  router.handle('backups:export', async (_event, payload) => {
+    const settings = getSettings();
+    return exportToDialog(assertBackupDir(settings, payload?.dir));
+  });
+
+  router.handle('backups:export-latest', async () => {
+    const settings = getSettings();
+    const latest = listBackups(settings.repoRoot, ['D:\\qq-bridge-backups']).find((item) => item.desktop && item.dir);
+    if (!latest) throw new Error('没有可导出的桌面备份，请先立即备份');
+    return exportToDialog(assertBackupDir(settings, latest.dir));
   });
 
   router.handle('backups:restore-drill', async (_event, payload) => {

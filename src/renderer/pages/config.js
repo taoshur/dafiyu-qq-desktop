@@ -28,6 +28,7 @@ function configPage(snapshot) {
       <div class="memory-filters">
         <button class="btn primary" id="cfg-export" type="button">导出桌面配置</button>
         <button class="btn" id="cfg-import" type="button">导入桌面配置</button>
+        <button class="btn" id="cfg-export-full" type="button">导出完整数据（人格 + 记忆）</button>
       </div>
       <p class="service-detail">配置文件只包含称呼、路径和启动开关。完整记忆/角色数据请使用「数据备份」。导入会先显示差异，确认后才写入；不会启动或重启服务。</p>
     </section>

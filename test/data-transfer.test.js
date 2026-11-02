@@ -51,3 +51,13 @@ test('data IPC handler module loads with production-relative paths', () => {
 test('component update module loads', () => {
   assert.doesNotThrow(() => require('../src/main/component-update'));
 });
+
+
+test('portable backup export sanitizes tokens/keys', () => {
+  const { sanitize } = require('../src/main/export-backup');
+  const cleaned = sanitize({ ownerQQ: 1, dsh: { authToken: 'secret', model: 'x' }, snowluma: { accessToken: 't' }, roles: ['a'] });
+  assert.equal(cleaned.ownerQQ, 1);
+  assert.equal(cleaned.dsh.authToken, undefined);
+  assert.equal(cleaned.dsh.model, 'x');
+  assert.equal(cleaned.snowluma.accessToken, undefined);
+});

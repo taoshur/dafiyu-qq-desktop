@@ -459,6 +459,31 @@ async function runVerify(dir) {
   }
 }
 
+function exportBackupData(dir) {
+  showModal({
+    title: '导出完整数据包',
+    body: [
+      '将导出这个备份中的：',
+      '· 角色 / 人格设定',
+      '· 记忆数据库 memory.db',
+      '· qqbridge 配置（已移除 token、API Key、密码等敏感字段）',
+      '· state 状态数据',
+      '',
+      '不包含日志、模型和音频。导出包仍包含私人记忆，请不要公开分享。'
+    ].join('\n'),
+    confirmText: '选择保存位置',
+    onConfirm: async () => {
+      try {
+        const result = await api.backupExport(dir);
+        if (result?.cancelled) return;
+        toast(`数据包已导出：${result.path}`);
+      } catch (error) {
+        toast(`导出失败：${error.message}`);
+      }
+    }
+  });
+}
+
 function askRestoreDrill(dir) {
   showModal({
     title: '恢复演练？',
@@ -729,6 +754,29 @@ async function exportDesktopConfig() {
   } catch (error) {
     toast(`导出失败：${error.message}`);
   }
+}
+
+async function exportFullDataPackage() {
+  showModal({
+    title: '导出完整数据（人格 + 记忆）',
+    body: [
+      '将选择最近一次桌面备份并导出为 ZIP。',
+      '包含：角色 / 人格设定、memory.db、脱敏后的 qqbridge 配置、state 状态数据。',
+      '不包含：token、API Key、密码、日志、模型和音频。',
+      '',
+      '导出包仍包含私人记忆，请不要公开分享。'
+    ].join('\n'),
+    confirmText: '选择保存位置',
+    onConfirm: async () => {
+      try {
+        const result = await api.backupExportLatest();
+        if (result?.cancelled) return;
+        toast(`完整数据已导出：${result.path}`);
+      } catch (error) {
+        toast(`导出失败：${error.message}`);
+      }
+    }
+  });
 }
 
 async function importDesktopConfig() {
@@ -1816,6 +1864,7 @@ function bind() {
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
     if (event.target.closest('#cfg-export')) { exportDesktopConfig(); return; }
     if (event.target.closest('#cfg-import')) { importDesktopConfig(); return; }
+    if (event.target.closest('#cfg-export-full')) { exportFullDataPackage(); return; }
     const deadRetry = event.target.closest('[data-memory-dead-retry]');
     if (deadRetry) { askMemoryDeadRetry(deadRetry.dataset.memoryDeadRetry); return; }
     if (event.target.closest('#memory-unlock')) { unlockMemoryReview(); return; }
@@ -1844,6 +1893,11 @@ function bind() {
     }
     if (event.target.closest('#backup-refresh')) {
       refreshBackups();
+      return;
+    }
+    const exportBtn = event.target.closest('[data-export-backup]');
+    if (exportBtn) {
+      exportBackupData(exportBtn.dataset.exportBackup);
       return;
     }
     const verifyBtn = event.target.closest('[data-verify]');
