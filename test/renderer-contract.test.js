@@ -157,3 +157,9 @@ test('SnowLuma differentiated component update is wired', () => {
   assert.ok(backups.includes('component-update-snowluma'));
   assert.ok(backups.includes('snowLumaComponentPanel'));
 });
+
+
+test('light theme recent log preview has readable background', () => {
+  const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');
+  assert.ok(css.includes('html[data-theme="light"] .log-preview'));
+});

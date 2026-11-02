@@ -669,7 +669,13 @@ html[data-theme="light"] .brand-text h1 {
   -webkit-background-clip: text;
   background-clip: text;
 }
+html[data-theme="light"] .log-preview {
+  background: rgba(13, 43, 49, 0.055);
+  border-color: rgba(20, 100, 105, 0.18);
+  color: #23474d;
+}
 html[data-theme="light"] .log-body { color: #23474d; }
+
 html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
 
 @media (prefers-reduced-motion: reduce) {

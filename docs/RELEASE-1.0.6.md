@@ -9,6 +9,10 @@
 - 启动后检查 3000 / 3001
 - 失败自动切回旧 SnowLuma 并重启 qqbridge
 
+## 修复
+
+- 修复浅色主题下“桥接最近日志”深色背景和文字对比度不足的问题
+
 ## 更新范围
 
 ```text
@@ -19,6 +23,6 @@ qqbridge：保留现有安装，不随 SnowLuma 覆盖
 ## 构建
 
 ```text
-size: 123,459,886
-sha256: 0CE16FC86CAC31FEBEC380ACEC1176C2FDCE16DEF66E57CE501915943298BC39
+size: 123,459,980
+sha256: 453C4F017705D70CAA654B98055E6AB3AF0CD398686AE1E650A94C0A64F81EF5
 ```
