@@ -6,6 +6,8 @@ const CHANNELS = Object.freeze([
   'update:check',
   'component:check',
   'component:update',
+  'component:snowluma-check',
+  'component:snowluma-update',
   'update:download',
   'update:status',
   'health:snapshot',

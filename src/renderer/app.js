@@ -44,6 +44,7 @@ const state = {
   bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
   update: { check: null, busy: false, error: null, task: null, timer: null, notifiedVersion: null },
   component: { check: null, busy: false, error: null },
+  snowLumaComponent: { check: null, busy: false, error: null },
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
@@ -1298,6 +1299,52 @@ async function refreshComponent({ silent = false } = {}) {
   }
 }
 
+async function refreshSnowLumaComponent({ silent = false } = {}) {
+  if (state.snowLumaComponent.busy) return;
+  state.snowLumaComponent.busy = true;
+  state.snowLumaComponent.error = null;
+  try {
+    state.snowLumaComponent.check = await api.snowLumaCheck();
+    if (state.page === 'about') render();
+  } catch (error) {
+    state.snowLumaComponent.error = error.message;
+    if (!silent && state.page === 'about') toast(`检查 SnowLuma 更新失败：${error.message}`);
+    if (state.page === 'about') render();
+  } finally {
+    state.snowLumaComponent.busy = false;
+  }
+}
+
+async function updateSnowLumaComponent() {
+  const check = state.snowLumaComponent.check;
+  if (!check?.available) { toast('当前没有可用的 SnowLuma 更新'); return; }
+  showModal({
+    title: `一键更新 SnowLuma ${check.latestVersion}`,
+    body: [
+      `当前版本：${check.currentVersion}`,
+      `目标版本：${check.latestVersion}`,
+      '会先备份旧 SnowLuma 目录，停止 qqbridge 和 SnowLuma，替换运行时，保留 config/data，再启动并检查 3000/3001。',
+      '更新期间 QQ 消息会短暂中断；失败会自动切回旧 SnowLuma。'
+    ].join('\n'),
+    confirmText: '开始更新',
+    onConfirm: async () => {
+      state.snowLumaComponent.busy = true;
+      try {
+        const result = await api.snowLumaUpdate();
+        toast(`SnowLuma 已更新到 ${result.latestVersion}`);
+        state.snowLumaComponent.check = null;
+        await refreshControl();
+        await refreshSnowLumaComponent({ silent: true });
+      } catch (error) {
+        toast(`SnowLuma 更新失败：${error.message}`);
+      } finally {
+        state.snowLumaComponent.busy = false;
+        if (state.page === 'about') render();
+      }
+    }
+  });
+}
+
 async function updateQqbridgeComponent() {
   const check = state.component.check;
   if (!check?.available) { toast('当前没有可用的 qqbridge 更新'); return; }
@@ -1652,6 +1699,8 @@ function bind() {
     if (event.target.closest('#bili-copy-prompt')) { copyBiliPrompt(); return; }
     if (event.target.closest('#update-check')) { refreshUpdate(); return; }
     if (event.target.closest('#component-check-qqbridge')) { refreshComponent(); return; }
+    if (event.target.closest('#component-check-snowluma')) { refreshSnowLumaComponent(); return; }
+    if (event.target.closest('#component-update-snowluma')) { updateSnowLumaComponent(); return; }
     if (event.target.closest('#component-update-qqbridge')) { updateQqbridgeComponent(); return; }
     if (event.target.closest('#update-download')) { downloadUpdate(); return; }
     if (event.target.closest('#update-all')) { updateAllComponents(); return; }
@@ -1899,6 +1948,7 @@ async function boot() {  bind();
   render();
   refreshUpdate({ silent: true }).catch(() => {});
   refreshComponent({ silent: true }).catch(() => {});
+  refreshSnowLumaComponent({ silent: true }).catch(() => {});
   maybeOpenWizard();
   setTimeout(() => {
     if (state.guide.open || state.wizard.open) return;

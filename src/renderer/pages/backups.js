@@ -32,6 +32,26 @@ function backupsPage() {
     </section>`;
 }
 
+function snowLumaComponentPanel() {
+  const c = state.snowLumaComponent || {};
+  const check = c.check;
+  return `
+    <section class="card panel" style="margin-top:16px">
+      <div class="section-title"><h3>SnowLuma 组件更新</h3><span>保留 config / data</span></div>
+      <div class="kv-grid">
+        <div class="kv"><span>当前版本</span><b>${esc(check?.currentVersion || '读取中…')}</b></div>
+        <div class="kv"><span>最新组件</span><b>${esc(check?.latestVersion || '—')}</b></div>
+      </div>
+      ${c.error ? `<div class="notice danger">检查 SnowLuma 更新失败：${esc(c.error)}</div>` : ''}
+      ${check && !check.available ? '<p class="embed-hint">当前没有可用的 SnowLuma 更新。</p>' : ''}
+      ${check?.available ? '<p class="embed-hint">会备份旧目录、停止 qqbridge 与 SnowLuma、替换运行时并保留 config/data；失败自动切回旧版本。</p>' : ''}
+      <div class="backup-toolbar">
+        <button class="btn" id="component-check-snowluma" type="button" ${c.busy ? 'disabled' : ''}>${c.busy ? '检查中…' : '检查 SnowLuma 更新'}</button>
+        ${check?.available ? `<button class="btn primary" id="component-update-snowluma" type="button" ${c.busy ? 'disabled' : ''}>一键更新 SnowLuma</button>` : ''}
+      </div>
+    </section>`;
+}
+
 function componentPanel() {
   const c = state.component || {};
   const check = c.check;

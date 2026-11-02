@@ -9,6 +9,13 @@ function registerComponentHandlers(router, { getSettings, log }) {
     log('component', `qqbridge ${result.currentVersion} -> ${result.latestVersion}`);
     return result;
   });
+  router.handle('component:snowluma-check', async () => componentUpdate.checkSnowLuma(getSettings().snowlumaRoot));
+  router.handle('component:snowluma-update', async () => {
+    const settings = getSettings();
+    const result = await componentUpdate.updateSnowLuma(settings.snowlumaRoot, { repoRoot: settings.repoRoot, log });
+    log('component', `SnowLuma ${result.currentVersion} -> ${result.latestVersion}`);
+    return result;
+  });
 }
 
 module.exports = { registerComponentHandlers };

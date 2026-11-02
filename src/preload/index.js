@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   updateCheck: () => ipcRenderer.invoke('update:check'),
   componentCheck: () => ipcRenderer.invoke('component:check'),
   componentUpdate: () => ipcRenderer.invoke('component:update'),
+  snowLumaCheck: () => ipcRenderer.invoke('component:snowluma-check'),
+  snowLumaUpdate: () => ipcRenderer.invoke('component:snowluma-update'),
   updateDownload: () => ipcRenderer.invoke('update:download'),
   updateStatus: () => ipcRenderer.invoke('update:status'),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', { url }),

@@ -10,6 +10,7 @@ const { tcpProbe } = require('./health');
 const REPO = 'taoshur/dafiyu-qq-desktop';
 const LATEST = `https://api.github.com/repos/${REPO}/releases/latest`;
 const COMPONENT_RE = /^qq-bridge-.*\.zip$/i;
+const SNOWLUMA_RE = /^SnowLuma-v?(\d+\.\d+\.\d+)-win-x64\.zip$/i;
 const PROTECTED = new Set(['config.json', 'config.example.json', 'state', 'roles', 'logs', 'node_modules', 'key.txt', '.env', '.git']);
 
 function getJson(url, timeoutMs = 15000) {
@@ -62,6 +63,7 @@ async function check(repoRoot) {
     asset: {
       name: String(asset.name),
       url: String(asset.browser_download_url),
+      apiUrl: String(asset.url || ''),
       size: Number(asset.size) || 0,
       digest: String(asset.digest || '')
     },
@@ -97,6 +99,32 @@ function download(url, target, redirects = 0) {
     req.on('timeout', () => { req.destroy(); reject(new Error('组件下载超时')); });
     req.on('error', reject);
   });
+}
+
+function downloadWithCurl(url, target) {
+  execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '-C', '-', '--retry', '5', '--retry-delay', '3', '--max-time', '600', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], { windowsHide: true, stdio: 'ignore', timeout: 600000 });
+  const size = fs.statSync(target).size;
+  if (!size) throw new Error('组件下载为空');
+  return { bytes: size };
+}
+
+async function downloadWithRetry(url, target, attempts = 3, apiUrl = '') {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      try { fs.rmSync(target, { force: true }); } catch { /* ignore */ }
+      return await download(url, target);
+    } catch (error) {
+      lastError = error;
+      try {
+        return await downloadWithCurl(apiUrl || url, target);
+      } catch (curlError) {
+        lastError = curlError;
+      }
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+    }
+  }
+  throw lastError || new Error('组件下载失败');
 }
 
 function safeListZip(zipFile) {
@@ -197,7 +225,7 @@ async function update(repoRoot, { log = () => {} } = {}) {
   fs.rmSync(tempRoot, { recursive: true, force: true });
   fs.mkdirSync(extractDir, { recursive: true });
   try {
-    await download(info.asset.url, zipFile);
+    await downloadWithRetry(info.asset.url, zipFile, 3, info.asset.apiUrl);
     const digest = `sha256:${crypto.createHash('sha256').update(fs.readFileSync(zipFile)).digest('hex')}`;
     if (info.asset.digest && info.asset.digest.toLowerCase() !== digest.toLowerCase()) {
       throw new Error('组件校验失败：SHA256 不匹配');
@@ -230,4 +258,139 @@ async function update(repoRoot, { log = () => {} } = {}) {
   }
 }
 
-module.exports = { check, update, bridgePids };
+
+function readSnowLumaVersion(root) {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(root, 'release.json'), 'utf8'));
+    return String(data.version || '0.0.0');
+  } catch {
+    return '0.0.0';
+  }
+}
+
+function selectSnowLumaAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  return assets.find((asset) => SNOWLUMA_RE.test(String(asset.name || '')) && asset.state === 'uploaded') || null;
+}
+
+async function checkSnowLuma(root) {
+  const currentVersion = readSnowLumaVersion(root);
+  const release = await getJson('https://api.github.com/repos/SnowLuma/SnowLuma/releases/latest');
+  const asset = selectSnowLumaAsset(release);
+  if (!asset) {
+    return { ok: true, available: false, currentVersion, latestVersion: currentVersion, reason: '最新 Release 没有 SnowLuma Windows 完整包' };
+  }
+  const latestVersion = String(release.tag_name || '').replace(/^v/i, '');
+  return {
+    ok: true,
+    available: latestVersion !== currentVersion,
+    currentVersion,
+    latestVersion,
+    asset: {
+      name: String(asset.name),
+      url: String(asset.browser_download_url),
+      apiUrl: String(asset.url || ''),
+      size: Number(asset.size) || 0,
+      digest: String(asset.digest || '')
+    },
+    releaseUrl: String(release.html_url || ''),
+    notes: String(release.body || '').slice(0, 4000)
+  };
+}
+
+function snowlumaPids() {
+  const script = `$owners = @(Get-NetTCPConnection -LocalPort 5099 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+foreach ($ownerPid in $owners) {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$ownerPid"
+  if (-not $proc -or $proc.Name -ne 'node.exe') { continue }
+  if ($proc.CommandLine -notlike '*index.mjs*') { continue }
+  $proc.ProcessId
+}`;
+  try {
+    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+    return [...new Set(out.split(/\s+/).map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
+  } catch {
+    return [];
+  }
+}
+
+function stopSnowLuma() {
+  const pids = snowlumaPids();
+  for (const pid of pids) {
+    try { execFileSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, timeout: 15000 }); } catch { /* already gone */ }
+  }
+  return pids;
+}
+
+function startSnowLuma(root) {
+  const node = path.join(root, 'node.exe');
+  const entry = path.join(root, 'index.mjs');
+  if (!fs.existsSync(node) || !fs.existsSync(entry)) throw new Error('SnowLuma 运行时缺少 node.exe 或 index.mjs');
+  const child = spawn(node, [entry], { cwd: root, detached: true, stdio: 'ignore', windowsHide: true });
+  child.unref();
+}
+
+async function waitSnowLuma(timeoutMs = 40000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (await tcpProbe(3000, '127.0.0.1', 700) && await tcpProbe(3001, '127.0.0.1', 700)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+  return false;
+}
+
+async function updateSnowLuma(root, { repoRoot, log = () => {} } = {}) {
+  const info = await checkSnowLuma(root);
+  if (!info.available) return { ok: false, reason: '当前没有可用的 SnowLuma 更新' };
+  if (!fs.existsSync(path.join(root, 'index.mjs'))) throw new Error('SnowLuma 目录无效');
+  const stamp = Date.now();
+  const stage = path.join(path.dirname(root), `SnowLuma-stage-${stamp}`);
+  const old = path.join(path.dirname(root), `SnowLuma-old-${stamp}`);
+  const zipFile = path.join(path.dirname(root), `SnowLuma-update-${stamp}.zip`);
+  fs.rmSync(stage, { recursive: true, force: true });
+  fs.mkdirSync(stage, { recursive: true });
+  try {
+    await downloadWithRetry(info.asset.url, zipFile, 3, info.asset.apiUrl);
+    const digest = `sha256:${crypto.createHash('sha256').update(fs.readFileSync(zipFile)).digest('hex')}`;
+    if (info.asset.digest && info.asset.digest.toLowerCase() !== digest.toLowerCase()) throw new Error('SnowLuma 校验失败：SHA256 不匹配');
+    safeListZip(zipFile);
+    execFileSync('tar.exe', ['-xf', zipFile, '-C', stage], { windowsHide: true, timeout: 60000 });
+    const stoppedBridge = repoRoot ? stopBridge(repoRoot) : [];
+    const stoppedSnow = stopSnowLuma();
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!stoppedSnow.length && await tcpProbe(5099, '127.0.0.1', 700)) throw new Error('无法确认 SnowLuma 进程归属，已取消更新');
+    // Copy user data only after SnowLuma is stopped, so SQLite WAL is stable.
+    for (const name of ['config', 'data']) {
+      const from = path.join(root, name);
+      if (!fs.existsSync(from)) continue;
+      fs.cpSync(from, path.join(stage, name), { recursive: true, force: true });
+    }
+    fs.renameSync(root, old);
+    fs.renameSync(stage, root);
+    startSnowLuma(root);
+    if (!await waitSnowLuma()) throw new Error('SnowLuma 启动后 3000/3001 未就绪');
+    if (repoRoot) startBridge(repoRoot);
+    log('component', `SnowLuma ${info.currentVersion} -> ${info.latestVersion}; bridge stopped=${stoppedBridge.length}`);
+    return { ok: true, currentVersion: info.currentVersion, latestVersion: info.latestVersion, backup: old };
+  } catch (error) {
+    try { stopSnowLuma(); } catch { /* ignore */ }
+    try {
+      if (fs.existsSync(old) && !fs.existsSync(root)) fs.renameSync(old, root);
+      else if (fs.existsSync(old) && fs.existsSync(root)) {
+        const failed = `${root}-failed-${stamp}`;
+        if (fs.existsSync(failed)) fs.rmSync(failed, { recursive: true, force: true });
+        fs.renameSync(root, failed);
+        fs.renameSync(old, root);
+      }
+    } catch { /* ignore */ }
+    try { startSnowLuma(root); } catch { /* ignore */ }
+    if (repoRoot) { try { startBridge(repoRoot); } catch { /* ignore */ } }
+    throw error;
+  } finally {
+    try { fs.rmSync(zipFile, { force: true }); } catch { /* ignore */ }
+    try { if (fs.existsSync(stage)) fs.rmSync(stage, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
+
+module.exports = { check, update, bridgePids, checkSnowLuma, updateSnowLuma };
+
