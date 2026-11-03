@@ -81,7 +81,10 @@ function updatePanel() {
   const current = state.info?.version || '—';
   const latest = check?.latestVersion || '—';
   const available = check?.ok && check.available;
-  const status = !check ? '尚未检查' : available ? '有新版本' : '已是最新';
+  const parse = (v) => String(v || '').replace(/^v/i, '').split(/[.+-]/).map((x) => Number.parseInt(x, 10) || 0);
+  const cmp = (a, b) => { const x = parse(a); const y = parse(b); for (let i = 0; i < 3; i += 1) { if (x[i] !== y[i]) return x[i] > y[i] ? 1 : -1; } return 0; };
+  const localNewer = current !== '—' && latest !== '—' && cmp(current, latest) > 0;
+  const status = !check ? '尚未检查' : available ? '有新版本' : localNewer ? '本地版本较新' : '已是最新';
   return `
     <section class="card panel update-panel" style="margin-top:16px">
       <div class="update-panel-head">
@@ -90,7 +93,7 @@ function updatePanel() {
           <h3>版本与更新</h3>
           <p>从 GitHub Releases 读取，不静默安装。</p>
         </div>
-        <span class="update-status ${available ? 'is-new' : 'is-ok'}">${status}</span>
+        <span class="update-status ${available ? 'is-new' : localNewer ? 'is-local' : 'is-ok'}">${status}</span>
       </div>
       <div class="update-metrics">
         <div><span>当前版本</span><b>v${esc(current)}</b></div>
