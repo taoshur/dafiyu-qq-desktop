@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   diaryList: () => ipcRenderer.invoke('diary:list'),
   diaryGet: (date) => ipcRenderer.invoke('diary:get', { date }),
   diarySetEnabled: (enabled) => ipcRenderer.invoke('diary:set-enabled', { enabled }),
+  memoryAutoReviewGet: () => ipcRenderer.invoke('memory:auto-review-get'),
+  memoryAutoReviewSave: (payload) => ipcRenderer.invoke('memory:auto-review-save', payload),
   embedShow: (service) => ipcRenderer.invoke('embed:show', { service }),
   embedBounds: (rect) => ipcRenderer.invoke('embed:bounds', { rect }),
   embedHide: () => ipcRenderer.invoke('embed:hide'),

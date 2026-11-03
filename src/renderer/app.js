@@ -37,6 +37,7 @@ const state = {
     sort: 'newest',
     selected: null,
     detail: null,
+    autoReview: null,
     busy: false,
     error: null
   },
@@ -1000,6 +1001,32 @@ async function importMaiBotMemory() {
   }
 }
 
+async function refreshAutoReview() {
+  try {
+    state.memory.autoReview = await api.memoryAutoReviewGet();
+  } catch {
+    state.memory.autoReview = null;
+  }
+  if (state.page === 'memory') render();
+}
+
+async function saveAutoReview() {
+  const enabled = Boolean(document.getElementById('auto-review-enabled')?.checked);
+  const minConfidence = Number(document.getElementById('auto-review-min-confidence')?.value) || 0.55;
+  const maxPerDay = Number(document.getElementById('auto-review-max-per-day')?.value) || 0;
+  const kinds = [];
+  if (document.getElementById('auto-review-fact')?.checked) kinds.push('fact');
+  if (document.getElementById('auto-review-event')?.checked) kinds.push('event');
+  try {
+    const result = await api.memoryAutoReviewSave({ enabled, minConfidence, maxPerDay, kinds });
+    state.memory.autoReview = result;
+    toast('自动审核设置已保存；重启 qqbridge 后生效');
+  } catch (error) {
+    toast(`保存自动审核设置失败：${error.message}`);
+  }
+  if (state.page === 'memory') render();
+}
+
 async function refreshMemory(doRender = true) {
   const m = state.memory;
   m.busy = true;
@@ -1352,12 +1379,34 @@ async function copyBiliPrompt() {
   }
 }
 
+function maybeShowUpdateNotice(check) {
+  if (!check?.latestVersion || !check?.notes) return;
+  const key = 'dafiyu.updateNotice.seen';
+  try {
+    if (localStorage.getItem(key) === check.latestVersion) return;
+    localStorage.setItem(key, check.latestVersion);
+  } catch { /* ignore */ }
+  const available = check.available === true;
+  showModal({
+    title: available ? `发现新版本 ${check.latestVersion}` : `更新公告 · ${check.latestVersion}`,
+    body: [
+      available ? `当前版本：${check.currentVersion || '—'}` : `当前版本：${check.currentVersion || check.latestVersion}`,
+      '',
+      String(check.notes || '').slice(0, 3500),
+      '',
+      available ? '可以到「关于」页查看并更新。' : '本次更新已经安装。'
+    ].join('\n'),
+    confirmText: '知道了'
+  });
+}
+
 async function refreshUpdate({ silent = false } = {}) {
   if (state.update.busy) return;
   state.update.busy = true;
   state.update.error = null;
   try {
     state.update.check = await api.updateCheck();
+    maybeShowUpdateNotice(state.update.check);
     if (state.update.check?.available) {
       const latest = state.update.check.latestVersion;
       // Every launch gets one visible reminder for each newly discovered version.
@@ -1741,7 +1790,7 @@ async function openPage(page) {
     try { state.startup = await api.startupInfo(); } catch { state.startup = null; }
     try { state.startupStatus = await api.startupStatus(); } catch { state.startupStatus = null; }
   }
-  if (page === 'memory') await refreshMemory(false);
+  if (page === 'memory') { await refreshMemory(false); await refreshAutoReview(); }
   if (page === 'diary') await refreshDiary(false);
   if (page === 'setup') {
     try { state.setup.status = await api.setupStatus(); } catch (error) { state.setup.status = null; state.setup.error = error.message; }
@@ -1919,6 +1968,7 @@ function bind() {
     if (event.target.closest('#memory-prev')) { state.memory.page = Math.max(1, state.memory.page - 1); refreshMemory(); return; }
     if (event.target.closest('#memory-next')) { state.memory.page += 1; refreshMemory(); return; }
     if (event.target.closest('#memory-refresh')) { refreshMemory(); return; }
+    if (event.target.closest('#auto-review-save')) { saveAutoReview(); return; }
     if (event.target.closest('#memory-apply-filters')) { state.memory.page = 1; refreshMemory(); return; }
     if (event.target.closest('#memory-reset-filters')) {
       state.memory.q = ''; state.memory.dateFrom = ''; state.memory.dateTo = ''; state.memory.status = 'pending';

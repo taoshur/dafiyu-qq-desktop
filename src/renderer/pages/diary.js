@@ -61,7 +61,7 @@ function diaryPage() {
             <b>还没有日记</b>
             <p>等它自己想写，或者在聊天里让它写一篇。</p>
           </div>`}</div>
-        <button class="btn ghost diary-refresh" id="diary-refresh" type="button">刷新</button>
+        ${entries.length ? '<button class="btn ghost diary-refresh" id="diary-refresh" type="button">刷新</button>' : ''}
       </aside>
       <article class="card diary-paper">
         ${detail ? `

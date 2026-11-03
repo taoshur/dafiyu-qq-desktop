@@ -6,12 +6,20 @@ const { unlockProductionReview, reviewProductionCandidate, listAudit } = require
 const { memoryDbPath } = require('../../memory');
 const { previewMaiBotImport, importMaiBot } = require('../../maibot-import');
 const path = require('node:path');
+const memorySettings = require('../../memory-settings');
 
 function memoryMode(payload) {
   return payload?.mode === 'test' ? 'test' : 'prod';
 }
 
 function registerMemoryHandlers(router, { paths, getSettings, log }) {
+  router.handle('memory:auto-review-get', async () => memorySettings.get(getSettings().repoRoot));
+  router.handle('memory:auto-review-save', async (_event, payload) => {
+    const result = memorySettings.save(getSettings().repoRoot, payload);
+    log('memory', `auto-review ${result.enabled ? 'on' : 'off'} min=${result.minConfidence} kinds=${result.kinds.join('+')}`);
+    return { ...result, needsBridgeRestart: true };
+  });
+
   router.handle('memory:status', async (_event, payload) => {
     const settings = getSettings();
     return memoryStatus({ settings, paths, mode: memoryMode(payload) });

@@ -910,8 +910,8 @@ html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
 
 
 /* 日记 */
-.diary-shell { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: stretch; max-width: 1180px; }
-.diary-side { padding: 20px; display: flex; flex-direction: column; min-height: 500px; }
+.diary-shell { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: stretch; width: 100%; max-width: none; min-height: calc(100vh - 205px); }
+.diary-side { padding: 20px; display: flex; flex-direction: column; min-height: 0; }
 .diary-side-head { display: flex; align-items: flex-start; gap: 12px; }
 .diary-kicker { display: block; color: var(--text-faint); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
 .diary-side h3 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
@@ -931,7 +931,7 @@ html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
 .diary-side-empty b { display: block; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
 .diary-side-empty p { margin: 6px 0 0; font-size: 11.5px; line-height: 1.6; }
 .diary-refresh { margin-top: 14px; align-self: flex-start; }
-.diary-paper { padding: 0; min-height: 500px; overflow: hidden; display: flex; flex-direction: column; }
+.diary-paper { padding: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .diary-paper-head { padding: 30px 36px 20px; border-bottom: 1px solid var(--line); }
 .diary-paper-head h2 { margin: 0; font-size: 24px; line-height: 1.35; letter-spacing: -.02em; }
 .diary-moods { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
@@ -941,7 +941,7 @@ html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
 .diary-highlights h4 { margin: 0 0 8px; font-size: 11.5px; color: var(--text-faint); font-weight: 500; letter-spacing: .04em; }
 .diary-highlights ul { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12.5px; line-height: 1.8; }
 .diary-meta { display: flex; gap: 14px; flex-wrap: wrap; padding: 13px 36px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: 10.5px; }
-.diary-empty { flex: 1; min-height: 460px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 30px; }
+.diary-empty { flex: 1; min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 30px; }
 .diary-empty-mark { width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: var(--teal-soft); color: var(--teal); font-size: 22px; margin-bottom: 16px; }
 .diary-empty h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .diary-empty p { margin: 10px 0 20px; color: var(--text-faint); font-size: 12.5px; line-height: 1.8; }
@@ -970,3 +970,15 @@ html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05)
 .switch span::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--text-faint); top: 2px; left: 2px; transition: transform 150ms ease, background 150ms ease; }
 .switch input:checked + span { background: var(--teal-soft); border-color: var(--line-strong); }
 .switch input:checked + span::after { transform: translateX(18px); background: var(--teal); }
+
+
+/* 自动审核设置 */
+.auto-review-grid { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; }
+.auto-review-check { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-dim); padding-bottom: 4px; }
+.auto-review-check input { width: 15px; height: 15px; accent-color: var(--teal); }
+.auto-review-field { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--text-faint); }
+.auto-review-field input { width: 120px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 7px 9px; font-size: 12px; outline: none; }
+.auto-review-field small { font-size: 10px; color: var(--text-faint); }
+.auto-review-kinds { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-faint); padding-bottom: 6px; }
+.auto-review-kinds label { display: inline-flex; align-items: center; gap: 5px; color: var(--text-dim); font-size: 12px; }
+.auto-review-kinds input { accent-color: var(--teal); }

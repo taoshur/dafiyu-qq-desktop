@@ -166,6 +166,38 @@ function memoryPage() {
         <div class="stat"><span>自动表达调整</span><b class="${status.growth?.autoApplyExpression ? 'warn' : 'ok'}">${status.growth?.autoApplyExpression ? '允许小步自动' : '仅候选'}</b><small>与事实提取 observeOnly 是两个独立开关</small></div>
       </div>
     </section>
+    <section class="card panel" style="margin-top:14px">
+      <div class="section-title"><h3>自动审核设置</h3><span>修改后重启 qqbridge 生效</span></div>
+      ${(() => {
+        const a = m.autoReview || { enabled: false, minConfidence: 0.55, maxPerDay: 0, kinds: ['fact', 'event'] };
+        const kinds = Array.isArray(a.kinds) ? a.kinds : [];
+        return `
+          <div class="auto-review-grid">
+            <label class="auto-review-check">
+              <input id="auto-review-enabled" type="checkbox" ${a.enabled ? 'checked' : ''}>
+              <span>开启自动审核</span>
+            </label>
+            <label class="auto-review-field">
+              <span>可信度阈值</span>
+              <input id="auto-review-min-confidence" type="number" min="0.05" max="1" step="0.05" value="${esc(a.minConfidence)}">
+            </label>
+            <label class="auto-review-field">
+              <span>每日上限</span>
+              <input id="auto-review-max-per-day" type="number" min="0" step="1" value="${esc(a.maxPerDay)}">
+              <small>0 = 不限</small>
+            </label>
+            <div class="auto-review-kinds">
+              <span>审核类型</span>
+              <label><input id="auto-review-fact" type="checkbox" ${kinds.includes('fact') ? 'checked' : ''}> 事实</label>
+              <label><input id="auto-review-event" type="checkbox" ${kinds.includes('event') ? 'checked' : ''}> 事件</label>
+            </div>
+          </div>
+          <div class="backup-toolbar" style="margin-bottom:0">
+            <button class="btn primary" id="auto-review-save" type="button">保存自动审核设置</button>
+            <span class="backup-hint">只自动采纳质量通过、来源存在、超过阈值的候选；敏感内容仍人工。</span>
+          </div>`;
+      })()}
+    </section>
     <div class="notice" style="margin-top:12px">数据库位置：${esc(status.dbPath)} ${status.error ? ` · 读取错误：${esc(status.error)}` : ''}</div>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>查找记忆</h3><span>当前查看：${sourceLabel}</span></div>
