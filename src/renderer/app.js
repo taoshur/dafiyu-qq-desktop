@@ -317,9 +317,6 @@ function render() {
   else html = aboutPage();
 
   const pageChanged = state.lastRenderedPage !== state.page;
-  if (state.update.check?.available && state.page !== 'about') {
-    html = `<div class="notice">发现新版本 <b>${esc(state.update.check.latestVersion)}</b>，可以到「关于」页检查并更新。<button class="btn" id="update-go-about" type="button" style="margin-left:10px">查看更新</button></div>${html}`;
-  }
   const preserved = captureViewState();
   view.innerHTML = html;
   layoutMemorySplit();
@@ -1390,7 +1387,6 @@ async function refreshUpdate({ silent = false } = {}) {
       // Every launch gets one visible reminder for each newly discovered version.
       if (state.update.notifiedVersion !== latest) {
         state.update.notifiedVersion = latest;
-        if (silent) toast(`发现新版本 ${latest}，可在「关于」页更新`);
         if (state.page !== 'about') render();
       }
     }
@@ -1826,7 +1822,6 @@ function bind() {
     if (event.target.closest('#update-download')) { downloadUpdate(); return; }
     if (event.target.closest('#update-all')) { updateAllComponents(); return; }
     if (event.target.closest('#update-release')) { openReleasePage(); return; }
-    if (event.target.closest('#update-go-about')) { openPage('about'); return; }
     if (event.target.closest('#overview-next')) { openPage('services'); return; }
     if (event.target.closest('#overview-guide')) { startGuide(); return; }
     const openPageBtn = event.target.closest('[data-open-page]');
