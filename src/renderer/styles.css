@@ -961,3 +961,12 @@ html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05)
 .diary-toggle .switch span { width: 42px; height: 24px; }
 .diary-toggle .switch span::after { width: 18px; height: 18px; }
 .diary-toggle .switch input:checked + span::after { transform: translateX(18px); }
+
+
+/* 通用开关 */
+.switch { display: inline-flex; align-items: center; cursor: pointer; position: relative; }
+.switch input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; appearance: none; }
+.switch span { display: inline-block; width: 42px; height: 24px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid var(--line); position: relative; transition: background 150ms ease, border-color 150ms ease; }
+.switch span::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--text-faint); top: 2px; left: 2px; transition: transform 150ms ease, background 150ms ease; }
+.switch input:checked + span { background: var(--teal-soft); border-color: var(--line-strong); }
+.switch input:checked + span::after { transform: translateX(18px); background: var(--teal); }
