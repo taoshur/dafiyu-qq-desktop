@@ -172,36 +172,49 @@ function memoryPage() {
         const a = m.autoReview || { enabled: false, minConfidence: 0.55, maxPerDay: 0, kinds: ['fact', 'event'] };
         const kinds = Array.isArray(a.kinds) ? a.kinds : [];
         return `
-          <div class="auto-review-toggle-row">
-            <label class="auto-review-switch">
+          <div class="auto-review-bar">
+            <div class="auto-review-bar-copy">
+              <div class="auto-review-title-line">
+                <b>自动审核</b>
+                <span class="auto-review-state ${a.enabled ? 'on' : 'off'}">${a.enabled ? '已开启' : '已关闭'}</span>
+              </div>
+              <small>${a.enabled ? '符合条件的候选会自动采纳，其余继续待确认。' : '关闭后所有候选都进入待确认。'}</small>
+            </div>
+            <label class="auto-review-switch" aria-label="开启自动审核">
               <input id="auto-review-enabled" type="checkbox" ${a.enabled ? 'checked' : ''}>
               <span class="auto-review-switch-track"><span></span></span>
-              <span class="auto-review-switch-copy"><b>开启自动审核</b><small>${a.enabled ? '符合条件的候选会自动采纳' : '关闭后所有候选都进入待确认'}</small></span>
             </label>
           </div>
-          <div class="auto-review-fields">
-            <label class="auto-review-field">
-              <span>可信度阈值</span>
-              <input id="auto-review-min-confidence" type="number" min="0.05" max="1" step="0.05" value="${esc(a.minConfidence)}">
+          <div class="auto-review-grid2">
+            <label class="auto-card">
+              <span class="auto-card-label">可信度阈值</span>
+              <div class="auto-input-wrap">
+                <input id="auto-review-min-confidence" type="number" min="0.05" max="1" step="0.05" value="${esc(a.minConfidence)}">
+                <span>0.05 ~ 1</span>
+              </div>
               <small>越高越保守，当前 ${esc(a.minConfidence)}</small>
             </label>
-            <label class="auto-review-field">
-              <span>每日上限</span>
-              <input id="auto-review-max-per-day" type="number" min="0" step="1" value="${esc(a.maxPerDay)}">
+            <label class="auto-card">
+              <span class="auto-card-label">每日上限</span>
+              <div class="auto-input-wrap">
+                <input id="auto-review-max-per-day" type="number" min="0" step="1" value="${esc(a.maxPerDay)}">
+                <span>条 / 天</span>
+              </div>
               <small>0 表示不限制数量</small>
             </label>
-            <div class="auto-review-kinds">
-              <span>审核类型</span>
-              <div class="auto-review-kind-row">
-                <label class="auto-review-kind"><input id="auto-review-fact" type="checkbox" ${kinds.includes('fact') ? 'checked' : ''}> <b>事实</b><small>偏好、计划、关系</small></label>
-                <label class="auto-review-kind"><input id="auto-review-event" type="checkbox" ${kinds.includes('event') ? 'checked' : ''}> <b>事件</b><small>当天发生的事</small></label>
+            <div class="auto-card">
+              <span class="auto-card-label">审核类型</span>
+              <div class="auto-kind-list">
+                <label class="auto-kind"><input id="auto-review-fact" type="checkbox" ${kinds.includes('fact') ? 'checked' : ''}> <span>事实</span><small>偏好、计划、关系</small></label>
+                <label class="auto-kind"><input id="auto-review-event" type="checkbox" ${kinds.includes('event') ? 'checked' : ''}> <span>事件</span><small>当天发生的事</small></label>
               </div>
             </div>
           </div>
           <div class="auto-review-footer">
-            <button class="btn primary" id="auto-review-save" type="button">保存自动审核设置</button>
+            <button class="btn primary" id="auto-review-save" type="button">保存设置</button>
             <span class="backup-hint">只自动采纳质量通过、来源存在、超过阈值的候选；敏感内容仍人工。</span>
           </div>`;
+
 
       })()}
     </section>
