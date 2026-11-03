@@ -78,24 +78,36 @@ function updatePanel() {
   const check = u.check;
   const task = u.task;
   const downloading = task && !['completed', 'failed', 'cancelled'].includes(task.status);
+  const current = state.info?.version || '—';
+  const latest = check?.latestVersion || '—';
+  const available = check?.ok && check.available;
+  const status = !check ? '尚未检查' : available ? '有新版本' : '已是最新';
   return `
-    <section class="card panel" style="margin-top:16px">
-      <div class="section-title"><h3>检查更新</h3><span>从 GitHub Releases 读取，不自动安装</span></div>
-      <div class="kv-grid">
-        <div class="kv"><span>当前版本</span><b>${esc(state.info?.version || '—')}</b></div>
-        <div class="kv"><span>最新版本</span><b>${esc(check?.latestVersion || '—')}</b></div>
+    <section class="card panel update-panel" style="margin-top:16px">
+      <div class="update-panel-head">
+        <div>
+          <span class="update-kicker">VERSION & UPDATES</span>
+          <h3>版本与更新</h3>
+          <p>从 GitHub Releases 读取，不静默安装。</p>
+        </div>
+        <span class="update-status ${available ? 'is-new' : 'is-ok'}">${status}</span>
+      </div>
+      <div class="update-metrics">
+        <div><span>当前版本</span><b>v${esc(current)}</b></div>
+        <div><span>最新版本</span><b>v${esc(latest)}</b></div>
+        <div><span>发布渠道</span><b>GitHub Releases</b></div>
       </div>
       ${u.error ? `<div class="notice danger">检查更新失败：${esc(u.error)}</div>` : ''}
       ${check && !check.ok ? `<div class="notice danger">${esc(check.error || '无法获取最新版本')}</div>` : ''}
-      ${check?.ok && check.available ? `<div class="notice">发现新版本 <b>${esc(check.latestVersion)}</b>。安装包来自 GitHub Release，会先校验 SHA256，再打开安装程序。</div>` : ''}
-      ${check?.ok && !check.available ? '<p class="embed-hint">当前已经是最新版本。</p>' : ''}
+      ${available ? `<div class="notice">发现新版本 <b>${esc(check.latestVersion)}</b>。安装包来自 GitHub Release，会先校验 SHA256，再打开安装程序。</div>` : ''}
+      ${check?.notes ? `<div class="update-notes-panel">${releaseNotesHtml(check.notes, { sections: 3, items: 6 })}</div>` : ''}
       ${downloading ? `${progressBar(task.percent || 0)}<p class="embed-hint">正在下载 ${esc(task.latestVersion || '')} · ${task.percent == null ? '—' : `${task.percent}%`} · ${fmtSize(task.received)} / ${fmtSize(task.total)}</p>` : ''}
       ${task?.status === 'failed' ? `<div class="notice danger">更新下载失败：${esc(task.error || '未知错误')}</div>` : ''}
       ${task?.status === 'cancelled' ? '<div class="notice">更新下载已取消。</div>' : ''}
       <div class="backup-toolbar">
-        <button class="btn ${check?.available ? '' : 'primary'}" id="update-check" type="button" ${u.busy || downloading ? 'disabled' : ''}>${u.busy ? '检查中…' : '检查更新'}</button>
-        ${check?.available && state.component?.check?.available ? `<button class="btn primary" id="update-all" type="button" ${u.busy || state.component?.busy || downloading ? 'disabled' : ''}>全部更新（管理器 + qqbridge）</button>` : ''}
-        ${check?.available ? `<button class="btn primary" id="update-download" type="button" ${downloading ? 'disabled' : ''}>下载并打开安装包</button>` : ''}
+        <button class="btn ${available ? '' : 'primary'}" id="update-check" type="button" ${u.busy || downloading ? 'disabled' : ''}>${u.busy ? '检查中…' : '检查更新'}</button>
+        ${available && state.component?.check?.available ? `<button class="btn primary" id="update-all" type="button" ${u.busy || state.component?.busy || downloading ? 'disabled' : ''}>全部更新（管理器 + qqbridge）</button>` : ''}
+        ${available ? `<button class="btn primary" id="update-download" type="button" ${downloading ? 'disabled' : ''}>下载并打开安装包</button>` : ''}
         ${check?.releaseUrl ? `<button class="btn ghost" id="update-release" type="button">打开发布页</button>` : ''}
       </div>
       <p class="embed-hint">不静默安装、不替换正在运行的程序；安装完成后需要你手动重启控制中心。</p>
