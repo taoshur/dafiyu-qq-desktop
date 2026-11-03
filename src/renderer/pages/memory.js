@@ -57,7 +57,8 @@ function memoryPage() {
   const reviewDisabled = !(modeTest || (m.mode === 'prod' && m.reviewUnlocked)) || !m.selected;
   const table = rows.map((item) => {
     const id = Number(item.id);
-    const kind = item.kind || item.type;
+    const recordKind = item.type === 'fact' || item.type === 'event' ? item.type : (item.kind || item.type);
+    const kind = recordKind;
     const subject = item.subject_name || maskQq(item.subject_qq) || '—';
     const title = item.summary || item.value || item.attr || '（无标题）';
     const detail = item.detail ? ` · ${String(item.detail).slice(0, 60)}` : '';
@@ -71,7 +72,7 @@ function memoryPage() {
       item.quality ? `<span class="meta-pill">${esc(memoryQualityLabel(item.quality))}</span>` : '',
       item.lifecycle_state ? `<span class="meta-pill">${item.lifecycle_state === 'archived' ? '已归档' : item.lifecycle_state === 'dormant' ? '休眠' : '活跃'}</span>` : ''
     ].filter(Boolean).join(' ');
-    return `<tr class="memory-row ${Number(m.selected) === id ? 'is-selected' : ''}" data-memory-id="${id}" data-memory-kind="${esc(kind)}">
+    return `<tr class="memory-row ${Number(m.selected) === id ? 'is-selected' : ''}" data-memory-id="${id}" data-memory-kind="${esc(recordKind)}">
       <td><span class="tag">${esc(memoryKindLabel(kind))}</span></td>
       <td><b>${esc(title)}</b><span class="memory-detail">${esc(detail)}</span></td>
       <td>${esc(subject)}</td>
@@ -85,7 +86,7 @@ function memoryPage() {
   const evidence = m.detail?.evidence || [];
   const detailHtml = !selected ? '<div class="log-empty" style="padding:20px">选择一条记忆查看来源与证据</div>' : `
     <div class="memory-detail-head">
-      <span class="tag">${esc(memoryKindLabel(selected.kind))}</span>
+      <span class="tag">${esc(memoryKindLabel(selected.type === 'fact' || selected.type === 'event' ? selected.type : selected.kind))}</span>
       <b>${esc(selected.summary || selected.value || selected.attr || `候选 #${selected.id}`)}</b>
       <span class="meta-pill">${esc(memoryStatusLabel(selected.status))}</span>
     </div>
