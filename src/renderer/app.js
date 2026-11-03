@@ -40,6 +40,7 @@ const state = {
     busy: false,
     error: null
   },
+  diary: { enabled: null, entries: [], date: '', detail: null, busy: false, error: null },
   memoryOverview: null,
   bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
   update: { check: null, busy: false, error: null, task: null, timer: null, notifiedVersion: null },
@@ -57,6 +58,7 @@ const state = {
 };
 
 const PAGE_META = {
+  diary: ['日记', '大肥鱼自己决定什么时候写；没有定时任务'],
   overview: ['总览', '三件套的健康状态一眼看清'],
   services: ['服务', '按依赖顺序启动，只停止由本软件启动的服务'],
   embed: ['服务网页', '内嵌本机 WebUI；页面权限与原服务一致'],
@@ -309,6 +311,7 @@ function render() {
   else if (state.page === 'env') html = envPage(snapshot);
   else if (state.page === 'config') html = configPage(snapshot);
   else if (state.page === 'memory') html = memoryPage();
+  else if (state.page === 'diary') html = diaryPage();
   else if (state.page === 'backups') html = backupsPage();
   else html = aboutPage();
 
@@ -413,6 +416,48 @@ async function loadLogs(force = true) {
     const body = $('log-body');
     if (body) body.innerHTML = `<span class="log-empty">读取失败：${esc(error.message)}</span>`;
   }
+}
+
+async function refreshDiary(doRender = true) {
+  if (state.diary.busy) return;
+  state.diary.busy = true;
+  state.diary.error = null;
+  try {
+    const result = await api.diaryList();
+    state.diary.enabled = result?.enabled === true;
+    state.diary.entries = Array.isArray(result?.entries) ? result.entries : [];
+    if (!state.diary.entries.some((x) => x.date === state.diary.date)) {
+      state.diary.date = state.diary.entries[0]?.date || '';
+    }
+    if (state.diary.date) state.diary.detail = await api.diaryGet(state.diary.date);
+    else state.diary.detail = null;
+  } catch (error) {
+    state.diary.error = error.message;
+  } finally {
+    state.diary.busy = false;
+    if (doRender && state.page === 'diary') render();
+  }
+}
+
+async function selectDiaryDate(date) {
+  state.diary.date = String(date || '');
+  try {
+    state.diary.detail = state.diary.date ? await api.diaryGet(state.diary.date) : null;
+  } catch (error) {
+    toast(`读取日记失败：${error.message}`);
+  }
+  if (state.page === 'diary') render();
+}
+
+async function setDiaryEnabled(enabled) {
+  try {
+    const result = await api.diarySetEnabled(enabled === true);
+    state.diary.enabled = result?.enabled === true;
+    toast(result?.enabled ? '已允许大肥鱼自己写日记；重启 qqbridge 后生效' : '已关闭日记工具；重启 qqbridge 后生效');
+  } catch (error) {
+    toast(`修改日记开关失败：${error.message}`);
+  }
+  if (state.page === 'diary') render();
 }
 
 async function refreshBackups(doRender = true) {
@@ -1697,6 +1742,7 @@ async function openPage(page) {
     try { state.startupStatus = await api.startupStatus(); } catch { state.startupStatus = null; }
   }
   if (page === 'memory') await refreshMemory(false);
+  if (page === 'diary') await refreshDiary(false);
   if (page === 'setup') {
     try { state.setup.status = await api.setupStatus(); } catch (error) { state.setup.status = null; state.setup.error = error.message; }
   }
@@ -1887,6 +1933,9 @@ function bind() {
       loadMemoryDetail(memoryRow.dataset.memoryId, memoryRow.dataset.memoryKind || '');
       return;
     }
+    const diaryDate = event.target.closest('[data-diary-date]');
+    if (diaryDate) { selectDiaryDate(diaryDate.dataset.diaryDate); return; }
+    if (event.target.closest('#diary-refresh')) { refreshDiary(); return; }
     if (event.target.closest('#backup-create')) {
       runBackup();
       return;
@@ -1955,6 +2004,7 @@ function bind() {
   });
 
   document.addEventListener('change', (event) => {
+    if (event.target.id === 'diary-enabled-toggle') { setDiaryEnabled(event.target.checked); return; }
     if (event.target.id === 'log-lines') {
       state.logs.lines = Number(event.target.value);
       loadLogs();

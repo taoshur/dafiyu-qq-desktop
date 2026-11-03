@@ -905,3 +905,27 @@ html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
   outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
+
+
+/* 日记 */
+.diary-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; align-items: start; }
+.diary-list { min-height: 360px; }
+.diary-toggle-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.diary-toggle-row b { font-size: 12.5px; }
+.diary-toggle-row p { margin: 4px 0 0; font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+.diary-toggle-row .switch { margin-left: auto; flex: 0 0 auto; }
+.diary-dates { display: flex; flex-direction: column; gap: 6px; max-height: 520px; overflow: auto; }
+.diary-date { text-align: left; border: 1px solid transparent; background: transparent; color: var(--text-dim); border-radius: 10px; padding: 9px 10px; cursor: pointer; }
+.diary-date:hover { background: rgba(255,255,255,.04); }
+.diary-date.is-active { background: var(--teal-soft); border-color: var(--line-strong); color: var(--text); }
+.diary-date-main { display: block; font-family: var(--mono); font-size: 12px; }
+.diary-date-sub { display: block; margin-top: 3px; font-size: 10.5px; color: var(--text-faint); }
+.diary-detail { min-height: 360px; }
+.diary-moods { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 4px; }
+.diary-body { margin-top: 12px; color: var(--text-dim); line-height: 1.85; font-size: 13px; }
+.diary-body p { margin: 0 0 10px; white-space: pre-wrap; }
+.diary-highlights { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.diary-highlights h4 { margin: 0 0 7px; font-size: 12.5px; color: var(--text-faint); font-weight: 500; }
+.diary-highlights ul { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12.5px; line-height: 1.7; }
+.diary-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: 11px; }
+@media (max-width: 900px) { .diary-layout { grid-template-columns: 1fr; } }

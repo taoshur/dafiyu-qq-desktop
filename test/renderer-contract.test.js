@@ -163,3 +163,11 @@ test('light theme recent log preview has readable background', () => {
   const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');
   assert.ok(css.includes('html[data-theme="light"] .log-preview'));
 });
+
+
+test('diary page and manager toggle are wired', () => {
+  const diary = fs.readFileSync(path.join(renderer, 'pages', 'diary.js'), 'utf8');
+  assert.ok(diary.includes('diary-enabled-toggle'));
+  assert.ok(app.includes('refreshDiary'));
+  assert.ok(app.includes('diarySetEnabled'));
+});
