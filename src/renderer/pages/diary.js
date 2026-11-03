@@ -43,8 +43,14 @@ function diaryPage() {
             <span class="diary-kicker">私人日记</span>
             <h3>日记 <small>${entries.length} 篇</small></h3>
           </div>
-          <label class="switch" title="允许大肥鱼自己写日记">
-            <input id="diary-enabled-toggle" type="checkbox" ${d.enabled ? 'checked' : ''}>
+        </div>
+        <div class="diary-toggle">
+          <div class="diary-toggle-copy">
+            <b>允许大肥鱼自己写日记</b>
+            <span class="diary-toggle-state ${d.enabled ? 'on' : 'off'}">${d.enabled ? '已开启' : '已关闭'}</span>
+          </div>
+          <label class="switch" title="${d.enabled ? '关闭日记' : '开启日记'}">
+            <input id="diary-enabled-toggle" type="checkbox" ${d.enabled ? 'checked' : ''} aria-label="允许大肥鱼自己写日记">
             <span></span>
           </label>
         </div>

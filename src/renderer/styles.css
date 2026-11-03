@@ -948,3 +948,16 @@ html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
 html[data-theme="light"] .diary-empty-mark { background: rgba(20, 150, 140, .1); }
 html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05); }
 @media (max-width: 900px) { .diary-shell { grid-template-columns: 1fr; } .diary-side { min-height: auto; } .diary-paper { min-height: 380px; } .diary-empty { min-height: 300px; } }
+
+
+.diary-toggle { display: flex; align-items: center; gap: 10px; padding: 11px 12px; margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+.diary-toggle-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.diary-toggle-copy b { font-size: 12px; font-weight: 500; color: var(--text-dim); }
+.diary-toggle-state { font-size: 10.5px; color: var(--text-faint); }
+.diary-toggle-state.on { color: var(--teal); }
+.diary-toggle-state.off { color: var(--text-faint); }
+.diary-toggle .switch { margin-left: auto; flex: 0 0 auto; }
+.diary-toggle .switch input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; appearance: none; }
+.diary-toggle .switch span { width: 42px; height: 24px; }
+.diary-toggle .switch span::after { width: 18px; height: 18px; }
+.diary-toggle .switch input:checked + span::after { transform: translateX(18px); }
