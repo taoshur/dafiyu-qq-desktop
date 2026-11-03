@@ -107,14 +107,16 @@ function memoryPage() {
     ${selected.detail ? `<p class="service-detail">${esc(selected.detail)}</p>` : ''}
     ${m.detail?.source ? `<p class="service-detail">来源：${esc(m.detail.source.type || '—')} · ${esc(m.detail.source.conv || '—')} · ${esc(m.detail.source.key || '—')}</p>` : ''}
     ${m.audit?.length ? `<div class="section-title" style="margin-top:14px"><h3>审核记录</h3><span>本地审计，不保存聊天原文</span></div><div class="memory-audit">${m.audit.map((a) => `<div class="memory-evidence"><span class="meta-pill">${esc(a.action)}</span><span class="meta-pill">${esc(a.actor || '—')}</span><span class="meta-pill">${fmtTime(a.at)}</span><span class="meta-pill">${esc(a.trace_id || '—')}</span><p>${esc(a.status_before || '—')} → ${esc(a.status_after || '—')}${a.reason ? ` · ${esc(a.reason)}` : ''}${a.source_trace ? ` · 来源 ${esc(a.source_trace)}` : ''}</p></div>`).join('')}</div>` : ''}
-    <div class="section-title" style="margin-top:14px"><h3>来源消息</h3><span>仅在本机显示，不导出</span></div>
-    ${evidence.length ? evidence.map((msg) => `
-      <div class="memory-evidence">
-        <span class="meta-pill">${msg.is_self ? '大肥鱼' : msg.is_owner ? '你' : '其他人'}</span>
-        <span class="meta-pill">${esc(msg.sender_name || maskQq(msg.sender_qq) || '—')}</span>
-        <span class="meta-pill">${fmtTime(msg.sent_at)}</span>
-        <p>${esc(msg.text || msg.media_note || '（无文本）')}</p>
-      </div>`).join('') : '<div class="log-empty" style="padding:12px">这条记忆找不到原始消息（可能来自旧数据或已清理的消息）</div>'}
+    <div class="section-title" style="margin-top:14px"><h3>来源消息</h3><span>${evidence.length ? `${evidence.length} 条 · 仅在本机显示` : '仅在本机显示，不导出'}</span></div>
+    <div class="memory-source-scroll">
+      ${evidence.length ? evidence.map((msg) => `
+        <div class="memory-evidence">
+          <span class="meta-pill">${msg.is_self ? '大肥鱼' : msg.is_owner ? '你' : '其他人'}</span>
+          <span class="meta-pill">${esc(msg.sender_name || maskQq(msg.sender_qq) || '—')}</span>
+          <span class="meta-pill">${fmtTime(msg.sent_at)}</span>
+          <p>${esc(msg.text || msg.media_note || '（无文本）')}</p>
+        </div>`).join('') : '<div class="log-empty" style="padding:12px">这条记忆找不到原始消息（可能来自旧数据或已清理的消息）</div>'}
+    </div>
     ${reviewDisabled ? '<div class="notice" style="margin-top:14px">真实记忆只能看；要审核请先解锁生产审核，或切换到「练习副本」。</div>' : `<div class="flow-actions" style="margin-top:14px">
       ${selected.status === 'pending' ? `<button class="btn primary" data-memory-review="apply" data-memory-id="${selected.id}" type="button">${modeTest ? '确认并写入练习副本' : '批准写入生产记忆'}</button>
       ${modeTest ? '' : `<button class="btn" data-memory-edit="${selected.id}" type="button">编辑</button>`}
