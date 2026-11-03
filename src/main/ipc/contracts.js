@@ -45,6 +45,7 @@ const CHANNELS = Object.freeze([
   'diary:list',
   'diary:get',
   'diary:set-enabled',
+  'memory:source',
   'memory:auto-review-get',
   'memory:auto-review-save',
   'startup:status',

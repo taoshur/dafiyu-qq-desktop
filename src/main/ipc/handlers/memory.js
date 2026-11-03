@@ -1,6 +1,7 @@
 'use strict';
 
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
+const { getMemorySource } = require('../../memory');
 const { listDeadLetters, retryDeadLetter } = require('../../memory');
 const { unlockProductionReview, reviewProductionCandidate, listAudit } = require('../../memory-review');
 const { memoryDbPath } = require('../../memory');
@@ -46,6 +47,11 @@ function registerMemoryHandlers(router, { paths, getSettings, log }) {
     const settings = getSettings();
     return getCandidate({ settings, paths, mode: memoryMode(payload), id: Number(payload?.id) || 0 });
   });
+
+  router.handle('memory:source', async (_event, payload) => getMemorySource({
+    settings: getSettings(), paths, mode: memoryMode(payload),
+    type: payload?.type === 'event' ? 'event' : 'fact', id: Number(payload?.id) || 0
+  }));
 
   router.handle('memory:test-init', async (_event, payload) => {
     if (payload?.confirm !== true) throw new Error('初始化隔离测试库需要确认');

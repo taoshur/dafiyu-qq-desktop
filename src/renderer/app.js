@@ -1054,7 +1054,13 @@ async function loadMemoryDetail(id, kind = '') {
   // Candidate rows also carry kind=fact/event. Only the real facts/events tabs
   // may use the list row shortcut; candidates must fetch their evidence batch.
   if ((kind === 'fact' || kind === 'event') && row?.type !== 'candidate') {
-    m.detail = { candidate: row || null, evidence: [] };
+    m.audit = [];
+    try {
+      const source = await api.memorySource({ mode: m.mode, type: kind, id: Number(id) });
+      m.detail = { candidate: row || null, evidence: source?.evidence || [], source: source?.source || null };
+    } catch {
+      m.detail = { candidate: row || null, evidence: [], source: null };
+    }
     if (state.page === 'memory') render();
     return;
   }

@@ -269,6 +269,52 @@ async function reviewCandidate({ settings, paths, id, action = 'apply', reason =
   }
 }
 
+function getMemorySource({ settings, paths, mode = 'prod', type = 'fact', id }) {
+  const file = mode === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
+  if (!fs.existsSync(file)) return { exists: false, source: null, evidence: [] };
+  const db = openReadonly(file);
+  try {
+    const table = type === 'event' ? 'events' : 'facts';
+    const cols = tableColumns(db, table);
+    const row = db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(Number(id));
+    if (!row) return { exists: true, source: null, evidence: [] };
+    const batchKeys = new Set();
+    if (row.batch_key) batchKeys.add(String(row.batch_key));
+    if (row.source_key && /^cand:/.test(String(row.source_key)) && tableColumns(db, 'memory_candidates').has('batch_key')) {
+      const cand = db.prepare('SELECT batch_key FROM memory_candidates WHERE id=?').get(Number(String(row.source_key).slice(5)));
+      if (cand?.batch_key) batchKeys.add(String(cand.batch_key));
+    }
+    let evidence = [];
+    for (const batchKey of batchKeys) {
+      evidence = db.prepare(`SELECT id, seq, sender_qq, sender_name, text, media_note, sent_at, is_self, is_owner
+        FROM messages WHERE batch_key=? ORDER BY id LIMIT 30`).all(batchKey);
+      if (evidence.length) break;
+    }
+    if (!evidence.length && row.source_msg_id != null) {
+      evidence = db.prepare(`SELECT id, seq, sender_qq, sender_name, text, media_note, sent_at, is_self, is_owner
+        FROM messages WHERE id=? LIMIT 1`).all(Number(row.source_msg_id));
+    }
+    if (!evidence.length && row.source_conv) {
+      const at = Number(row.happened_at || row.created_at || Date.now());
+      evidence = db.prepare(`SELECT id, seq, sender_qq, sender_name, text, media_note, sent_at, is_self, is_owner
+        FROM messages WHERE conv_key=? AND sent_at<=? ORDER BY sent_at DESC LIMIT 20`).all(String(row.source_conv), at).reverse();
+    }
+    return {
+      exists: true,
+      source: {
+        type: String(row.source_type || ''),
+        key: String(row.source_key || ''),
+        conv: String(row.source_conv || ''),
+        msgId: row.source_msg_id ?? null,
+        batchKey: [...batchKeys][0] || ''
+      },
+      evidence
+    };
+  } finally {
+    try { db.close(); } catch { /* ignore */ }
+  }
+}
+
 function memoryFile({ settings, paths, mode }) {
   return mode === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
 }
@@ -323,6 +369,7 @@ module.exports = {
   memoryStatus,
   listMemory,
   getCandidate,
+  getMemorySource,
   initTestDb,
   reviewCandidate,
   listDeadLetters,
