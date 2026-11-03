@@ -1929,6 +1929,16 @@ function bind() {
     }
     if (event.target.closest('#memory-init-test')) { initMemoryTest(); return; }
     if (event.target.closest('#memory-maibot-import')) { importMaiBotMemory(); return; }
+    const themeChoice = event.target.closest('[data-theme-choice]');
+    if (themeChoice) {
+      const theme = themeChoice.dataset.themeChoice;
+      const input = document.getElementById('cfg-theme');
+      if (input) input.value = theme;
+      for (const el of document.querySelectorAll('[data-theme-choice]')) el.classList.toggle('is-active', el === themeChoice);
+      applyTheme(theme);
+      return;
+    }
+    if (event.target.closest('#cfg-save-theme')) { saveDesktopPaths(); return; }
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
     if (event.target.closest('#cfg-export')) { exportDesktopConfig(); return; }
     if (event.target.closest('#cfg-import')) { importDesktopConfig(); return; }

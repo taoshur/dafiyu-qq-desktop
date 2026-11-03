@@ -4,8 +4,31 @@ function configPage(snapshot) {
   const flags = cfg.flags || {};
   const paths = cfg.paths || {};
   const yes = (value) => (value ? '是' : '否');
+  const theme = state.settings?.theme || 'dark';
   return `
     <div class="notice">这里可以修改桌面自身的称呼和路径；不会显示令牌/凭据，也不会直接改写 qq-bridge 的项目 config.json。</div>
+    <section class="card panel appearance-card" style="margin-top:14px">
+      <div class="section-title"><h3>外观</h3><span>界面主题 · 立即预览，保存后生效</span></div>
+      <div class="theme-options">
+        <button class="theme-option ${theme === 'dark' ? 'is-active' : ''}" data-theme-choice="dark" type="button">
+          <span class="theme-preview theme-preview-dark"><i></i><i></i><i></i></span>
+          <b>深色</b><small>低亮环境，默认</small>
+        </button>
+        <button class="theme-option ${theme === 'light' ? 'is-active' : ''}" data-theme-choice="light" type="button">
+          <span class="theme-preview theme-preview-light"><i></i><i></i><i></i></span>
+          <b>浅色</b><small>明亮、柔和的纸张感</small>
+        </button>
+        <button class="theme-option ${theme === 'auto' ? 'is-active' : ''}" data-theme-choice="auto" type="button">
+          <span class="theme-preview theme-preview-auto"><i></i><i></i><i></i></span>
+          <b>跟随系统</b><small>随 Windows 主题切换</small>
+        </button>
+      </div>
+      <input type="hidden" id="cfg-theme" value="${esc(theme)}" />
+      <div class="backup-toolbar" style="margin-bottom:0">
+        <button class="btn primary" id="cfg-save-theme" type="button">保存外观</button>
+        <span class="backup-hint">仅修改管理器自身主题，不影响 SnowLuma / qqbridge。</span>
+      </div>
+    </section>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>桌面路径设置</h3><span>只写桌面自己的配置，不修改 qq-bridge/config.json</span></div>
       <div class="memory-filters">
@@ -13,12 +36,6 @@ function configPage(snapshot) {
         <span class="field-caption">qq-bridge 目录</span><input class="input" id="cfg-repoRoot" style="min-width:360px" value="${esc(state.settings?.repoRoot || snapshot.paths.repoRoot)}" />
         <span class="field-caption">SnowLuma 目录</span><input class="input" id="cfg-snowlumaRoot" style="min-width:240px" value="${esc(state.settings?.snowlumaRoot || snapshot.paths.snowlumaRoot)}" />
         <span class="field-caption">DSH 可执行文件</span><input class="input" id="cfg-dshExe" style="min-width:360px" value="${esc(state.settings?.dshExe || snapshot.paths.dshExe)}" />
-        <span class="field-caption">界面主题</span>
-        <select class="input" id="cfg-theme">
-          <option value="dark" ${(state.settings?.theme || 'dark') === 'dark' ? 'selected' : ''}>深色</option>
-          <option value="light" ${state.settings?.theme === 'light' ? 'selected' : ''}>浅色</option>
-          <option value="auto" ${state.settings?.theme === 'auto' ? 'selected' : ''}>跟随系统</option>
-        </select>
         <button class="btn primary" id="cfg-save-paths" type="button">保存桌面设置</button>
       </div>
       <p class="service-detail">修改后可重新检测环境；不会自动启动或重启任何服务。</p>
