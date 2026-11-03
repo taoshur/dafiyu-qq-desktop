@@ -1379,92 +1379,12 @@ async function copyBiliPrompt() {
   }
 }
 
-function parseReleaseNotes(text) {
-  const sections = [];
-  let current = { title: '更新内容', items: [] };
-  let inCode = false;
-  for (const raw of String(text || '').split(/\r?\n/)) {
-    const line = raw.trim();
-    if (line.startsWith('```')) { inCode = !inCode; continue; }
-    if (inCode || !line) continue;
-    if (/^#{1,3}\s+/.test(line)) {
-      const title = line.replace(/^#{1,3}\s+/, '').trim();
-      if (current.items.length) sections.push(current);
-      current = { title, items: [] };
-      continue;
-    }
-    const bullet = line.match(/^[-*]\s+(.+)$/);
-    if (bullet) {
-      current.items.push(bullet[1].replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[*_`]/g, '').trim());
-      continue;
-    }
-    if (line.length > 1 && !line.startsWith('|') && !line.startsWith('>')) {
-      current.items.push(line.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[*_`]/g, '').trim());
-    }
-  }
-  if (current.items.length) sections.push(current);
-  return sections.filter((section) => section.items.length);
-}
-
-function releaseNotesHtml(text, { sections: maxSections = 4, items: maxItems = 8 } = {}) {
-  const sections = parseReleaseNotes(text).slice(0, maxSections);
-  if (!sections.length) return '<p class="update-empty">这个版本没有附加说明。</p>';
-  return sections.map((section) => `
-    <div class="update-section">
-      <h4>${esc(section.title)}</h4>
-      <ul>${section.items.slice(0, maxItems).map((item) => `<li>${esc(item)}</li>`).join('')}</ul>
-    </div>`).join('');
-}
-
-function showUpdateNotice(check) {
-  const root = $('modal-root');
-  const available = check?.available === true;
-  const version = String(check?.latestVersion || check?.currentVersion || '');
-  root.innerHTML = `
-    <div class="modal-mask">
-      <div class="modal update-modal" role="dialog" aria-modal="true">
-        <div class="update-modal-head">
-          <span class="update-badge">${available ? 'NEW RELEASE' : 'RELEASE NOTES'}</span>
-          <span class="update-version">v${esc(version)}</span>
-        </div>
-        <h3>${available ? '有新版本可以更新' : '这次更新了什么'}</h3>
-        <p class="update-sub">${available ? `当前 ${esc(check?.currentVersion || '—')}，最新 ${esc(version)}。` : '已安装版本的主要变化。'}</p>
-        <div class="update-notes">${releaseNotesHtml(check?.notes, { sections: 5, items: 8 })}</div>
-        <div class="update-modal-actions">
-          <button class="btn" data-update-note-close type="button">稍后</button>
-          ${available ? '<button class="btn primary" data-update-note-about type="button">去更新</button>' : ''}
-          ${check?.releaseUrl ? '<button class="btn ghost" data-update-note-release type="button">查看完整更新</button>' : ''}
-        </div>
-      </div>
-    </div>`;
-  const close = () => { root.innerHTML = ''; };
-  root.querySelector('[data-update-note-close]')?.addEventListener('click', close);
-  root.querySelector('[data-update-note-about]')?.addEventListener('click', () => { close(); openPage('about'); });
-  root.querySelector('[data-update-note-release]')?.addEventListener('click', () => {
-    if (check?.releaseUrl) api.openExternal(check.releaseUrl).catch(() => {});
-  });
-  root.querySelector('.modal-mask')?.addEventListener('click', (event) => {
-    if (event.target.classList.contains('modal-mask')) close();
-  });
-}
-
-function maybeShowUpdateNotice(check) {
-  if (!check?.latestVersion || !check?.notes) return;
-  const key = 'dafiyu.updateNotice.seen';
-  try {
-    if (localStorage.getItem(key) === check.latestVersion) return;
-    localStorage.setItem(key, check.latestVersion);
-  } catch { /* ignore */ }
-  showUpdateNotice(check);
-}
-
 async function refreshUpdate({ silent = false } = {}) {
   if (state.update.busy) return;
   state.update.busy = true;
   state.update.error = null;
   try {
     state.update.check = await api.updateCheck();
-    maybeShowUpdateNotice(state.update.check);
     if (state.update.check?.available) {
       const latest = state.update.check.latestVersion;
       // Every launch gets one visible reminder for each newly discovered version.

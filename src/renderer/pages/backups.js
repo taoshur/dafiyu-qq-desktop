@@ -100,7 +100,6 @@ function updatePanel() {
       ${u.error ? `<div class="notice danger">检查更新失败：${esc(u.error)}</div>` : ''}
       ${check && !check.ok ? `<div class="notice danger">${esc(check.error || '无法获取最新版本')}</div>` : ''}
       ${available ? `<div class="notice">发现新版本 <b>${esc(check.latestVersion)}</b>。安装包来自 GitHub Release，会先校验 SHA256，再打开安装程序。</div>` : ''}
-      ${check?.notes ? `<div class="update-notes-panel">${releaseNotesHtml(check.notes, { sections: 3, items: 6 })}</div>` : ''}
       ${downloading ? `${progressBar(task.percent || 0)}<p class="embed-hint">正在下载 ${esc(task.latestVersion || '')} · ${task.percent == null ? '—' : `${task.percent}%`} · ${fmtSize(task.received)} / ${fmtSize(task.total)}</p>` : ''}
       ${task?.status === 'failed' ? `<div class="notice danger">更新下载失败：${esc(task.error || '未知错误')}</div>` : ''}
       ${task?.status === 'cancelled' ? '<div class="notice">更新下载已取消。</div>' : ''}
