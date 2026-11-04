@@ -36,10 +36,15 @@ socialV2.fastPath.model
 ## qqbridge 组件
 
 ```text
-qq-bridge-0.2.0-r4-custom.4.zip
-size: 1,606,932
-sha256: F3A908858226A3746ADDFB892FCD10290654A71074AB9C261A570DEEBA7C95D8
+qq-bridge-0.2.0-r4-custom.5.zip
+size: 1,606,928
+sha256: 8D497926D8709826B51BC676BBD9C0AED9A860E725DCCC5DFEF7EE65AED44DC5
 ```
+
+## 识图修复
+
+- DSH 图片内容块的字段从 `mediaType` 修正为标准 `mimeType`
+- 修复模型收到图片块但无法识别的问题
 
 ## 构建
 
