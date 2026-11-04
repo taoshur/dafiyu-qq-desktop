@@ -36,15 +36,20 @@ function configPage(snapshot) {
         const models = Array.isArray(state.chatModels) && state.chatModels.length ? state.chatModels : [chat.model || 'deepseek-chat'];
         const selected = chat.model || models[0];
         return `
-          <div class="chat-settings-grid">
-            <label class="chat-field chat-field-toggle">
-              <span>快速通道</span>
-              <input id="chat-fast-enabled" type="checkbox" ${chat.enabled !== false ? 'checked' : ''}>
+          <div class="chat-toggle-bar">
+            <div class="chat-toggle-copy">
+              <div class="chat-toggle-title"><b>快速通道</b><span class="chat-toggle-state ${chat.enabled !== false ? 'on' : 'off'}">${chat.enabled !== false ? '已开启' : '已关闭'}</span></div>
               <small>主模型忙时用一个小模型抢答；关闭后全部走 DSH。</small>
+            </div>
+            <label class="chat-switch" aria-label="快速通道开关">
+              <input id="chat-fast-enabled" type="checkbox" ${chat.enabled !== false ? 'checked' : ''}>
+              <span class="chat-switch-track"><span></span></span>
             </label>
+          </div>
+          <div class="chat-form-grid">
             <label class="chat-field">
               <span>Base URL</span>
-              <input id="chat-base-url" value="${esc(chat.baseUrl || 'https://api.deepseek.com')}" placeholder="https://api.deepseek.com" spellcheck="false">
+              <input id="chat-base-url" type="text" value="${esc(chat.baseUrl || 'https://api.deepseek.com')}" placeholder="https://api.deepseek.com" spellcheck="false">
               <small>OpenAI 兼容接口，检测模型时会请求 /models。</small>
             </label>
             <label class="chat-field">
@@ -52,7 +57,7 @@ function configPage(snapshot) {
               <input id="chat-api-key" type="password" placeholder="${chat.hasApiKey ? '已配置，留空保留' : 'sk-...'}" autocomplete="off" spellcheck="false">
               <small>${chat.hasApiKey ? '已保存密钥；只有填写新值才会替换。' : '只保存在本机 qqbridge config.json。'}</small>
             </label>
-            <div class="chat-field">
+            <div class="chat-field chat-field-wide">
               <span>模型</span>
               <div class="chat-model-row">
                 <select id="chat-model">${models.map((m) => `<option value="${esc(m)}" ${m === selected ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
