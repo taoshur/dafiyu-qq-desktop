@@ -39,7 +39,7 @@ function configPage(snapshot) {
           <div class="chat-toggle-bar">
             <div class="chat-toggle-copy">
               <div class="chat-toggle-title"><b>快速通道</b><span class="chat-toggle-state ${chat.enabled !== false ? 'on' : 'off'}">${chat.enabled !== false ? '已开启' : '已关闭'}</span></div>
-              <small>主模型忙时用一个小模型抢答；关闭后全部走 DSH。</small>
+              <small>短消息由小模型直接抢答，不走 DSH；长消息和复杂任务仍交给 DSH。</small>
             </div>
             <label class="chat-switch" aria-label="快速通道开关">
               <input id="chat-fast-enabled" type="checkbox" ${chat.enabled !== false ? 'checked' : ''}>
@@ -68,7 +68,7 @@ function configPage(snapshot) {
           </div>
           <div class="backup-toolbar" style="margin-bottom:0">
             <button class="btn primary" id="chat-save" type="button">保存聊天设置</button>
-            <span class="backup-hint">修改后需重启 qqbridge 生效。</span>
+            <span class="backup-hint">修改后需重启 qqbridge 生效；关闭只停用短消息抢答，后台摘要仍使用这组 API 配置。</span>
           </div>`;
       })()}
     </section>
