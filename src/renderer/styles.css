@@ -1050,3 +1050,20 @@ html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05)
 .memory-source-scroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
 .memory-source-scroll::-webkit-scrollbar-track { background: transparent; }
 .memory-source-scroll .memory-evidence:last-child { margin-bottom: 0; }
+
+
+/* 聊天设置 */
+.chat-settings-card { overflow: hidden; }
+.chat-settings-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr); gap: 14px 16px; margin-top: 14px; }
+.chat-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; color: var(--text-faint); font-size: 10.5px; letter-spacing: .03em; }
+.chat-field input[type="text"], .chat-field input[type="password"], .chat-field select { width: 100%; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 9px; color: var(--text); padding: 9px 11px; font-size: 12px; outline: none; }
+.chat-field input:focus, .chat-field select:focus { border-color: var(--line-strong); }
+.chat-field small { color: var(--text-faint); font-size: 10px; line-height: 1.5; letter-spacing: 0; }
+.chat-field-toggle { flex-direction: row; align-items: center; gap: 9px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.025); align-self: start; }
+.chat-field-toggle > span { color: var(--text); font-size: 12.5px; letter-spacing: 0; }
+.chat-field-toggle input { accent-color: var(--teal); width: 16px; height: 16px; }
+.chat-field-toggle small { margin-left: auto; text-align: right; }
+.chat-model-row { display: flex; gap: 8px; }
+.chat-model-row select { flex: 1; min-width: 0; }
+.chat-model-row .btn { flex: 0 0 auto; }
+@media (max-width: 820px) { .chat-settings-grid { grid-template-columns: 1fr; } .chat-field-toggle small { margin-left: 0; text-align: left; } }

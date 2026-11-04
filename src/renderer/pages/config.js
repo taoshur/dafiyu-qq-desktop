@@ -29,6 +29,44 @@ function configPage(snapshot) {
         <span class="backup-hint">仅修改管理器自身主题，不影响 SnowLuma / qqbridge。</span>
       </div>
     </section>
+    <section class="card panel chat-settings-card" style="margin-top:14px">
+      <div class="section-title"><h3>聊天设置</h3><span>快速通道 · 写入 qqbridge config</span></div>
+      ${(() => {
+        const chat = state.chatSettings || {};
+        const models = Array.isArray(state.chatModels) && state.chatModels.length ? state.chatModels : [chat.model || 'deepseek-chat'];
+        const selected = chat.model || models[0];
+        return `
+          <div class="chat-settings-grid">
+            <label class="chat-field chat-field-toggle">
+              <span>快速通道</span>
+              <input id="chat-fast-enabled" type="checkbox" ${chat.enabled !== false ? 'checked' : ''}>
+              <small>主模型忙时用一个小模型抢答；关闭后全部走 DSH。</small>
+            </label>
+            <label class="chat-field">
+              <span>Base URL</span>
+              <input id="chat-base-url" value="${esc(chat.baseUrl || 'https://api.deepseek.com')}" placeholder="https://api.deepseek.com" spellcheck="false">
+              <small>OpenAI 兼容接口，检测模型时会请求 /models。</small>
+            </label>
+            <label class="chat-field">
+              <span>API Key</span>
+              <input id="chat-api-key" type="password" placeholder="${chat.hasApiKey ? '已配置，留空保留' : 'sk-...'}" autocomplete="off" spellcheck="false">
+              <small>${chat.hasApiKey ? '已保存密钥；只有填写新值才会替换。' : '只保存在本机 qqbridge config.json。'}</small>
+            </label>
+            <div class="chat-field">
+              <span>模型</span>
+              <div class="chat-model-row">
+                <select id="chat-model">${models.map((m) => `<option value="${esc(m)}" ${m === selected ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
+                <button class="btn" id="chat-detect-models" type="button" ${state.chatModelsBusy ? 'disabled' : ''}>${state.chatModelsBusy ? '检测中…' : '检测模型'}</button>
+              </div>
+              <small id="chat-model-hint">${state.chatModelsError ? esc(state.chatModelsError) : '填写 Base URL / API Key 后检测可用模型。'}</small>
+            </div>
+          </div>
+          <div class="backup-toolbar" style="margin-bottom:0">
+            <button class="btn primary" id="chat-save" type="button">保存聊天设置</button>
+            <span class="backup-hint">修改后需重启 qqbridge 生效。</span>
+          </div>`;
+      })()}
+    </section>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>桌面路径设置</h3><span>只写桌面自己的配置，不修改 qq-bridge/config.json</span></div>
       <div class="memory-filters">

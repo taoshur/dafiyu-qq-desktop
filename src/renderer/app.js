@@ -47,6 +47,10 @@ const state = {
   update: { check: null, busy: false, error: null, task: null, timer: null, notifiedVersion: null },
   component: { check: null, busy: false, error: null },
   snowLumaComponent: { check: null, busy: false, error: null },
+  chatSettings: null,
+  chatModels: [],
+  chatModelsBusy: false,
+  chatModelsError: '',
   embed: { service: 'snowluma', result: null, error: null, busy: false },
   setup: { status: null, busy: false, error: null },
   environment: { status: null, busy: false, error: null },
@@ -998,6 +1002,61 @@ async function importMaiBotMemory() {
   }
 }
 
+async function refreshChatSettings() {
+  try {
+    state.chatSettings = await api.chatSettingsGet();
+  } catch (error) {
+    state.chatSettings = null;
+    state.chatModelsError = error.message;
+  }
+  if (state.page === 'config') render();
+}
+
+async function detectChatModels() {
+  const baseUrl = document.getElementById('chat-base-url')?.value || '';
+  const apiKey = document.getElementById('chat-api-key')?.value || '';
+  const button = document.getElementById('chat-detect-models');
+  const hint = document.getElementById('chat-model-hint');
+  state.chatModelsBusy = true;
+  state.chatModelsError = '';
+  if (button) { button.disabled = true; button.textContent = '检测中…'; }
+  if (hint) hint.textContent = '正在请求 /models…';
+  try {
+    const result = await api.chatSettingsModels({ baseUrl, apiKey });
+    state.chatModels = Array.isArray(result?.models) ? result.models : [];
+    state.chatModelsError = '';
+    const select = document.getElementById('chat-model');
+    if (select) {
+      const current = select.value;
+      select.innerHTML = state.chatModels.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+      if (state.chatModels.includes(current)) select.value = current;
+      else if (state.chatModels[0]) select.value = state.chatModels[0];
+    }
+    if (hint) hint.textContent = `检测到 ${state.chatModels.length} 个模型 · ${result.endpoint || ''}`;
+  } catch (error) {
+    state.chatModelsError = error.message;
+    if (hint) hint.textContent = `检测失败：${error.message}`;
+  } finally {
+    state.chatModelsBusy = false;
+    if (button) { button.disabled = false; button.textContent = '检测模型'; }
+  }
+}
+
+async function saveChatSettings() {
+  const enabled = Boolean(document.getElementById('chat-fast-enabled')?.checked);
+  const baseUrl = document.getElementById('chat-base-url')?.value || '';
+  const apiKey = document.getElementById('chat-api-key')?.value || '';
+  const model = document.getElementById('chat-model')?.value || '';
+  try {
+    const result = await api.chatSettingsSave({ enabled, baseUrl, apiKey, model });
+    state.chatSettings = result;
+    toast('聊天设置已保存；重启 qqbridge 后生效');
+    await refreshChatSettings();
+  } catch (error) {
+    toast(`保存聊天设置失败：${error.message}`);
+  }
+}
+
 async function refreshAutoReview() {
   try {
     state.memory.autoReview = await api.memoryAutoReviewGet();
@@ -1771,6 +1830,7 @@ async function openPage(page) {
     try { state.startupStatus = await api.startupStatus(); } catch { state.startupStatus = null; }
   }
   if (page === 'memory') { await refreshMemory(false); await refreshAutoReview(); }
+  if (page === 'config') await refreshChatSettings();
   if (page === 'diary') await refreshDiary(false);
   if (page === 'setup') {
     try { state.setup.status = await api.setupStatus(); } catch (error) { state.setup.status = null; state.setup.error = error.message; }
@@ -1945,6 +2005,8 @@ function bind() {
       return;
     }
     if (event.target.closest('#cfg-save-theme')) { saveDesktopPaths(); return; }
+    if (event.target.closest('#chat-detect-models')) { detectChatModels(); return; }
+    if (event.target.closest('#chat-save')) { saveChatSettings(); return; }
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
     if (event.target.closest('#cfg-export')) { exportDesktopConfig(); return; }
     if (event.target.closest('#cfg-import')) { importDesktopConfig(); return; }
