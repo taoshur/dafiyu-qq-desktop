@@ -351,19 +351,31 @@ QQ 消息
   → extraction worker 批量
   → 模型抽取候选
   → memory_candidates（pending）
-  → 审核/批准
+  → 自动审核（可选，管理器配置）
+       ├─ 质量通过 / 来源存在 / 超过阈值 → 自动 apply
+       └─ 低可信 / 敏感 / 缺来源 → 保持 pending
   → facts / events
   → V4 多信号召回
   → 按 token 预算注入 DSH 上下文
 ```
 
+自动审核的边界：
+
+- 只处理 `fact` / `event`
+- 有效可信度默认 `>= 0.55`
+- 必须有来源消息
+- 排除 `privacy_risk`、`ops_event`、`over_inference`、`uncertain`、`misattribution`
+- 可设置每日上限，`0` 表示不限
+- 只通过 `socialV2.memory.autoReview` 生效，管理器负责读写配置，实际写入仍在 qqbridge
+- 自动审核是 `observeOnly=true` 下的显式例外；没有开启时，所有候选仍需人工确认
+
 优势：
 
 - **批量 + 游标**：避免每条消息单独调用模型，控制成本；游标保证中断后可继续。
-- **候选层**：模型输出先进入 `memory_candidates`，不直接污染长期事实；`facts/events` 只接收审核后的内容。
+- **候选层**：模型输出先进入 `memory_candidates`，不直接污染长期事实；`facts/events` 只接收审核或自动审核通过的内容。
 - **证据与质量**：候选带来源会话、批次、证据、质量/置信度、时间精度和作用域，方便回溯。
 - **去重与幂等**：`dedupe_key`、`batch_key`、消息唯一键避免重复抽取和重复候选。
-- **观察模式**：生产库 `observeOnly=true` 时不会自动晋升候选；审核动作需显式解锁并使用事务。
+- **观察模式**：生产库 `observeOnly=true` 时默认不会自动晋升候选；开启自动审核后，只有满足规则的安全事实/事件例外。
 - **桌面边界**：浏览默认用 SQLite `query_only`；审核和 MaiBot 导入是显式动作，分别写审计/备份，不清理 WAL。
 - **测试库隔离**：`%APPDATA%\dafiyu-desktop\state\memory-test.db` 可安全演练 apply/reject，不与生产库混用。
 - **备份一致性**：`VACUUM INTO` 生成包含已提交 WAL 数据的一致性快照，并校验 manifest/SHA256/表计数。
