@@ -1,7 +1,7 @@
 'use strict';
 
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
-const { getMemorySource } = require('../../memory');
+const { getMemorySource, getGrowth } = require('../../memory');
 const { listDeadLetters, retryDeadLetter } = require('../../memory');
 const { unlockProductionReview, reviewProductionCandidate, listAudit, editConfirmed, createConfirmed, deleteConfirmed, restoreConfirmed, listChangeAudit } = require('../../memory-review');
 const { memoryDbPath } = require('../../memory');
@@ -14,6 +14,8 @@ function memoryMode(payload) {
 }
 
 function registerMemoryHandlers(router, { paths, getSettings, log }) {
+  router.handle('memory:growth', async (_event, payload) => getGrowth({ settings: getSettings(), paths, mode: memoryMode(payload) }));
+
   router.handle('memory:confirmed-create', async (_event, payload) => createConfirmed({
     settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,
     input: payload?.input || {}, token: payload?.token, reason: String(payload?.reason || 'desktop confirmed create')

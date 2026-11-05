@@ -1099,3 +1099,20 @@ html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05)
 .confirmed-form input, .confirmed-form textarea { width: 100%; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 8px 10px; font-size: 12px; outline: none; resize: vertical; }
 .confirmed-form input:focus, .confirmed-form textarea:focus { border-color: var(--line-strong); }
 @media (max-width: 680px) { .confirmed-form { grid-template-columns: 1fr; } .confirmed-form label { grid-column: auto !important; } }
+
+
+/* 人格成长详情 */
+.stat-clickable { cursor: pointer; transition: border-color 150ms ease, transform 150ms ease; }
+.stat-clickable:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.growth-modal { width: min(780px, 94vw); max-height: 86vh; overflow: auto; }
+.growth-section { margin-top: 16px; }
+.growth-list { display: flex; flex-direction: column; gap: 7px; }
+.growth-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.025); }
+.growth-row > div:first-child { min-width: 0; flex: 1; }
+.growth-row b { font-size: 12.5px; font-weight: 500; color: var(--text); }
+.growth-row small { display: block; margin-top: 3px; color: var(--text-faint); font-size: 10.5px; line-height: 1.5; }
+.growth-metrics { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; color: var(--text-faint); font-size: 9.5px; font-family: var(--mono); }
+.growth-journal { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.growth-journal-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 7px 9px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--text-dim); }
+.growth-journal-row small { color: var(--text-faint); font-size: 10px; }
+@media (max-width: 700px) { .growth-row { flex-direction: column; } .growth-metrics { justify-content: flex-start; } }

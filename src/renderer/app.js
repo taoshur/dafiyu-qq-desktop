@@ -1258,6 +1258,34 @@ async function reviewProductionCandidate(action, id, edit = null) {
 
 function confirmedLabel(type) { return type === 'event' ? '事件' : '事实'; }
 
+async function openGrowthDetail() {
+  let data;
+  try { data = await api.memoryGrowth({ mode: state.memory.mode }); }
+  catch (error) { toast(`读取人格成长失败：${error.message}`); return; }
+  const traits = Array.isArray(data?.traits) ? data.traits : [];
+  const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+  const journal = Array.isArray(data?.journal) ? data.journal : [];
+  const active = traits.filter((t) => t.status === 'active');
+  const candidateTraits = traits.filter((t) => t.status !== 'active');
+  const pendingCandidates = candidates.filter((c) => c.status === 'pending');
+  const root = $('modal-root');
+  const traitRow = (t) => `<div class="growth-row"><div><b>${esc(t.name || t.trait_key)}</b><small>${esc(t.category || '')}${t.description ? ` · ${esc(t.description)}` : ''}</small></div><div class="growth-metrics"><span>强度 ${Number(t.strength || 0).toFixed(2)}</span><span>可信 ${Number(t.confidence || 0).toFixed(2)}</span><span>证据 ${Number(t.evidence_count) || 0}</span><span>${Number(t.distinct_days) || 0} 天</span></div></div>`;
+  const candidateRow = (c) => `<div class="growth-row"><div><b>${esc(c.trait_key)}</b><small>${esc(c.kind)} · ${esc(c.reason || '')}${c.reconcile_state && c.reconcile_state !== 'current' ? ` · ${esc(c.reconcile_state)}` : ''}</small></div><div class="growth-metrics"><span>${Number(c.before_strength || 0).toFixed(2)} → ${Number(c.proposed_strength || 0).toFixed(2)}</span><span>证据 ${Number(c.evidence_count) || 0}</span><span>${Number(c.distinct_days) || 0} 天</span></div></div>`;
+  root.innerHTML = `
+    <div class="modal-mask"><div class="modal growth-modal" role="dialog" aria-modal="true">
+      <h3>人格成长</h3>
+      <p class="embed-hint">${active.length} 个生效特质 · ${candidateTraits.length} 个候选特质 · ${pendingCandidates.length} 条成长候选待审</p>
+      <div class="growth-section"><div class="section-title"><h3>生效特质</h3><span>${active.length}</span></div><div class="growth-list">${active.length ? active.map(traitRow).join('') : '<div class="log-empty" style="padding:12px">还没有生效特质</div>'}</div></div>
+      ${candidateTraits.length ? `<div class="growth-section"><div class="section-title"><h3>候选特质</h3><span>${candidateTraits.length}</span></div><div class="growth-list">${candidateTraits.map(traitRow).join('')}</div></div>` : ''}
+      <div class="growth-section"><div class="section-title"><h3>成长候选</h3><span>${pendingCandidates.length} 待审</span></div><div class="growth-list">${candidates.length ? candidates.map(candidateRow).join('') : '<div class="log-empty" style="padding:12px">没有成长候选</div>'}</div></div>
+      <div class="growth-section"><div class="section-title"><h3>成长日志</h3><span>最近 ${journal.length} 条</span></div><div class="growth-journal">${journal.length ? journal.map((j) => `<div class="growth-journal-row"><span class="meta-pill">${esc(j.kind)}</span><span>${esc(j.summary)}</span><small>${fmtTime(j.at)}${j.detail ? ` · ${esc(j.detail)}` : ''}</small></div>`).join('') : '<div class="log-empty" style="padding:12px">没有日志</div>'}</div></div>
+      <div class="modal-actions"><button class="btn primary" data-growth-close type="button">关闭</button></div>
+    </div></div>`;
+  const close = () => { root.innerHTML = ''; };
+  root.querySelector('[data-growth-close]').addEventListener('click', close);
+  root.querySelector('.modal-mask').addEventListener('click', (event) => { if (event.target.classList.contains('modal-mask')) close(); });
+}
+
 function askConfirmedCreate(type) {
   if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
   const isEvent = type === 'event';
@@ -2207,6 +2235,7 @@ function bind() {
     }
     const reviewBtn = event.target.closest('[data-memory-review]');
     if (reviewBtn) { askMemoryReview(reviewBtn.dataset.memoryReview, Number(reviewBtn.dataset.memoryId)); return; }
+    if (event.target.closest('[data-memory-growth]')) { openGrowthDetail(); return; }
     if (event.target.closest('#memory-add-fact')) { askConfirmedCreate('fact'); return; }
     if (event.target.closest('#memory-add-event')) { askConfirmedCreate('event'); return; }
     if (event.target.closest('#memory-show-deleted')) { state.memory.showDeleted = !state.memory.showDeleted; state.memory.page = 1; refreshMemory(); return; }

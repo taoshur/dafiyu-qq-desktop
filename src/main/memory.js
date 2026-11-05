@@ -269,6 +269,28 @@ async function reviewCandidate({ settings, paths, id, action = 'apply', reason =
   }
 }
 
+function getGrowth({ settings, paths, mode = 'prod' }) {
+  const file = mode === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
+  if (!fs.existsSync(file)) return { exists: false, traits: [], candidates: [], journal: [] };
+  const db = openReadonly(file);
+  try {
+    const has = (table) => Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table));
+    const traits = has('traits')
+      ? db.prepare(`SELECT id, trait_key, name, category, description, strength, confidence, evidence_count, distinct_days, status,
+          first_evidence_at, last_evidence_at, updated_at FROM traits ORDER BY status='active' DESC, strength DESC, updated_at DESC LIMIT 80`).all()
+      : [];
+    const candidates = has('growth_candidates')
+      ? db.prepare(`SELECT id, trait_key, kind, before_strength, proposed_strength, delta, evidence_count, distinct_days,
+          span_days, reason, status, created_at, reviewed_at, reconcile_state, stale_reason
+          FROM growth_candidates ORDER BY status='pending' DESC, created_at DESC LIMIT 80`).all()
+      : [];
+    const journal = has('growth_journal')
+      ? db.prepare('SELECT id, at, kind, summary, detail, trait_key, confidence, source FROM growth_journal ORDER BY at DESC LIMIT 30').all()
+      : [];
+    return { exists: true, traits, candidates, journal };
+  } finally { try { db.close(); } catch { /* ignore */ } }
+}
+
 function getMemorySource({ settings, paths, mode = 'prod', type = 'fact', id }) {
   const file = mode === 'test' ? paths.memoryTestDb : memoryDbPath(settings);
   if (!fs.existsSync(file)) return { exists: false, source: null, evidence: [] };
@@ -370,6 +392,7 @@ module.exports = {
   listMemory,
   getCandidate,
   getMemorySource,
+  getGrowth,
   initTestDb,
   reviewCandidate,
   listDeadLetters,
