@@ -1088,3 +1088,14 @@ html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05)
 .friend-fields .chat-field { width: 200px; flex: 0 0 auto; }
 .friend-note { margin: 0 0 4px; color: var(--text-faint); font-size: 10.5px; line-height: 1.6; max-width: 620px; }
 @media (max-width: 760px) { .friend-fields { flex-direction: column; align-items: stretch; gap: 12px; } .friend-fields .chat-field { width: 100%; } }
+
+
+/* 已确认记忆编辑 */
+.tag.bad { background: rgba(255,123,123,.14); color: var(--red); }
+.confirmed-edit-modal { width: min(640px, 92vw); }
+.confirmed-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.confirmed-form label { display: flex; flex-direction: column; gap: 5px; color: var(--text-faint); font-size: 10.5px; }
+.confirmed-form label:nth-child(3), .confirmed-form label:nth-child(4) { grid-column: 1 / -1; }
+.confirmed-form input, .confirmed-form textarea { width: 100%; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 8px 10px; font-size: 12px; outline: none; resize: vertical; }
+.confirmed-form input:focus, .confirmed-form textarea:focus { border-color: var(--line-strong); }
+@media (max-width: 680px) { .confirmed-form { grid-template-columns: 1fr; } .confirmed-form label { grid-column: auto !important; } }

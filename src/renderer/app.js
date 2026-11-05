@@ -38,6 +38,8 @@ const state = {
     selected: null,
     detail: null,
     autoReview: null,
+    showDeleted: false,
+    changeAudit: [],
     busy: false,
     error: null
   },
@@ -1109,7 +1111,8 @@ async function refreshMemory(doRender = true) {
     m.status = await api.memoryStatus(m.mode);
     m.list = await api.memoryList({
       mode: m.mode, type: m.type, q: m.q, dateFrom: m.dateFrom, dateTo: m.dateTo,
-      status: m.statusFilter || m.status, limit: m.pageSize, offset: (m.page - 1) * m.pageSize, sort: m.sort
+      status: m.statusFilter || m.status, limit: m.pageSize, offset: (m.page - 1) * m.pageSize, sort: m.sort,
+      includeDeleted: m.showDeleted === true
     });
     try { m.dead = (await api.memoryDeadLetters(m.mode)).rows || []; } catch { m.dead = []; }
     m.error = null;
@@ -1139,9 +1142,11 @@ async function loadMemoryDetail(id, kind = '') {
     } catch {
       m.detail = { candidate: row || null, evidence: [], source: null };
     }
+    try { m.changeAudit = (await api.memoryChangeAudit({ mode: m.mode, type: kind, id: Number(id) })).rows || []; } catch { m.changeAudit = []; }
     if (state.page === 'memory') render();
     return;
   }
+  m.changeAudit = [];
   try {
     m.detail = await api.memoryCandidate({ mode: m.mode, id: Number(id) });
     if (m.mode === 'prod') {
@@ -1249,6 +1254,159 @@ async function reviewProductionCandidate(action, id, edit = null) {
   } finally {
     state.memory.reviewBusy = false;
   }
+}
+
+function confirmedLabel(type) { return type === 'event' ? '事件' : '事实'; }
+
+function askConfirmedCreate(type) {
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  const isEvent = type === 'event';
+  const root = $('modal-root');
+  root.innerHTML = `
+    <div class="modal-mask"><div class="modal confirmed-edit-modal" role="dialog" aria-modal="true">
+      <h3>新增${confirmedLabel(type)}</h3>
+      <p class="embed-hint">手动创建的记录会标记为 manual:desktop，并写入本地审计，不会被自动抽取覆盖。</p>
+      <div class="confirmed-form">
+        ${isEvent ? `
+          <label><span>摘要</span><input class="input" id="confirmed-summary" placeholder="发生了什么"></label>
+          <label><span>详情</span><textarea class="input" id="confirmed-detail" rows="3"></textarea></label>
+          <label><span>发生时间</span><input class="input" id="confirmed-happened" placeholder="Unix 毫秒，可留空"></label>` : `
+          <label><span>主体 QQ</span><input class="input" id="confirmed-subject-qq" placeholder="例如 2608855988"></label>
+          <label><span>主体名称</span><input class="input" id="confirmed-subject" placeholder="可选"></label>
+          <label><span>属性</span><input class="input" id="confirmed-attr" placeholder="例如 喜欢的食物"></label>
+          <label><span>内容</span><textarea class="input" id="confirmed-value" rows="3"></textarea></label>`}
+        <label><span>可信度</span><input class="input" id="confirmed-confidence" type="number" min="0" max="1" step="0.05" value="0.8"></label>
+        <label><span>范围</span><input class="input" id="confirmed-scope" placeholder="private:QQ / group:群号 / global"></label>
+        <label><span>可见性</span><input class="input" id="confirmed-visibility" value="private" placeholder="private / group / global"></label>
+      </div>
+      <div class="modal-actions"><button class="btn" data-confirmed-cancel type="button">取消</button><button class="btn primary" data-confirmed-create-save type="button">保存并写入审计</button></div>
+    </div></div>`;
+  const close = () => { root.innerHTML = ''; };
+  root.querySelector('[data-confirmed-cancel]').addEventListener('click', close);
+  root.querySelector('[data-confirmed-create-save]').addEventListener('click', async () => {
+    const input = isEvent ? {
+      summary: document.getElementById('confirmed-summary')?.value || '',
+      detail: document.getElementById('confirmed-detail')?.value || '',
+      happened_at: document.getElementById('confirmed-happened')?.value || ''
+    } : {
+      subject_qq: document.getElementById('confirmed-subject-qq')?.value || '',
+      subject_name: document.getElementById('confirmed-subject')?.value || '',
+      attr: document.getElementById('confirmed-attr')?.value || '',
+      value: document.getElementById('confirmed-value')?.value || ''
+    };
+    input.confidence = Number(document.getElementById('confirmed-confidence')?.value);
+    input.scope = document.getElementById('confirmed-scope')?.value || '';
+    input.visibility = document.getElementById('confirmed-visibility')?.value || 'private';
+    try {
+      const result = await api.memoryConfirmedCreate({ mode: state.memory.mode, type, input, token: state.memory.reviewToken, reason: `desktop confirmed ${type} create` });
+      close();
+      state.memory.selected = result.id;
+      state.memory.selectedKind = type;
+      toast(`${confirmedLabel(type)}已创建；已写入审计`);
+      await refreshMemory();
+    } catch (error) { toast(`创建失败：${error.message}`); }
+  });
+  root.querySelector('.modal-mask').addEventListener('click', (event) => { if (event.target.classList.contains('modal-mask')) close(); });
+}
+
+function askConfirmedEdit(type, id) {
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) {
+    toast('请先解锁生产审核');
+    return;
+  }
+  const row = state.memory.detail?.candidate;
+  if (!row || Number(row.id) !== Number(id)) { toast('请先打开这条记忆的详情'); return; }
+  const isEvent = type === 'event';
+  const root = $('modal-root');
+  root.innerHTML = `
+    <div class="modal-mask">
+      <div class="modal confirmed-edit-modal" role="dialog" aria-modal="true">
+        <h3>编辑${confirmedLabel(type)} #${esc(id)}</h3>
+        <p class="embed-hint">来源字段不会被修改；保存后会写入本地审计，并锁定这条记录，避免被自动抽取覆盖。</p>
+        <div class="confirmed-form">
+          ${isEvent ? `
+            <label><span>摘要</span><input class="input" id="confirmed-summary" value="${esc(row.summary || '')}"></label>
+            <label><span>详情</span><textarea class="input" id="confirmed-detail" rows="3">${esc(row.detail || '')}</textarea></label>` : `
+            <label><span>主体名称</span><input class="input" id="confirmed-subject" value="${esc(row.subject_name || '')}"></label>
+            <label><span>属性</span><input class="input" id="confirmed-attr" value="${esc(row.attr || '')}"></label>
+            <label><span>内容</span><textarea class="input" id="confirmed-value" rows="3">${esc(row.value || '')}</textarea></label>`}
+          <label><span>可信度</span><input class="input" id="confirmed-confidence" type="number" min="0" max="1" step="0.05" value="${esc(row.confidence ?? 0.8)}"></label>
+          <label><span>范围</span><input class="input" id="confirmed-scope" value="${esc(row.scope || '')}" placeholder="private:QQ / group:群号 / global"></label>
+          <label><span>可见性</span><input class="input" id="confirmed-visibility" value="${esc(row.visibility || '')}" placeholder="private / public"></label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" data-confirmed-cancel type="button">取消</button>
+          <button class="btn primary" data-confirmed-save type="button">保存并写入审计</button>
+        </div>
+      </div>
+    </div>`;
+  const close = () => { root.innerHTML = ''; };
+  root.querySelector('[data-confirmed-cancel]').addEventListener('click', close);
+  root.querySelector('[data-confirmed-save]').addEventListener('click', async () => {
+    const edit = isEvent
+      ? {
+          summary: document.getElementById('confirmed-summary')?.value || '',
+          detail: document.getElementById('confirmed-detail')?.value || ''
+        }
+      : {
+          subject_name: document.getElementById('confirmed-subject')?.value || '',
+          attr: document.getElementById('confirmed-attr')?.value || '',
+          value: document.getElementById('confirmed-value')?.value || ''
+        };
+    edit.confidence = Number(document.getElementById('confirmed-confidence')?.value);
+    edit.scope = document.getElementById('confirmed-scope')?.value || '';
+    edit.visibility = document.getElementById('confirmed-visibility')?.value || '';
+    try {
+      await api.memoryConfirmedEdit({
+        mode: state.memory.mode, type, id, edit, token: state.memory.reviewToken,
+        expectedUpdatedAt: type === 'fact' ? row.updated_at : null,
+        reason: `desktop confirmed ${type} edit`
+      });
+      close();
+      toast(`${confirmedLabel(type)}已保存；已写入审计`);
+      await refreshMemory();
+    } catch (error) {
+      toast(`保存失败：${error.message}`);
+    }
+  });
+  root.querySelector('.modal-mask').addEventListener('click', (event) => {
+    if (event.target.classList.contains('modal-mask')) close();
+  });
+}
+
+function askConfirmedDelete(type, id) {
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  showModal({
+    title: `删除${confirmedLabel(type)} #${id}？`,
+    body: '不会物理删除，只会从有效记忆里隐藏；之后可以在「已删除」里恢复。会写入本地审计。',
+    confirmText: '确认删除',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        await api.memoryConfirmedDelete({ mode: state.memory.mode, type, id, token: state.memory.reviewToken, reason: `desktop confirmed ${type} delete` });
+        state.memory.selected = null;
+        state.memory.detail = null;
+        toast(`${confirmedLabel(type)}已删除，可在已删除里恢复`);
+        await refreshMemory();
+      } catch (error) { toast(`删除失败：${error.message}`); }
+    }
+  });
+}
+
+function restoreConfirmedRecord(type, id) {
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  showModal({
+    title: `恢复${confirmedLabel(type)} #${id}？`,
+    body: '会把这条记录恢复到有效记忆；不会重新写入来源消息。会写入本地审计。',
+    confirmText: '恢复',
+    onConfirm: async () => {
+      try {
+        await api.memoryConfirmedRestore({ mode: state.memory.mode, type, id, token: state.memory.reviewToken, reason: `desktop confirmed ${type} restore` });
+        toast(`${confirmedLabel(type)}已恢复`);
+        await refreshMemory();
+      } catch (error) { toast(`恢复失败：${error.message}`); }
+    }
+  });
 }
 
 function askMemoryEdit(id) {
@@ -2049,6 +2207,15 @@ function bind() {
     }
     const reviewBtn = event.target.closest('[data-memory-review]');
     if (reviewBtn) { askMemoryReview(reviewBtn.dataset.memoryReview, Number(reviewBtn.dataset.memoryId)); return; }
+    if (event.target.closest('#memory-add-fact')) { askConfirmedCreate('fact'); return; }
+    if (event.target.closest('#memory-add-event')) { askConfirmedCreate('event'); return; }
+    if (event.target.closest('#memory-show-deleted')) { state.memory.showDeleted = !state.memory.showDeleted; state.memory.page = 1; refreshMemory(); return; }
+    const confirmedEdit = event.target.closest('[data-confirmed-edit]');
+    if (confirmedEdit) { askConfirmedEdit(confirmedEdit.dataset.confirmedType, Number(confirmedEdit.dataset.confirmedEdit)); return; }
+    const confirmedDelete = event.target.closest('[data-confirmed-delete]');
+    if (confirmedDelete) { askConfirmedDelete(confirmedDelete.dataset.confirmedType, Number(confirmedDelete.dataset.confirmedDelete)); return; }
+    const confirmedRestore = event.target.closest('[data-confirmed-restore]');
+    if (confirmedRestore) { restoreConfirmedRecord(confirmedRestore.dataset.confirmedType, Number(confirmedRestore.dataset.confirmedRestore)); return; }
     const memoryRow = event.target.closest('[data-memory-id]');
     if (memoryRow && memoryRow.dataset.memoryId) {
       loadMemoryDetail(memoryRow.dataset.memoryId, memoryRow.dataset.memoryKind || '');

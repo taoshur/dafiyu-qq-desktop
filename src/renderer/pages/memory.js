@@ -70,6 +70,7 @@ function memoryPage() {
       item.time_precision ? `<span class="meta-pill">${esc(memoryTimePrecisionLabel(item.time_precision))}</span>` : '',
       item.status ? `<span class="meta-pill">${esc(memoryStatusLabel(item.status))}</span>` : '',
       item.quality ? `<span class="meta-pill">${esc(memoryQualityLabel(item.quality))}</span>` : '',
+      item.deleted ? '<span class="tag bad">已删除</span>' : '',
       item.lifecycle_state ? `<span class="meta-pill">${item.lifecycle_state === 'archived' ? '已归档' : item.lifecycle_state === 'dormant' ? '休眠' : '活跃'}</span>` : ''
     ].filter(Boolean).join(' ');
     return `<tr class="memory-row ${Number(m.selected) === id ? 'is-selected' : ''}" data-memory-id="${id}" data-memory-kind="${esc(recordKind)}">
@@ -106,6 +107,16 @@ function memoryPage() {
     </div>
     ${selected.detail ? `<p class="service-detail">${esc(selected.detail)}</p>` : ''}
     ${m.detail?.source ? `<p class="service-detail">来源：${esc(m.detail.source.type || '—')} · ${esc(m.detail.source.conv || '—')} · ${esc(m.detail.source.key || '—')}</p>` : ''}
+    ${(selected.type === 'fact' || selected.type === 'event') ? `
+      <div class="flow-actions" style="margin-top:12px">
+        ${selected.deleted
+          ? `<button class="btn primary" data-confirmed-restore="${selected.id}" data-confirmed-type="${selected.type}" type="button">恢复这条${memoryKindLabel(selected.type)}</button>`
+          : m.reviewUnlocked
+            ? `<button class="btn" data-confirmed-edit="${selected.id}" data-confirmed-type="${selected.type}" type="button">编辑</button>
+               <button class="btn danger" data-confirmed-delete="${selected.id}" data-confirmed-type="${selected.type}" type="button">删除</button>`
+            : '<span class="meta-pill">解锁生产审核后可编辑 / 删除</span>'}
+      </div>` : ''}
+    ${m.changeAudit?.length ? `<div class="section-title" style="margin-top:16px"><h3>修改记录</h3><span>手动编辑与软删除</span></div><div class="memory-audit">${m.changeAudit.slice(0, 8).map((a) => `<div class="memory-evidence"><span class="meta-pill">${esc(a.action)}</span><span class="meta-pill">${esc(a.actor || '—')}</span><span class="meta-pill">${fmtTime(a.at)}</span><p>${esc(a.reason || '—')}</p></div>`).join('')}</div>` : ''}
     ${m.audit?.length ? `<div class="section-title" style="margin-top:14px"><h3>审核记录</h3><span>本地审计，不保存聊天原文</span></div><div class="memory-audit">${m.audit.map((a) => `<div class="memory-evidence"><span class="meta-pill">${esc(a.action)}</span><span class="meta-pill">${esc(a.actor || '—')}</span><span class="meta-pill">${fmtTime(a.at)}</span><span class="meta-pill">${esc(a.trace_id || '—')}</span><p>${esc(a.status_before || '—')} → ${esc(a.status_after || '—')}${a.reason ? ` · ${esc(a.reason)}` : ''}${a.source_trace ? ` · 来源 ${esc(a.source_trace)}` : ''}</p></div>`).join('')}</div>` : ''}
     <div class="section-title" style="margin-top:14px"><h3>来源消息</h3><span>${evidence.length ? `${evidence.length} 条 · 仅在本机显示` : '仅在本机显示，不导出'}</span></div>
     <div class="memory-source-scroll">
@@ -239,6 +250,9 @@ function memoryPage() {
         </select>` : ''}
         <button class="btn primary" id="memory-apply-filters" type="button">筛选</button>
         <button class="btn" id="memory-reset-filters" type="button">重置</button>
+        <button class="btn" id="memory-show-deleted" type="button">${m.showDeleted ? '隐藏已删除' : '显示已删除'}</button>
+        <button class="btn" id="memory-add-fact" type="button">新增事实</button>
+        <button class="btn" id="memory-add-event" type="button">新增事件</button>
         <button class="btn" id="memory-maibot-import" data-guide-target="maibot-import" type="button">导入 MaiBot 记忆</button>
       </div>
       <div class="memory-result-meta">共 ${m.list?.total ?? 0} 条，显示 ${rows.length} 条

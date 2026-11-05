@@ -3,7 +3,7 @@
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
 const { getMemorySource } = require('../../memory');
 const { listDeadLetters, retryDeadLetter } = require('../../memory');
-const { unlockProductionReview, reviewProductionCandidate, listAudit } = require('../../memory-review');
+const { unlockProductionReview, reviewProductionCandidate, listAudit, editConfirmed, createConfirmed, deleteConfirmed, restoreConfirmed, listChangeAudit } = require('../../memory-review');
 const { memoryDbPath } = require('../../memory');
 const { previewMaiBotImport, importMaiBot } = require('../../maibot-import');
 const path = require('node:path');
@@ -14,6 +14,28 @@ function memoryMode(payload) {
 }
 
 function registerMemoryHandlers(router, { paths, getSettings, log }) {
+  router.handle('memory:confirmed-create', async (_event, payload) => createConfirmed({
+    settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,
+    input: payload?.input || {}, token: payload?.token, reason: String(payload?.reason || 'desktop confirmed create')
+  }));
+  router.handle('memory:confirmed-edit', async (_event, payload) => editConfirmed({
+    settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,
+    id: Number(payload?.id) || 0, edit: payload?.edit || {}, token: payload?.token,
+    reason: String(payload?.reason || 'desktop confirmed edit'), expectedUpdatedAt: payload?.expectedUpdatedAt
+  }));
+  router.handle('memory:confirmed-delete', async (_event, payload) => deleteConfirmed({
+    settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,
+    id: Number(payload?.id) || 0, token: payload?.token, reason: String(payload?.reason || 'desktop confirmed delete')
+  }));
+  router.handle('memory:confirmed-restore', async (_event, payload) => restoreConfirmed({
+    settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,
+    id: Number(payload?.id) || 0, token: payload?.token, reason: String(payload?.reason || 'desktop confirmed restore')
+  }));
+  router.handle('memory:change-audit', async (_event, payload) => listChangeAudit({
+    settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,
+    id: payload?.id ?? null, limit: Number(payload?.limit) || 30
+  }));
+
   router.handle('memory:auto-review-get', async () => memorySettings.get(getSettings().repoRoot));
   router.handle('memory:auto-review-save', async (_event, payload) => {
     const result = memorySettings.save(getSettings().repoRoot, payload);
@@ -39,7 +61,8 @@ function registerMemoryHandlers(router, { paths, getSettings, log }) {
       status,
       limit: Number(payload?.limit) || 50,
       offset: Number(payload?.offset) || 0,
-      sort: ['newest', 'oldest', 'confidence', 'happened'].includes(payload?.sort) ? payload.sort : 'newest'
+      sort: ['newest', 'oldest', 'confidence', 'happened'].includes(payload?.sort) ? payload.sort : 'newest',
+      includeDeleted: payload?.includeDeleted === true
     });
   });
 
