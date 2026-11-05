@@ -59,8 +59,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **运行日志**：只读 tail，不删除、不截断原文件
 - **环境检查**：Node、目录、配置、依赖、state 可写性
 - **长期记忆**：内置 qq-bridge 包含 Memory V3 + V4；支持生产候选审核（显式解锁、批准/编辑/拒绝/撤销、审计与幂等）、三层质量过滤、概念扩展召回、生命周期；支持 MaiBot 记忆一键导入为待审核候选；默认观察模式、不自动晋升
+- **日记**：大肥鱼自己决定什么时候写，没有固定定时任务；支持标题、正文、心情标签、当天片段；管理器可查看和关闭；日记工具需要重启一次 DSH 才会加载
+- **记忆自动审核**：管理器可设置开关、可信度阈值、每日上限、事实/事件类型；写入 `socialV2.memory.autoReview`，重启 qqbridge 生效
+- **聊天设置**：快速通道开关、Base URL、API Key、模型下拉框和 `/models` 检测；写入 `socialV2.fastPath`
+- **好友与白名单**：可选择自动通过带正常验证消息、无风险词的好友申请；通过后立即加入私聊白名单，支持每日上限
 - **B站活动**：记录搜索、热榜、排行、视频详情、字幕、评论等动作；区分“累计动作”和“按 BV 去重的视频数”；侧边栏未读提示
-- **更新检查**：从 GitHub Releases 检查新版本，显示下载进度，SHA256 校验后打开安装包，不静默升级
+- **更新检查**：从 GitHub Releases 检查新版本，显示下载进度，SHA256 校验后打开安装包，不静默升级；不再自动弹出更新公告
 - **数据备份**：SQLite `VACUUM INTO` 一致性快照 + manifest/SHA256 校验 + 恢复演练
 - **服务网页**：内嵌 SnowLuma WebUI（5099）和 qq-bridge 控制台（3100）
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
@@ -100,7 +104,9 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 ### qq-bridge / DSH 侧能力
 
-- **快速通道**：短纯文字优先直连 DeepSeek API；复杂/媒体/工具请求回退 DSH Agent
+- **快速通道**：短纯文字优先直连配置的 OpenAI 兼容模型；复杂/媒体/工具请求回退 DSH Agent；管理器可检测模型
+- **日记**：`qq_diary_context` / `qq_diary_write`，无固定定时任务，不自动发 QQ
+- **好友与白名单**：安全好友申请自动通过、通过后立即加入私聊白名单
 - **表情包**：自动补表情、表情库同步、收藏、备注、按场景发送
 - **Memory V3/V4**：消息入库、批量抽取、三层质量过滤、概念扩展召回、多信号评分、可逆归档；记忆页有生产审核、事实/候选/人格成长审核总览
 - **记忆评测**：脱敏基线脚本 `npm run eval:memory`，覆盖准确/模糊/时间/跨人物/多轮/不存在事件；报告在 `artifacts/memory-eval-report.md`
@@ -149,6 +155,12 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ### 记忆与黑话
 
 `qq_memory_append`、`qq_memory_query`、`qq_memory_remove`、`qq_memory_clear`、`qq_slang_query`、`qq_slang_submit`
+
+### 日记
+
+`qq_diary_context`、`qq_diary_write`
+
+无固定时间；同一天只保留一篇，重复写入是更新；不自动发送到 QQ，不写入事实/事件。新增工具需要重启一次 DSH 的 MCP 进程才会出现在模型工具列表。
 
 ### 表情包
 
@@ -550,6 +562,7 @@ socialV2.proactive.enabled = true
 
 - 桌面配置/日志/测试库：`%APPDATA%\dafiyu-desktop`
 - 生产记忆：`<qq-bridge>/state/memory.db`
+- 日记：`<qq-bridge>/state/diary.db`
 - B站活动台账：`<qq-bridge>/state/bili-watch.jsonl`
 - 备份：`<qq-bridge>/backups/desktop-*`（以实际配置为准）
 - MaiBot 导入前备份：`%APPDATA%\dafiyu-desktop\state\maibot-import-*.db`
