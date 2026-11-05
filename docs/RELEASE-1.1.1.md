@@ -42,11 +42,20 @@ source_type = manual:desktop
 
 没有来源消息时，详情页会明确显示为手动创建。
 
+## qqbridge 组件
+
+```text
+qq-bridge-0.2.0-r4-custom.7.zip
+size: 1,607,828
+sha256: 32382FEF7781671029E8905193FF522FD0D5D4A09BEFC1DF9EA4F8562E6514A8
+```
+
+包含好友自动审核、识图 MIME 修复、QZone 失败退避。
+
 ## 构建
 
 ```text
+管理器
 size: 123,475,635
 sha256: C994E3EC35B253DF11288336E30F813F839609FD2B7FE8FA1670A35D9517E313
 ```
-
-本次仅本地构建和安装，未推送、未发布。
