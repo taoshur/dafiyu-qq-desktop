@@ -27,12 +27,20 @@
 
 - 修复好友通过后，把 `flag` 当 QQ 号去查白名单的问题
 - 现在通过时直接从待处理申请取申请人 QQ 并立即加白名单
+- 同步保留识图图片块的 `mimeType` 修复
+
+## qqbridge 组件
+
+```text
+qq-bridge-0.2.0-r4-custom.6.zip
+size: 1,607,625
+sha256: 10E86ECA1B8551F2F9CCF142FF15A5C75CEE10BE1DDECFF29227BD3AA568DBE3
+```
 
 ## 构建
 
 ```text
+管理器
 size: 123,470,234
 sha256: 3632E0A6EDC0966238DB1992681E6CFC4760621FB9E604B56515AD4455B653A7
 ```
-
-本次仅本地构建和安装，未推送、未发布。
