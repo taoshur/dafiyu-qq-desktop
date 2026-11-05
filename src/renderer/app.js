@@ -48,6 +48,7 @@ const state = {
   component: { check: null, busy: false, error: null },
   snowLumaComponent: { check: null, busy: false, error: null },
   chatSettings: null,
+  friendSettings: null,
   chatModels: [],
   chatModelsBusy: false,
   chatModelsError: '',
@@ -1002,6 +1003,24 @@ async function importMaiBotMemory() {
   }
 }
 
+async function refreshFriendSettings() {
+  try { state.friendSettings = await api.friendSettingsGet(); }
+  catch { state.friendSettings = null; }
+  if (state.page === 'config') render();
+}
+
+async function saveFriendSettings() {
+  const autoApprove = Boolean(document.getElementById('friend-auto-approve')?.checked);
+  const maxPerDay = Number(document.getElementById('friend-auto-max')?.value) || 5;
+  try {
+    state.friendSettings = await api.friendSettingsSave({ autoApprove, maxPerDay });
+    toast('好友设置已保存；重启 qqbridge 后生效');
+    await refreshFriendSettings();
+  } catch (error) {
+    toast(`保存好友设置失败：${error.message}`);
+  }
+}
+
 async function refreshChatSettings() {
   try {
     state.chatSettings = await api.chatSettingsGet();
@@ -1830,7 +1849,7 @@ async function openPage(page) {
     try { state.startupStatus = await api.startupStatus(); } catch { state.startupStatus = null; }
   }
   if (page === 'memory') { await refreshMemory(false); await refreshAutoReview(); }
-  if (page === 'config') await refreshChatSettings();
+  if (page === 'config') { await refreshChatSettings(); await refreshFriendSettings(); }
   if (page === 'diary') await refreshDiary(false);
   if (page === 'setup') {
     try { state.setup.status = await api.setupStatus(); } catch (error) { state.setup.status = null; state.setup.error = error.message; }
@@ -2007,6 +2026,7 @@ function bind() {
     if (event.target.closest('#cfg-save-theme')) { saveDesktopPaths(); return; }
     if (event.target.closest('#chat-detect-models')) { detectChatModels(); return; }
     if (event.target.closest('#chat-save')) { saveChatSettings(); return; }
+    if (event.target.closest('#friend-save')) { saveFriendSettings(); return; }
     if (event.target.closest('#cfg-save-paths')) { saveDesktopPaths(); return; }
     if (event.target.closest('#cfg-export')) { exportDesktopConfig(); return; }
     if (event.target.closest('#cfg-import')) { importDesktopConfig(); return; }

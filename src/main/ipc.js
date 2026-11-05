@@ -97,6 +97,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   const { registerDataHandlers } = require('./ipc/handlers/data');
   const { registerDiaryHandlers } = require('./ipc/handlers/diary');
   const { registerChatSettingsHandlers } = require('./ipc/handlers/chat-settings');
+  const { registerFriendSettingsHandlers } = require('./ipc/handlers/friend-settings');
   const { registerComponentHandlers } = require('./ipc/handlers/component');
   registerSystemHandlers(router, { paths, getSettings, cache: cached });
   registerUpdateHandlers(router, { taskService });
@@ -112,6 +113,7 @@ function registerIpc({ ipcMain, paths, getSettings, setSettings, allowAutostart 
   registerDataHandlers(router, { paths, getSettings, setSettings, log });
   registerDiaryHandlers(router, { getSettings, log });
   registerChatSettingsHandlers(router, { getSettings, log });
+  registerFriendSettingsHandlers(router, { getSettings, log });
   registerComponentHandlers(router, { getSettings, log });
 
   return {

@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('dafiyu', {
   backupRestoreDrill: (dir) => ipcRenderer.invoke('backups:restore-drill', { dir }),
   backupExport: (dir) => ipcRenderer.invoke('backups:export', { dir }),
   backupExportLatest: () => ipcRenderer.invoke('backups:export-latest'),
+  friendSettingsGet: () => ipcRenderer.invoke('friend-settings:get'),
+  friendSettingsSave: (payload) => ipcRenderer.invoke('friend-settings:save', payload),
   chatSettingsGet: () => ipcRenderer.invoke('chat-settings:get'),
   chatSettingsSave: (payload) => ipcRenderer.invoke('chat-settings:save', payload),
   chatSettingsModels: (payload) => ipcRenderer.invoke('chat-settings:models', payload),

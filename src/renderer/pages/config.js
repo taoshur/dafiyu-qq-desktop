@@ -72,6 +72,35 @@ function configPage(snapshot) {
           </div>`;
       })()}
     </section>
+    <section class="card panel friend-settings-card" style="margin-top:14px">
+      <div class="section-title"><h3>好友与白名单</h3><span>自动审核 · 写入 qqbridge config</span></div>
+      ${(() => {
+        const friend = state.friendSettings || { autoApprove: false, maxPerDay: 5 };
+        return `
+          <div class="friend-auto-row">
+            <div class="friend-auto-copy">
+              <div class="chat-toggle-title"><b>自动通过安全好友申请</b><span class="chat-toggle-state ${friend.autoApprove ? 'on' : 'off'}">${friend.autoApprove ? '已开启' : '已关闭'}</span></div>
+              <small>只通过带正常验证消息、不含风险词的申请；通过后立即加入私聊白名单。</small>
+            </div>
+            <label class="chat-switch" aria-label="自动通过安全好友申请">
+              <input id="friend-auto-approve" type="checkbox" ${friend.autoApprove ? 'checked' : ''}>
+              <span class="chat-switch-track"><span></span></span>
+            </label>
+          </div>
+          <div class="friend-fields">
+            <label class="chat-field">
+              <span>每天最多自动通过</span>
+              <input id="friend-auto-max" type="number" min="1" step="1" value="${esc(friend.maxPerDay)}">
+              <small>超过上限后，新申请仍交给大肥鱼判断。</small>
+            </label>
+            <p class="friend-note">空验证消息、广告、验证码、转账、兼职、外链等会直接留给人工处理。已经是好友的人仍会按原逻辑自动补进白名单。</p>
+          </div>
+          <div class="backup-toolbar" style="margin-bottom:0">
+            <button class="btn primary" id="friend-save" type="button">保存好友设置</button>
+            <span class="backup-hint">修改后需重启 qqbridge 生效。</span>
+          </div>`;
+      })()}
+    </section>
     <section class="card panel" style="margin-top:14px">
       <div class="section-title"><h3>桌面路径设置</h3><span>只写桌面自己的配置，不修改 qq-bridge/config.json</span></div>
       <div class="memory-filters">

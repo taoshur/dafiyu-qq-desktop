@@ -42,6 +42,8 @@ const CHANNELS = Object.freeze([
   'backups:restore-drill',
   'backups:export',
   'backups:export-latest',
+  'friend-settings:get',
+  'friend-settings:save',
   'chat-settings:get',
   'chat-settings:save',
   'chat-settings:models',
