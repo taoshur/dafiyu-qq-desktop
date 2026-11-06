@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('dafiyu', {
   memoryConfirmedDelete: (payload) => ipcRenderer.invoke('memory:confirmed-delete', payload),
   memoryConfirmedRestore: (payload) => ipcRenderer.invoke('memory:confirmed-restore', payload),
   memoryChangeAudit: (payload) => ipcRenderer.invoke('memory:change-audit', payload),
+  memoryGrowthReview: (payload) => ipcRenderer.invoke('memory:growth-review', payload),
   memoryGrowth: (payload) => ipcRenderer.invoke('memory:growth', payload),
   memorySource: (payload) => ipcRenderer.invoke('memory:source', payload),
   memoryAutoReviewGet: () => ipcRenderer.invoke('memory:auto-review-get'),

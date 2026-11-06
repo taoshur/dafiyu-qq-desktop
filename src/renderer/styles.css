@@ -1116,3 +1116,10 @@ html[data-theme="light"] .diary-date:hover { background: rgba(20, 100, 105, .05)
 .growth-journal-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 7px 9px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--text-dim); }
 .growth-journal-row small { color: var(--text-faint); font-size: 10px; }
 @media (max-width: 700px) { .growth-row { flex-direction: column; } .growth-metrics { justify-content: flex-start; } }
+
+
+.growth-actions { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+.growth-actions .btn { padding: 5px 9px; font-size: 10.5px; }
+.growth-actions .btn[disabled] { opacity: .4; cursor: not-allowed; }
+.growth-warning { color: var(--red) !important; }
+@media (max-width: 700px) { .growth-actions { width: 100%; } }

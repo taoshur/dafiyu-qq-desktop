@@ -1287,6 +1287,26 @@ async function reviewProductionCandidate(action, id, edit = null) {
 
 function confirmedLabel(type) { return type === 'event' ? '事件' : '事实'; }
 
+function reviewGrowthCandidateAction(id, action) {
+  if (!state.memory.reviewUnlocked || normalizeMemoryReviewSession()) { toast('请先解锁生产审核'); return; }
+  const label = action === 'apply' ? '采纳' : '拒绝';
+  showModal({
+    title: `${label}成长候选 #${id}？`,
+    body: action === 'apply'
+      ? '采纳后会更新对应性格特质的强度，并写入 trait_versions、growth_journal 和审计。'
+      : '拒绝只会把候选标记为 rejected，不会修改性格特质。',
+    confirmText: label,
+    danger: action === 'reject',
+    onConfirm: async () => {
+      try {
+        await api.memoryGrowthReview({ mode: state.memory.mode, id, action, token: state.memory.reviewToken, reason: `desktop growth ${action}` });
+        toast(`成长候选已${label}`);
+        await openGrowthDetail();
+      } catch (error) { toast(`${label}失败：${error.message}`); }
+    }
+  });
+}
+
 async function openGrowthDetail() {
   let data;
   try { data = await api.memoryGrowth({ mode: state.memory.mode }); }
@@ -1299,7 +1319,11 @@ async function openGrowthDetail() {
   const pendingCandidates = candidates.filter((c) => c.status === 'pending');
   const root = $('modal-root');
   const traitRow = (t) => `<div class="growth-row"><div><b>${esc(t.name || t.trait_key)}</b><small>${esc(t.category || '')}${t.description ? ` · ${esc(t.description)}` : ''}</small></div><div class="growth-metrics"><span>强度 ${Number(t.strength || 0).toFixed(2)}</span><span>可信 ${Number(t.confidence || 0).toFixed(2)}</span><span>证据 ${Number(t.evidence_count) || 0}</span><span>${Number(t.distinct_days) || 0} 天</span></div></div>`;
-  const candidateRow = (c) => `<div class="growth-row"><div><b>${esc(c.trait_key)}</b><small>${esc(c.kind)} · ${esc(c.reason || '')}${c.reconcile_state && c.reconcile_state !== 'current' ? ` · ${esc(c.reconcile_state)}` : ''}</small></div><div class="growth-metrics"><span>${Number(c.before_strength || 0).toFixed(2)} → ${Number(c.proposed_strength || 0).toFixed(2)}</span><span>证据 ${Number(c.evidence_count) || 0}</span><span>${Number(c.distinct_days) || 0} 天</span></div></div>`;
+  const candidateRow = (c) => {
+    const pending = c.status === 'pending';
+    const canApply = pending && c.reconcile_state === 'current' && c.basis_cursor != null;
+    return `<div class="growth-row"><div><b>${esc(c.trait_key)}</b><small>${esc(c.kind)} · ${esc(c.reason || '')}${c.reconcile_state && c.reconcile_state !== 'current' ? ` · ${esc(c.reconcile_state)}` : ''}</small>${pending && !canApply ? '<small class="growth-warning">缺少可核对证据，只能拒绝</small>' : ''}</div><div class="growth-metrics"><span>${Number(c.before_strength || 0).toFixed(2)} → ${Number(c.proposed_strength || 0).toFixed(2)}</span><span>证据 ${Number(c.evidence_count) || 0}</span><span>${Number(c.distinct_days) || 0} 天</span></div><div class="growth-actions">${pending ? `<button class="btn primary" data-growth-apply="${c.id}" type="button" ${canApply ? '' : 'disabled title="缺少 basis_cursor 或候选已过期"'}>采纳</button><button class="btn" data-growth-reject="${c.id}" type="button">拒绝</button>` : `<span class="meta-pill">${esc(c.status)}</span>`}</div></div>`;
+  };
   root.innerHTML = `
     <div class="modal-mask"><div class="modal growth-modal" role="dialog" aria-modal="true">
       <h3>人格成长</h3>
@@ -2265,6 +2289,10 @@ function bind() {
     const reviewBtn = event.target.closest('[data-memory-review]');
     if (reviewBtn) { askMemoryReview(reviewBtn.dataset.memoryReview, Number(reviewBtn.dataset.memoryId)); return; }
     if (event.target.closest('[data-memory-growth]')) { openGrowthDetail(); return; }
+    const growthApply = event.target.closest('[data-growth-apply]');
+    if (growthApply) { reviewGrowthCandidateAction(Number(growthApply.dataset.growthApply), 'apply'); return; }
+    const growthReject = event.target.closest('[data-growth-reject]');
+    if (growthReject) { reviewGrowthCandidateAction(Number(growthReject.dataset.growthReject), 'reject'); return; }
     if (event.target.closest('#memory-add-fact')) { askConfirmedCreate('fact'); return; }
     if (event.target.closest('#memory-add-event')) { askConfirmedCreate('event'); return; }
     if (event.target.closest('#memory-show-deleted')) { state.memory.showDeleted = !state.memory.showDeleted; state.memory.page = 1; refreshMemory(); return; }

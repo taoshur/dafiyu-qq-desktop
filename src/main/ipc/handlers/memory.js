@@ -3,7 +3,7 @@
 const { status: memoryStatus, list: listMemory, candidate: getCandidate, initTestDb, review: reviewCandidate } = require('../../domain/memory/repository');
 const { getMemorySource, getGrowth } = require('../../memory');
 const { listDeadLetters, retryDeadLetter } = require('../../memory');
-const { unlockProductionReview, reviewProductionCandidate, listAudit, editConfirmed, createConfirmed, deleteConfirmed, restoreConfirmed, listChangeAudit } = require('../../memory-review');
+const { unlockProductionReview, reviewProductionCandidate, listAudit, editConfirmed, createConfirmed, deleteConfirmed, restoreConfirmed, reviewGrowthCandidate, listChangeAudit } = require('../../memory-review');
 const { memoryDbPath } = require('../../memory');
 const { previewMaiBotImport, importMaiBot } = require('../../maibot-import');
 const path = require('node:path');
@@ -15,6 +15,11 @@ function memoryMode(payload) {
 
 function registerMemoryHandlers(router, { paths, getSettings, log }) {
   router.handle('memory:growth', async (_event, payload) => getGrowth({ settings: getSettings(), paths, mode: memoryMode(payload) }));
+
+  router.handle('memory:growth-review', async (_event, payload) => reviewGrowthCandidate({
+    settings: getSettings(), paths, mode: memoryMode(payload), id: Number(payload?.id) || 0,
+    action: payload?.action, token: payload?.token, reason: String(payload?.reason || 'desktop growth review')
+  }));
 
   router.handle('memory:confirmed-create', async (_event, payload) => createConfirmed({
     settings: getSettings(), paths, mode: memoryMode(payload), type: payload?.type,

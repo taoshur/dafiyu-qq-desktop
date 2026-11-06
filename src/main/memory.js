@@ -281,7 +281,7 @@ function getGrowth({ settings, paths, mode = 'prod' }) {
       : [];
     const candidates = has('growth_candidates')
       ? db.prepare(`SELECT id, trait_key, kind, before_strength, proposed_strength, delta, evidence_count, distinct_days,
-          span_days, reason, status, created_at, reviewed_at, reconcile_state, stale_reason
+          span_days, basis_cursor, reason, status, created_at, reviewed_at, reconcile_state, stale_reason
           FROM growth_candidates ORDER BY status='pending' DESC, created_at DESC LIMIT 80`).all()
       : [];
     const journal = has('growth_journal')

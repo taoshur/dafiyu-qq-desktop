@@ -287,6 +287,66 @@ function restoreConfirmed({ settings, paths, mode = 'prod', type, id, token, rea
   } finally { try { db.close(); } catch { /* ignore */ } }
 }
 
+function reviewGrowthCandidate({ settings, paths, mode = 'prod', id, action, token, reason = '' }) {
+  if (mode === 'prod') requireUnlocked(token);
+  if (!['apply', 'reject'].includes(String(action))) throw new Error('action 必须是 apply 或 reject');
+  const { db } = openConfirmedDb({ settings, paths, mode });
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const c = db.prepare('SELECT * FROM growth_candidates WHERE id=?').get(Number(id));
+    if (!c) throw new Error('成长候选不存在');
+    if (c.status !== 'pending') throw new Error('成长候选已经处理过');
+    const actor = mode === 'test' ? 'desktop-test' : (session?.actor || 'desktop');
+    if (action === 'reject') {
+      db.prepare("UPDATE growth_candidates SET status='rejected', reviewed_at=?, reason=? WHERE id=?")
+        .run(Date.now(), String(reason || 'manual reject').slice(0, 300), Number(id));
+      const after = db.prepare('SELECT * FROM growth_candidates WHERE id=?').get(Number(id));
+      addChangeAudit(db, { tableName: 'growth_candidates', rowId: Number(id), action: 'reject', before: c, after, actor, reason });
+      db.exec('COMMIT');
+      return { ok: true, action: 'reject', id: Number(id) };
+    }
+    if (c.reconcile_state !== 'current' || c.basis_cursor == null) {
+      throw new Error('这条旧候选缺少可核对证据，不能直接采纳；可以选择拒绝');
+    }
+    const t = db.prepare('SELECT * FROM traits WHERE trait_key=?').get(c.trait_key);
+    if (!t) throw new Error('对应性格特质不存在');
+    if (Math.abs(Number(t.strength) - Number(c.before_strength)) > 0.005) {
+      db.prepare("UPDATE growth_candidates SET reconcile_state='stale', stale_reason=? WHERE id=?")
+        .run(`候选 before=${Number(c.before_strength).toFixed(3)}，当前 ${Number(t.strength).toFixed(3)}`, Number(id));
+      throw new Error(`候选已过期：当前强度 ${Number(t.strength).toFixed(3)}，候选基于 ${Number(c.before_strength).toFixed(3)}`);
+    }
+    const now = Date.now();
+    const beforeStrength = Number(t.strength);
+    const afterStrength = Math.max(0, Math.min(1, Number(c.proposed_strength)));
+    const nextStatus = c.kind === 'review' && t.status === 'rejected' ? 'active' : t.status;
+    db.prepare('UPDATE traits SET strength=?, status=?, evidence_cursor=MAX(COALESCE(evidence_cursor,0), COALESCE(?,0)), updated_at=? WHERE trait_key=?')
+      .run(afterStrength, nextStatus, Number(c.basis_cursor) || null, now, c.trait_key);
+    db.prepare("UPDATE growth_candidates SET status='applied', applied_at=?, reviewed_at=?, reconcile_state='applied', stale_reason=NULL WHERE id=?")
+      .run(now, now, Number(id));
+    const consumed = Number(db.prepare('SELECT COUNT(*) c FROM trait_evidence WHERE trait_key=? AND id<=?').get(c.trait_key, Number(c.basis_cursor) || 0).c);
+    const unconsumed = Number(db.prepare('SELECT COUNT(*) c FROM trait_evidence WHERE trait_key=? AND id>?').get(c.trait_key, Number(c.basis_cursor) || 0).c);
+    db.prepare(`INSERT OR REPLACE INTO growth_reconcile
+      (candidate_id, trait_key, state, snapshot_evidence_count, current_evidence_count, consumed_total, unconsumed_total, ambiguous_total, note, created_at, updated_at)
+      VALUES(?,?, 'applied', ?, ?, ?, ?, 0, ?, ?, ?)`).run(
+      Number(id), c.trait_key, Number(c.evidence_count) || 0, consumed + unconsumed, consumed, unconsumed, '桌面人工采纳', now, now
+    );
+    const evIds = db.prepare('SELECT id FROM trait_evidence WHERE trait_key=? ORDER BY id DESC LIMIT 20').all(c.trait_key).map((r) => r.id);
+    db.prepare('INSERT INTO trait_versions(trait_key, before_strength, after_strength, reason, evidence_ids, source, at) VALUES(?,?,?,?,?,?,?)')
+      .run(c.trait_key, beforeStrength, afterStrength, String(reason || '桌面人工采纳').slice(0, 300), JSON.stringify(evIds), 'manual', now);
+    db.prepare(`INSERT INTO growth_journal(at, kind, summary, detail, trait_key, before_state, after_state, evidence_ids, confidence, verified, source)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(
+      now, 'trait_shift', `${t.name || c.trait_key} 经人工采纳增强`, `${beforeStrength.toFixed(2)} → ${afterStrength.toFixed(2)}`, c.trait_key, String(beforeStrength.toFixed(2)), String(afterStrength.toFixed(2)), JSON.stringify(evIds), 1, 1, 'manual'
+    );
+    const after = db.prepare('SELECT * FROM growth_candidates WHERE id=?').get(Number(id));
+    addChangeAudit(db, { tableName: 'growth_candidates', rowId: Number(id), action: 'apply', before: c, after, actor, reason });
+    db.exec('COMMIT');
+    return { ok: true, action: 'apply', id: Number(id), trait: c.trait_key, before: beforeStrength, after: afterStrength };
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+    throw error;
+  } finally { try { db.close(); } catch { /* ignore */ } }
+}
+
 function listAudit({ settings, paths, candidateId = null, limit = 50 }) {
   const file = memoryDbPath(settings);
   if (!fs.existsSync(file)) return { exists: false, rows: [] };
@@ -413,5 +473,5 @@ async function reviewProductionCandidate({
 module.exports = {
   UNLOCK_PHRASE, unlockProductionReview, requireUnlocked,
   reviewProductionCandidate, listAudit, ensureReviewSchema,
-  editConfirmed, createConfirmed, deleteConfirmed, restoreConfirmed, listChangeAudit, ensureConfirmedSchema
+  editConfirmed, createConfirmed, deleteConfirmed, restoreConfirmed, reviewGrowthCandidate, listChangeAudit, ensureConfirmedSchema
 };
