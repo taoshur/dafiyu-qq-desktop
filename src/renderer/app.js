@@ -31,6 +31,8 @@ const state = {
     dead: [],
     reviewUnlocked: false,
     reviewToken: null,
+    reviewExpiresAt: 0,
+    reviewExpiryTimer: null,
     reviewBusy: false,
     page: 1,
     pageSize: 20,
@@ -278,6 +280,31 @@ function restoreViewState(saved) {
   }
 }
 
+function normalizeMemoryReviewSession() {
+  const m = state.memory;
+  if (!m?.reviewUnlocked) return false;
+  if (Number(m.reviewExpiresAt) > Date.now()) return false;
+  m.reviewUnlocked = false;
+  m.reviewToken = null;
+  m.reviewExpiresAt = 0;
+  if (m.reviewExpiryTimer) { clearTimeout(m.reviewExpiryTimer); m.reviewExpiryTimer = null; }
+  return true;
+}
+
+function scheduleMemoryReviewExpiry() {
+  const m = state.memory;
+  if (!m?.reviewUnlocked || !m.reviewExpiresAt) return;
+  if (m.reviewExpiryTimer) clearTimeout(m.reviewExpiryTimer);
+  const remaining = Number(m.reviewExpiresAt) - Date.now();
+  m.reviewExpiryTimer = setTimeout(() => {
+    m.reviewExpiryTimer = null;
+    if (Number(m.reviewExpiresAt) > Date.now()) { scheduleMemoryReviewExpiry(); return; }
+    normalizeMemoryReviewSession();
+    toast('生产审核解锁已过期，请重新解锁');
+    if (state.page === 'memory') render();
+  }, Math.max(50, remaining + 50));
+}
+
 function render() {
   const meta = PAGE_META[state.page] || PAGE_META.overview;
   $('page-title').textContent = meta[0];
@@ -307,6 +334,7 @@ function render() {
     return;
   }
 
+  normalizeMemoryReviewSession();
   let html = '';
   if (state.page === 'overview') html = overview(snapshot);
   else if (state.page === 'services') html = servicesPage(snapshot);
@@ -1225,6 +1253,7 @@ async function unlockMemoryReview() {
         state.memory.reviewUnlocked = true;
         state.memory.reviewToken = result.token;
         state.memory.reviewExpiresAt = result.expiresAt;
+        scheduleMemoryReviewExpiry();
         toast(`生产审核已解锁（${result.actor}）`);
         render();
       } catch (error) {
@@ -1287,7 +1316,7 @@ async function openGrowthDetail() {
 }
 
 function askConfirmedCreate(type) {
-  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked || normalizeMemoryReviewSession()) { toast('请先解锁生产审核'); return; }
   const isEvent = type === 'event';
   const root = $('modal-root');
   root.innerHTML = `
@@ -1338,7 +1367,7 @@ function askConfirmedCreate(type) {
 }
 
 function askConfirmedEdit(type, id) {
-  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) {
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked || normalizeMemoryReviewSession()) {
     toast('请先解锁生产审核');
     return;
   }
@@ -1403,7 +1432,7 @@ function askConfirmedEdit(type, id) {
 }
 
 function askConfirmedDelete(type, id) {
-  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked || normalizeMemoryReviewSession()) { toast('请先解锁生产审核'); return; }
   showModal({
     title: `删除${confirmedLabel(type)} #${id}？`,
     body: '不会物理删除，只会从有效记忆里隐藏；之后可以在「已删除」里恢复。会写入本地审计。',
@@ -1422,7 +1451,7 @@ function askConfirmedDelete(type, id) {
 }
 
 function restoreConfirmedRecord(type, id) {
-  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked || normalizeMemoryReviewSession()) { toast('请先解锁生产审核'); return; }
   showModal({
     title: `恢复${confirmedLabel(type)} #${id}？`,
     body: '会把这条记录恢复到有效记忆；不会重新写入来源消息。会写入本地审计。',
@@ -1438,7 +1467,7 @@ function restoreConfirmedRecord(type, id) {
 }
 
 function askMemoryEdit(id) {
-  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked) { toast('请先解锁生产审核'); return; }
+  if (state.memory.mode !== 'prod' || !state.memory.reviewUnlocked || normalizeMemoryReviewSession()) { toast('请先解锁生产审核'); return; }
   const selected = state.memory.detail?.candidate;
   if (!selected || Number(selected.id) !== Number(id)) { toast('请先打开候选详情'); return; }
   const isEvent = String(selected.kind) === 'event';
