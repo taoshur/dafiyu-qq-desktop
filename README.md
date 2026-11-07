@@ -11,18 +11,19 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v1.1.3 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v1.1.3/Dafiyu-Control-Center-Setup.exe
-- 大小：123,477,251 字节
+- **v1.1.4 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v1.1.4/Dafiyu-Control-Center-Setup.exe
+- 大小：123,477,071 字节
 - SHA256：
   ```text
-  F1A050F707FF8A2F7412A99026680FC138AABFFFC283D801F9CDF39EE0FEF973
+  63AE59AF2FA33806A04A735050E62AC4FBFEBD73FC2D8BDB973A0D8D6A0707A4
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 DSH。
 
 ## 最近更新
 
+- **1.1.4**：兼容新版 DSH 图片字段，同时保留旧版 DSH 回退
 - **1.1.3**：成长候选评审、生产审核过期修复
 - **1.1.1**：已确认事实/事件增删改查、软删除恢复、人格成长详情
 - **1.0.11**：好友自动审核与白名单、识图 MIME 修复
@@ -108,6 +109,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ### qq-bridge / DSH 侧能力
 
 - **快速通道**：短纯文字优先直连配置的 OpenAI 兼容模型；复杂/媒体/工具请求回退 DSH Agent；管理器可检测模型
+- **DSH 图片字段兼容**：新版 DSH 使用 `mediaType`，旧版使用 `mimeType`；桥接先按新版发送，遇到 `boundary validation` 时自动回退旧字段
 - **日记**：`qq_diary_context` / `qq_diary_write`，无固定定时任务，不自动发 QQ
 - **好友与白名单**：安全好友申请自动通过、通过后立即加入私聊白名单
 - **表情包**：自动补表情、表情库同步、收藏、备注、按场景发送
@@ -119,6 +121,38 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **Android 模拟器**：截图、UI 树、点击、滑动、输入、启动/关闭 App、受控 adb
 - **联网搜索**：只读 `web_search` / `web_fetch`
 - **游戏/画图**：通过可选 MCP 工具完成，是否启用取决于配置
+
+### DSH 版本兼容
+
+新版 DSH 的 `session/prompt` 要求图片块使用：
+
+```text
+mediaType
+```
+
+旧版 DSH 使用：
+
+```text
+mimeType
+```
+
+桥接现在会：
+
+```text
+先按新版 mediaType 发送
+→ 如果 DSH 返回 input-invalid / boundary validation
+→ 且本次 prompt 含图片
+→ 自动改用旧版 mimeType 重试
+```
+
+因此：
+
+- 新版 DSH：使用 `mediaType`
+- 上一版及旧版 DSH：自动回退 `mimeType`
+- 纯文字消息：不受影响
+- MCP 图片工具：仍使用 `mimeType`，与 DSH 会话字段分开
+
+如果旧版 DSH 完全不支持图片输入，回退只能保证文字消息可用，图片仍无法识别。
 
 ### 数据安全
 
