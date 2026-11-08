@@ -65,7 +65,10 @@ function guideHtmlFor(state) {
   let bubbleStyle = 'left:50%;top:50%;transform:translate(-50%,-50%)';
   if (target) {
     const rect = target.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
+    const visible = rect.width > 0 && rect.height > 0
+      && rect.bottom > 8 && rect.top < window.innerHeight - 8
+      && rect.right > 8 && rect.left < window.innerWidth - 8;
+    if (visible) {
       const pad = 7;
       spot = `<div class="guide-spot" style="left:${Math.max(0, rect.left - pad)}px;top:${Math.max(0, rect.top - pad)}px;width:${rect.width + pad * 2}px;height:${rect.height + pad * 2}px"></div>`;
       const width = Math.min(340, window.innerWidth - 24);
@@ -105,17 +108,26 @@ function renderGuide(state) {
     return;
   }
   const step = GUIDE_STEPS[state.guide.step];
+  let didScroll = false;
   if (step?.selector) {
     const target = document.querySelector(step.selector);
-    if (target && target.scrollIntoView && !target.dataset.guideScrolled) {
-      target.dataset.guideScrolled = '1';
+    if (target && target.scrollIntoView && state.guide.scrolledSelector !== step.selector) {
+      state.guide.scrolledSelector = step.selector;
       target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      didScroll = true;
     }
   }
   root.innerHTML = guideHtmlFor(state);
+  if (didScroll) {
+    clearTimeout(state.guide.repositionTimer);
+    state.guide.repositionTimer = setTimeout(() => {
+      if (state.guide.open) renderGuide(state);
+    }, 320);
+  }
 }
 
 function guideAdvance(state, delta = 1) {
+  state.guide.scrolledSelector = '';
   state.guide.step = Math.max(0, Math.min(GUIDE_STEPS.length - 1, state.guide.step + delta));
   renderGuide(state);
 }
@@ -129,6 +141,7 @@ function guideClose(state) {
 function guideStart(state) {
   state.guide.open = true;
   state.guide.step = 0;
+  state.guide.scrolledSelector = '';
   try { localStorage.removeItem('dafiyu.guide.completed.v1'); } catch { /* ignore */ }
   renderGuide(state);
 }

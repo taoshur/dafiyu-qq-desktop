@@ -820,9 +820,9 @@ html[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.98); }
 }
 .guide-bubble p {
   margin: 0;
-  color: var(--text-dim);
-  font-size: 12.5px;
-  line-height: 1.7;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.75;
 }
 .guide-actions {
   display: flex;

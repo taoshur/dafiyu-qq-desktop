@@ -2116,7 +2116,10 @@ function bind() {
     api.onHiddenToTray?.(() => toast('已隐藏到托盘；机器人仍在运行。要完全退出，请右键托盘图标。'));
   } catch { /* optional bridge event */ }
   window.addEventListener('resize', () => { placeEmbed(); renderGuide(state); });
-  window.addEventListener('scroll', () => { if (state.page === 'embed') placeEmbed(); }, true);
+  window.addEventListener('scroll', () => {
+    if (state.page === 'embed') placeEmbed();
+    if (state.guide.open) renderGuide(state);
+  }, true);
 
   document.addEventListener('click', (event) => {
     // Native <select> must be driven by change. Refreshing on the opening click
