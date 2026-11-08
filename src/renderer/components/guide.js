@@ -26,10 +26,9 @@ const GUIDE_STEPS = Object.freeze([
   },
   {
     page: 'services',
-    selector: '[data-guide-target="bridge-start"]',
-    waitFor: '[data-guide-target="bridge-start"]',
+    selector: '[data-guide-target="services-sequence"]',
     title: '按顺序启动',
-    body: '顺序是 SnowLuma → DSH → qq-bridge。先保证网关在线，再启动 bridge；点击高亮的启动按钮试试。'
+    body: '这里就是 SnowLuma → DSH → qq-bridge 的启动顺序。没在线的按顺序启动；已经在线就不用动。'
   },
   {
     page: 'services',
@@ -40,9 +39,9 @@ const GUIDE_STEPS = Object.freeze([
   },
   {
     page: 'memory',
-    selector: '[data-guide-target="memory-candidates"]',
+    selector: '[data-guide-target="memory-list"]',
     title: '候选需要你确认',
-    body: '模型抽出的内容先进入「待确认候选」。你可以批准、编辑或拒绝；observeOnly 开启时不会自动写入正式记忆。'
+    body: '下面这张表就是「待确认候选」。点开一条可以批准、编辑或拒绝；observeOnly 开启时不会自动写入正式记忆。'
   },
   {
     page: 'memory',
@@ -52,9 +51,9 @@ const GUIDE_STEPS = Object.freeze([
   },
   {
     page: 'memory',
-    selector: '[data-guide-target="sidebar"]',
+    selector: '[data-guide-target="close-hint"]',
     title: '关闭窗口不是退出程序',
-    body: '点右上角 × 只会隐藏到托盘，机器人继续运行。要完全退出，右键托盘图标，选择「退出并停止我启动的服务（快速）」或「仅退出界面」。'
+    body: '看左下角这段提示：点右上角 × 只会隐藏到托盘，机器人继续运行。要完全退出，右键托盘图标，选择「退出并停止我启动的服务（快速）」或「仅退出界面」。'
   }
 ]);
 

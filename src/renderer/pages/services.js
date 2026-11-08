@@ -91,7 +91,7 @@ function servicesPage(snapshot) {
     </div>
     ${preflightHtml}
     <div class="section-title" style="margin-top:16px"><h3>依赖顺序</h3><span>先网关、再智能体宿主、最后消息桥接</span></div>
-    <div class="flow">${steps}</div>
+    <div class="flow" data-guide-target="services-sequence">${steps}</div>
     <div class="grid grid-2" style="margin-top:18px">
       <section class="card panel">
         <div class="section-title"><h3>停止时必须协调的两件事</h3></div>
