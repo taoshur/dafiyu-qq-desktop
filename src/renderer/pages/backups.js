@@ -45,7 +45,7 @@ function snowLumaComponentPanel() {
       </div>
       ${c.error ? `<div class="notice danger">检查 SnowLuma 更新失败：${esc(c.error)}</div>` : ''}
       ${check && !check.available ? '<p class="embed-hint">当前没有可用的 SnowLuma 更新。</p>' : ''}
-      ${check?.available ? '<p class="embed-hint">会备份旧目录、停止 qqbridge 与 SnowLuma、替换运行时并保留 config/data；失败自动切回旧版本。</p>' : ''}
+      ${check?.available ? '<p class="embed-hint">会备份旧目录、停止 qqbridge 与 SnowLuma、替换运行时并保留 config/data；GitHub 下载失败会自动尝试镜像通道，仍校验官方 SHA256；失败自动切回旧版本。</p>' : ''}
       <div class="backup-toolbar">
         <button class="btn" id="component-check-snowluma" type="button" ${c.busy ? 'disabled' : ''}>${c.busy ? '检查中…' : '检查 SnowLuma 更新'}</button>
         ${check?.available ? `<button class="btn primary" id="component-update-snowluma" type="button" ${c.busy ? 'disabled' : ''}>一键更新 SnowLuma</button>` : ''}

@@ -102,27 +102,47 @@ function download(url, target, redirects = 0) {
 }
 
 function downloadWithCurl(url, target) {
-  execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '-C', '-', '--retry', '5', '--retry-delay', '3', '--max-time', '600', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], { windowsHide: true, stdio: 'ignore', timeout: 600000 });
+  try {
+    execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '--retry', '5', '--retry-all-errors', '--retry-delay', '3', '--connect-timeout', '20', '--max-time', '600', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], {
+      windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], timeout: 600000
+    });
+  } catch (error) {
+    const detail = String(error?.stderr || '').trim().slice(0, 500);
+    throw new Error(`curl 下载失败${detail ? `：${detail}` : ''}`);
+  }
   const size = fs.statSync(target).size;
   if (!size) throw new Error('组件下载为空');
   return { bytes: size };
 }
 
+const DOWNLOAD_MIRRORS = [
+  (url) => `https://gh-proxy.com/${url}`,
+  (url) => `https://ghproxy.net/${url}`,
+  (url) => `https://github.moeyy.xyz/${url}`
+];
+
 async function downloadWithRetry(url, target, attempts = 3, apiUrl = '') {
+  const candidates = [];
+  const add = (candidate, mode) => {
+    if (!candidate || candidates.some((item) => item.url === candidate)) return;
+    candidates.push({ url: candidate, mode });
+  };
+  add(url, 'native');
+  add(url, 'curl');
+  add(apiUrl, 'curl');
+  for (const mirror of DOWNLOAD_MIRRORS) add(mirror(url), 'curl');
   let lastError = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
+    for (const candidate of candidates) {
       try { fs.rmSync(target, { force: true }); } catch { /* ignore */ }
-      return await download(url, target);
-    } catch (error) {
-      lastError = error;
       try {
-        return await downloadWithCurl(apiUrl || url, target);
-      } catch (curlError) {
-        lastError = curlError;
+        if (candidate.mode === 'native') return await download(candidate.url, target);
+        return await downloadWithCurl(candidate.url, target);
+      } catch (error) {
+        lastError = error;
       }
-      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
     }
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
   }
   throw lastError || new Error('组件下载失败');
 }
