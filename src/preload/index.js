@@ -57,6 +57,11 @@ contextBridge.exposeInMainWorld('dafiyu', {
   componentUpdate: () => ipcRenderer.invoke('component:update'),
   snowLumaCheck: () => ipcRenderer.invoke('component:snowluma-check'),
   snowLumaUpdate: () => ipcRenderer.invoke('component:snowluma-update'),
+  onSnowLumaProgress: (callback) => {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on('component:snowluma-progress', handler);
+    return () => ipcRenderer.removeListener('component:snowluma-progress', handler);
+  },
   updateDownload: () => ipcRenderer.invoke('update:download'),
   updateStatus: () => ipcRenderer.invoke('update:status'),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', { url }),

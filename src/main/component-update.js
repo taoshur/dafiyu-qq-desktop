@@ -72,27 +72,37 @@ async function check(repoRoot) {
   };
 }
 
-function download(url, target, redirects = 0) {
+function download(url, target, redirects = 0, options = {}) {
+  const timeoutMs = Math.max(5000, Number(options.timeoutMs) || 15000);
+  const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
   return new Promise((resolve, reject) => {
     if (redirects > 5) return reject(new Error('下载重定向过多'));
     const req = https.get(url, {
-      timeout: 15000,
+      timeout: timeoutMs,
       headers: { 'user-agent': 'dafiyu-component-update', accept: 'application/octet-stream' }
     }, (res) => {
       const status = Number(res.statusCode || 0);
       if ([301, 302, 303, 307, 308].includes(status) && res.headers.location) {
         res.resume();
-        return resolve(download(new URL(res.headers.location, url).toString(), target, redirects + 1));
+        return resolve(download(new URL(res.headers.location, url).toString(), target, redirects + 1, options));
       }
       if (status !== 200) {
         res.resume();
         return reject(new Error(`组件下载 HTTP ${status}`));
       }
+      const total = Number(res.headers['content-length']) || 0;
       const out = fs.createWriteStream(target);
       let received = 0;
-      res.on('data', (chunk) => { received += chunk.length; });
+      let lastAt = 0;
+      const report = (force = false) => {
+        const now = Date.now();
+        if (!force && now - lastAt < 180) return;
+        lastAt = now;
+        onProgress({ received, total, percent: total ? Math.min(100, Math.round((received / total) * 100)) : null });
+      };
+      res.on('data', (chunk) => { received += chunk.length; report(); });
       res.pipe(out);
-      out.on('finish', () => out.close(() => resolve({ bytes: received })));
+      out.on('finish', () => out.close(() => { report(true); resolve({ bytes: received }); }));
       out.on('error', reject);
       res.on('error', reject);
     });
@@ -103,8 +113,8 @@ function download(url, target, redirects = 0) {
 
 function downloadWithCurl(url, target) {
   try {
-    execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '--retry', '5', '--retry-all-errors', '--retry-delay', '3', '--connect-timeout', '10', '--max-time', '300', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], {
-      windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], timeout: 600000
+    execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '--connect-timeout', '10', '--max-time', '300', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], {
+      windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], timeout: 310000
     });
   } catch (error) {
     const detail = String(error?.stderr || '').trim().slice(0, 500);
@@ -121,28 +131,43 @@ const DOWNLOAD_MIRRORS = [
   (url) => `https://github.moeyy.xyz/${url}`
 ];
 
-async function downloadWithRetry(url, target, attempts = 2, apiUrl = '') {
+async function downloadWithRetry(url, target, attempts = 2, apiUrl = '', options = {}) {
+  const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
   const candidates = [];
-  const add = (candidate, mode) => {
-    if (!candidate || candidates.some((item) => item.url === candidate)) return;
-    candidates.push({ url: candidate, mode });
+  const add = (candidate, mode, channel, timeoutMs = 15000) => {
+    if (!candidate || candidates.some((item) => item.url === candidate && item.mode === mode)) return;
+    candidates.push({ url: candidate, mode, channel, timeoutMs });
   };
-  add(url, 'native');
-  add(url, 'curl');
-  add(apiUrl, 'curl');
-  for (const mirror of DOWNLOAD_MIRRORS) add(mirror(url), 'curl');
+  add(url, 'native', 'GitHub 官方', 15000);
+  add(url, 'curl', 'GitHub 官方');
+  for (const mirror of DOWNLOAD_MIRRORS) {
+    const channel = mirror(url).includes('gh-proxy.com') ? 'gh-proxy 镜像'
+      : mirror(url).includes('ghproxy.net') ? 'ghproxy.net 镜像' : 'moeyy 镜像';
+    add(mirror(url), 'native', channel, 300000);
+    add(mirror(url), 'curl', channel);
+  }
+  add(apiUrl, 'curl', 'GitHub API');
   let lastError = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     for (const candidate of candidates) {
       try { fs.rmSync(target, { force: true }); } catch { /* ignore */ }
+      onProgress({ phase: 'download-start', channel: candidate.channel, message: `正在尝试 ${candidate.channel}…`, percent: null });
       try {
-        if (candidate.mode === 'native') return await download(candidate.url, target);
-        return await downloadWithCurl(candidate.url, target);
+        if (candidate.mode === 'native') {
+          return await download(candidate.url, target, 0, {
+            timeoutMs: candidate.timeoutMs,
+            onProgress: (p) => onProgress({ phase: 'download', channel: candidate.channel, ...p, message: `正在从 ${candidate.channel} 下载…` })
+          });
+        }
+        const result = await downloadWithCurl(candidate.url, target);
+        onProgress({ phase: 'download', channel: candidate.channel, received: result.bytes, total: result.bytes, percent: 100, message: `已从 ${candidate.channel} 下载完成` });
+        return result;
       } catch (error) {
         lastError = error;
+        onProgress({ phase: 'download-retry', channel: candidate.channel, message: `${candidate.channel} 失败，换下一个通道…`, error: String(error?.message || error).slice(0, 200) });
       }
     }
-    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 900 * attempt));
   }
   throw lastError || new Error('组件下载失败');
 }
@@ -359,7 +384,7 @@ async function waitSnowLuma(timeoutMs = 40000) {
   return false;
 }
 
-async function updateSnowLuma(root, { repoRoot, log = () => {} } = {}) {
+async function updateSnowLuma(root, { repoRoot, log = () => {}, onProgress = () => {} } = {}) {
   const info = await checkSnowLuma(root);
   if (!info.available) return { ok: false, reason: '当前没有可用的 SnowLuma 更新' };
   if (!fs.existsSync(path.join(root, 'index.mjs'))) throw new Error('SnowLuma 目录无效');
@@ -370,11 +395,15 @@ async function updateSnowLuma(root, { repoRoot, log = () => {} } = {}) {
   fs.rmSync(stage, { recursive: true, force: true });
   fs.mkdirSync(stage, { recursive: true });
   try {
-    await downloadWithRetry(info.asset.url, zipFile, 3, info.asset.apiUrl);
+    onProgress({ phase: 'check', message: `准备更新 ${info.currentVersion} → ${info.latestVersion}`, percent: null });
+    await downloadWithRetry(info.asset.url, zipFile, 2, info.asset.apiUrl, { onProgress });
+    onProgress({ phase: 'verify', message: '下载完成，正在校验 SHA256…', percent: 100 });
     const digest = `sha256:${crypto.createHash('sha256').update(fs.readFileSync(zipFile)).digest('hex')}`;
     if (info.asset.digest && info.asset.digest.toLowerCase() !== digest.toLowerCase()) throw new Error('SnowLuma 校验失败：SHA256 不匹配');
     safeListZip(zipFile);
+    onProgress({ phase: 'extract', message: '校验通过，正在解压…', percent: null });
     execFileSync('tar.exe', ['-xf', zipFile, '-C', stage], { windowsHide: true, timeout: 60000 });
+    onProgress({ phase: 'stop', message: '正在停止 qqbridge 和 SnowLuma…', percent: null });
     const stoppedBridge = repoRoot ? stopBridge(repoRoot) : [];
     const stoppedSnow = stopSnowLuma();
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -385,14 +414,18 @@ async function updateSnowLuma(root, { repoRoot, log = () => {} } = {}) {
       if (!fs.existsSync(from)) continue;
       fs.cpSync(from, path.join(stage, name), { recursive: true, force: true });
     }
+    onProgress({ phase: 'replace', message: '正在替换运行时，保留 config/data…', percent: null });
     fs.renameSync(root, old);
     fs.renameSync(stage, root);
     startSnowLuma(root);
+    onProgress({ phase: 'start', message: '正在启动新 SnowLuma…', percent: null });
     if (!await waitSnowLuma()) throw new Error('SnowLuma 启动后 3000/3001 未就绪');
     if (repoRoot) startBridge(repoRoot);
+    onProgress({ phase: 'done', message: `已更新到 ${info.latestVersion}`, percent: 100 });
     log('component', `SnowLuma ${info.currentVersion} -> ${info.latestVersion}; bridge stopped=${stoppedBridge.length}`);
     return { ok: true, currentVersion: info.currentVersion, latestVersion: info.latestVersion, backup: old };
   } catch (error) {
+    onProgress({ phase: 'error', message: `更新失败：${error?.message || error}`, percent: null });
     try { stopSnowLuma(); } catch { /* ignore */ }
     try {
       if (fs.existsSync(old) && !fs.existsSync(root)) fs.renameSync(old, root);

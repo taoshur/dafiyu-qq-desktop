@@ -50,7 +50,7 @@ const state = {
   bili: { status: null, busy: false, error: null, timer: null, lastToastAt: 0 },
   update: { check: null, busy: false, error: null, task: null, timer: null, notifiedVersion: null },
   component: { check: null, busy: false, error: null },
-  snowLumaComponent: { check: null, busy: false, error: null },
+  snowLumaComponent: { check: null, busy: false, error: null, progress: null },
   chatSettings: null,
   friendSettings: null,
   chatModels: [],
@@ -1768,6 +1768,11 @@ async function updateSnowLumaComponent() {
     confirmText: '开始更新',
     onConfirm: async () => {
       state.snowLumaComponent.busy = true;
+      state.snowLumaComponent.progress = { phase: 'check', message: '准备更新…', percent: null };
+      const unsubscribe = api.onSnowLumaProgress?.((progress) => {
+        state.snowLumaComponent.progress = progress;
+        if (state.page === 'about') render();
+      });
       try {
         const result = await api.snowLumaUpdate();
         toast(`SnowLuma 已更新到 ${result.latestVersion}`);
@@ -1777,6 +1782,8 @@ async function updateSnowLumaComponent() {
       } catch (error) {
         toast(`SnowLuma 更新失败：${error.message}`);
       } finally {
+        unsubscribe?.();
+        state.snowLumaComponent.progress = null;
         state.snowLumaComponent.busy = false;
         if (state.page === 'about') render();
       }
