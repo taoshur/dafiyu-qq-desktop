@@ -76,8 +76,8 @@ function download(url, target, redirects = 0) {
   return new Promise((resolve, reject) => {
     if (redirects > 5) return reject(new Error('下载重定向过多'));
     const req = https.get(url, {
-      timeout: 120000,
-      headers: { 'user-agent': 'dafiyu-component-update' }
+      timeout: 15000,
+      headers: { 'user-agent': 'dafiyu-component-update', accept: 'application/octet-stream' }
     }, (res) => {
       const status = Number(res.statusCode || 0);
       if ([301, 302, 303, 307, 308].includes(status) && res.headers.location) {
@@ -103,7 +103,7 @@ function download(url, target, redirects = 0) {
 
 function downloadWithCurl(url, target) {
   try {
-    execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '--retry', '5', '--retry-all-errors', '--retry-delay', '3', '--connect-timeout', '20', '--max-time', '600', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], {
+    execFileSync('curl.exe', ['-L', '--fail', '--http1.1', '--retry', '5', '--retry-all-errors', '--retry-delay', '3', '--connect-timeout', '10', '--max-time', '300', '-H', 'Accept: application/octet-stream', '-H', 'User-Agent: dafiyu-component-update', '-o', target, url], {
       windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], timeout: 600000
     });
   } catch (error) {
@@ -121,7 +121,7 @@ const DOWNLOAD_MIRRORS = [
   (url) => `https://github.moeyy.xyz/${url}`
 ];
 
-async function downloadWithRetry(url, target, attempts = 3, apiUrl = '') {
+async function downloadWithRetry(url, target, attempts = 2, apiUrl = '') {
   const candidates = [];
   const add = (candidate, mode) => {
     if (!candidate || candidates.some((item) => item.url === candidate)) return;
