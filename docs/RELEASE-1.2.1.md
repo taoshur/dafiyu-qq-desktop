@@ -1,4 +1,4 @@
-# Dafiyu Control Center 1.1.12
+# Dafiyu Control Center 1.2.1
 
 ## 移除 SnowLuma 组件更新
 
@@ -15,8 +15,7 @@ qqbridge 组件更新保持不变。
 ## 构建
 
 ```text
-size: 153,091,238
-sha256: 62BE626681A07E0DEA9A05B58014771C6136604EA44124DDFB51DEEBB7751EDF
+size: 153,091,291
+sha256: DBDFC32B7D37242212BFAF0A6A034A3060784DEBF0BD660C2E8D8D78E592BEDA
 ```
 
-本次仅本地构建和安装，未推送、未发布。
