@@ -540,19 +540,27 @@ Dafiyu 控制中心
 
 ### 只安装管理器时要注意
 
-管理器安装包只包含控制中心，不包含：
+管理器安装包包含：
 
 ```text
-qqbridge
-SnowLuma
+控制中心
+qqbridge 源码
+SnowLuma 2.4.0 运行包
+```
+
+安装包不包含：
+
+```text
 DSH
-config.json
+SnowLuma config/data/logs
+qqbridge config.json
 roles/
 state/
 ```
 
-所以“只装管理器”的用户不会自动拥有大肥鱼，也不会自动发 QQ 消息。  
-qqbridge 的一键组件更新只更新**已经存在的 qqbridge**，不是从零部署。
+所以用户安装后可以得到管理器和 SnowLuma 运行环境，但不会自动拥有 DSH、QQ 登录态或大肥鱼的角色配置。  
+qqbridge 的一键组件更新只更新**已经存在的 qqbridge**，不是从零部署。  
+SnowLuma 上游已闭源，不再提供在线组件更新；安装包内置固定运行包，升级需手动替换运行目录。
 
 ### 最小配置清单
 

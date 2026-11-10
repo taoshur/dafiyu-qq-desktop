@@ -1,7 +1,7 @@
 # 首次安装：SnowLuma 与 qq-bridge 登录
 
-安装包只包含桌面控制中心，**不包含** SnowLuma、qq-bridge 及其账号凭据。
-第一次在另一台机器部署时，需要分别处理两个服务的登录。
+安装包包含桌面控制中心、SnowLuma 2.4.0 运行包和 qq-bridge 源码，但**不包含**任何账号凭据、SnowLuma config/data/logs 或 qq-bridge config/state。
+第一次在另一台机器部署时，管理器会先部署内置 SnowLuma 运行包，然后需要分别处理两个服务的登录。
 
 ## qq-bridge：控制台令牌
 

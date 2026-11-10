@@ -26,6 +26,12 @@ https://api.github.com/repos/taoshur/dafiyu-qq-desktop/releases/latest
 - GitHub API 有匿名限流；失败时只显示错误，不影响控制中心其他功能
 - 不做后台静默升级，避免在服务运行时替换程序
 
+## 组件更新
+
+- **qqbridge**：从本项目 Release 的 `qq-bridge-*.zip` 更新，保留 `config.json`、`state/`、`roles/`
+- **SnowLuma**：安装包内置 2.4.0 运行包；上游仓库已闭源，管理器不再在线检查和更新 SnowLuma
+- SnowLuma 需要升级时，停止服务后手动替换运行目录，并保留 `config/`、`data/`
+
 ## 手动检查
 
 「关于」→「检查更新」。
