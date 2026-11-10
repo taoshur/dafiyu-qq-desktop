@@ -7,6 +7,7 @@ const { createPaths, loadSettings, migrateSettings } = require('./paths');
 const { registerIpc } = require('./ipc');
 const { createEmbedder } = require('./embed');
 const { buildWindowPreferences, applyGlobalGuards } = require('./security');
+const { provisionBundledSnowLuma } = require('./bundled-snowluma');
 
 const SAFE_MODE = process.argv.includes('--safe-mode') || process.env.DAFIYU_SAFE_MODE === '1';
 const START_HIDDEN = process.argv.includes('--hidden') || process.env.DAFIYU_START_HIDDEN === '1';
@@ -270,7 +271,9 @@ if (!app.requestSingleInstanceLock()) {
     desktopLog('app', 'second instance focused existing window');
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    const snowProvision = provisionBundledSnowLuma(settings.snowlumaRoot, { log: desktopLog });
+    if (!snowProvision.ok) desktopLog('selfcheck', `bundled SnowLuma unavailable: ${snowProvision.reason || 'unknown'}`);
     nativeTheme.themeSource = settings.theme === 'light' ? 'light' : settings.theme === 'auto' ? 'system' : 'dark';
     app.setAppUserModelId('com.dafiyu.controlcenter');
     session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));

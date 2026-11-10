@@ -1,6 +1,6 @@
 {
   "name": "dafiyu-desktop",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "大肥鱼 QQ 机器人桌面控制台",
   "main": "src/main/index.js",
   "scripts": {
@@ -34,6 +34,10 @@
       {
         "from": "vendor/qq-bridge",
         "to": "qq-bridge"
+      },
+      {
+        "from": "vendor/SnowLuma",
+        "to": "SnowLuma"
       }
     ],
     "files": [

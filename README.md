@@ -5,7 +5,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 > 本项目是基于 [Derpyu520/qq-bridge](https://github.com/Derpyu520/qq-bridge) 的二次创作，不是 qq-bridge 官方项目。
 > 上游代码与文档以 MIT 许可发布；本仓库保留其版权与许可声明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-> 这不是机器人本体，也不包含 SnowLuma、DSH 的安装包或账号；qq-bridge 以 MIT 源码形式内置在安装包中。
+> 安装包内置 SnowLuma 运行包（不是其 TypeScript 源码），首次运行会复制到用户目录；DSH 仍需单独安装。qq-bridge 以 MIT 源码形式内置在安装包中。
 > 它只是一个独立的外壳：状态检测、受控启停、日志、备份、Memory V3 + V4 浏览与审核、MaiBot 记忆导入、服务网页内嵌和首次设置向导。
 
 ## 下载安装包
@@ -19,7 +19,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
   63AE59AF2FA33806A04A735050E62AC4FBFEBD73FC2D8BDB973A0D8D6A0707A4
   ```
 
-> 安装包未签名，Windows SmartScreen 可能提示；首次运行需要本机已安装并配置 DSH。
+> 安装包未签名，Windows SmartScreen 可能提示；安装包内置 SnowLuma 运行包，首次运行会复制到 `~/SnowLuma`（已存在则跳过）。DSH 仍需单独安装并配置。
 
 ## 最近更新
 
