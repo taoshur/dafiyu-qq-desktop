@@ -102,7 +102,7 @@ qq-bridge v0.2.0-r4（含 Memory V3）
 
 上游 SnowLuma 仓库已闭源，管理器不再提供在线组件更新。需要升级时手动停止服务、替换运行目录，并保留 `config/`、`data/`。
 
-安装包内置 SnowLuma 运行包属于再分发场景；现有授权文本未明确覆盖打包再分发，发布安装包前需要确认 SnowLumaDevs 的单独书面许可。
+安装包内置 SnowLuma 运行包已取得 SnowLumaDevs 的单独分发许可；分发时仍需保留署名、官方链接和完整 LICENSE/EULA。
 
 ## 需要手动完成
 

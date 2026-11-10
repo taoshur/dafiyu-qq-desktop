@@ -275,9 +275,8 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 - 允许用户主动启动、停止其**自行安装或由本项目安装的官方未修改完整发行版** SnowLuma；
 - 允许内嵌访问本机 SnowLuma WebUI；
 - **2026-10-29 补充授权（历史）**：在非商业用途下，经用户主动确认并接受 LICENSE、EULA 后，可从 SnowLuma 官方发布渠道自动下载未修改的完整发行版，并完成本地安装及基础配置。该在线下载入口已因上游闭源停止使用。
-  - 该授权文本**不包含把运行包打包进安装包再分发的授权**；安装包附带 SnowLuma 运行时，需要另行取得 SnowLumaDevs 对再分发的书面许可。
 
-该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像、打包再分发或商业使用。当前安装包内置运行包属于再分发场景，发布前应确认已获得单独授权。
+该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像或商业使用。本项目已另行取得 SnowLumaDevs 对随安装包分发未修改运行包的书面许可；分发时仍需保留 SnowLumaDevs 署名、官方链接及完整 LICENSE/EULA。
 安装/下载时必须保留 SnowLumaDevs 署名、官方链接及完整 LICENSE、EULA。
 超出上述范围需要另行申请书面授权。SnowLuma 仍适用其自身 LICENSE/EULA，不受本项目的许可覆盖。
 
@@ -476,7 +475,7 @@ QQ 消息
 - 安装层 `install-task.js` 使用显式状态机
 - 计划层 `install-catalog.js` 固定官方来源、版本、SHA256、安装能力
 - 安装状态与服务运行状态分离；安装完成不会自动启动服务
-- qq-bridge 源码和 SnowLuma 运行包随安装包内置（含 Memory V3/V4）；SnowLuma 运行包再分发需确认官方许可；DSH 缺少可验证静默安装方式，明确标为手动安装
+- qq-bridge 源码和 SnowLuma 运行包随安装包内置（含 Memory V3/V4）；SnowLuma 运行包已取得随安装包分发授权；DSH 缺少可验证静默安装方式，明确标为手动安装
 
 ```text
 IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING → COMPLETED
