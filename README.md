@@ -655,7 +655,7 @@ socialV2.proactive.enabled = true
 
 - **仅允许非商业用途**
 - 允许个人学习、研究、非商业自托管和修改
-- 不允许商业使用、收费托管/部署或把本项目并入商业产品
+- 禁止商业使用、收费托管/部署或把本项目并入商业产品
 - 这不是 OSI 定义的开源许可证，而是 source-available / noncommercial
 
 上游 qq-bridge 的 MIT 许可声明保留在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；
