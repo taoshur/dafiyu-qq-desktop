@@ -11,18 +11,37 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 ## 下载安装包
 
 - **最新 Release**：https://github.com/taoshur/dafiyu-qq-desktop/releases/latest
-- **v1.1.4 直接下载**：
-  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v1.1.4/Dafiyu-Control-Center-Setup.exe
-- 大小：123,477,071 字节
+- **v1.1.11 直接下载**：
+  https://github.com/taoshur/dafiyu-qq-desktop/releases/download/v1.1.11/Dafiyu-Control-Center-Setup.exe
+- 大小：153,091,619 字节
 - SHA256：
   ```text
-  63AE59AF2FA33806A04A735050E62AC4FBFEBD73FC2D8BDB973A0D8D6A0707A4
+  83D7A7D22B0D7D614BD39F8192CFADC801423DE7BA171B598241112BE433AC7B
   ```
 
 > 安装包未签名，Windows SmartScreen 可能提示；安装包内置 SnowLuma 运行包，首次运行会复制到 `~/SnowLuma`（已存在则跳过）。DSH 仍需单独安装并配置。
 
+### 安装包附带内容
+
+安装包内含：
+
+- SnowLuma 2.4.0 运行包（`index.mjs`、`client`、`native`、`node.exe`、EULA/PRIVACY）
+- qq-bridge 源码
+- 管理器本体
+
+安装包不包含：
+
+- 构建机器的 `SnowLuma/config`、`SnowLuma/data`、`SnowLuma/logs`
+- QQ 登录态或聊天记录
+- DSH 安装包
+
+首次运行管理器时，如果 `~/SnowLuma` 不存在，会自动复制内置运行包；已存在则保留用户现有目录。
+
+> 源码构建安装包前，需要把官方 SnowLuma Windows 运行包解压到 `vendor/SnowLuma`。该运行时目录不提交到 Git；正式安装包会包含它。
+
 ## 最近更新
 
+- **1.1.11**：安装包内置 SnowLuma 运行包；首次运行自动部署
 - **1.1.4**：兼容新版 DSH 图片字段，同时保留旧版 DSH 回退
 - **1.1.3**：成长候选评审、生产审核过期修复
 - **1.1.1**：已确认事实/事件增删改查、软删除恢复、人格成长详情
