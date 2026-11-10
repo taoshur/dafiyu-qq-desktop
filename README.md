@@ -276,7 +276,7 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 - 允许内嵌访问本机 SnowLuma WebUI；
 - **2026-10-29 补充授权（历史）**：在非商业用途下，经用户主动确认并接受 LICENSE、EULA 后，可从 SnowLuma 官方发布渠道自动下载未修改的完整发行版，并完成本地安装及基础配置。该在线下载入口已因上游闭源停止使用。
 
-该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像或商业使用。本项目已另行取得 SnowLumaDevs 对随安装包分发未修改运行包的书面许可；分发时仍需保留 SnowLumaDevs 署名、官方链接及完整 LICENSE/EULA。
+该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像或商业使用。分发时仍需保留 SnowLumaDevs 署名、官方链接及完整 LICENSE/EULA。
 安装/下载时必须保留 SnowLumaDevs 署名、官方链接及完整 LICENSE、EULA。
 超出上述范围需要另行申请书面授权。SnowLuma 仍适用其自身 LICENSE/EULA，不受本项目的许可覆盖。
 
