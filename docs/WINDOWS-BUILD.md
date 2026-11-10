@@ -95,7 +95,7 @@ npm run build    # dist/Dafiyu-Control-Center-Setup.exe
 ## 8. 依赖与分发注意
 
 - Electron / electron-builder 为 MIT；`node:sqlite` 随 Electron/Node 提供，无额外原生模块
-- SnowLuma 运行包随安装包分发，仍受其官方 EULA / Source-Available Non-Commercial License 约束；qq-bridge 以 MIT 源码内置；DSH 和角色素材不包含
+- SnowLuma 运行包随安装包分发，仍受其官方 EULA / Source-Available Non-Commercial License 约束；现有书面授权文本不明确覆盖“打包再分发”，发布安装包前应向 SnowLumaDevs 确认单独授权。qq-bridge 以 MIT 源码内置；DSH 和角色素材不包含
 - 分享给其他用户时需要：
   - 独立用户数据目录（已具备）
   - 首次运行向导/外部依赖检查（部分具备）

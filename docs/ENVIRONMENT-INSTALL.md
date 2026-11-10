@@ -71,8 +71,8 @@ qq-bridge v0.2.0-r4（含 Memory V3）
 - 安装包**不打包** qq-bridge 的 `node_modules` 和 SnowLuma SDK 等依赖；首次安装需要本机 Node/npm 和网络从 npm 获取依赖
 - 不会自动启动 bridge，不会写 SnowLuma/DSH 配置，不会把 token 写入日志
 
-本机实测：内置 v0.2.1-r1 源码复制、`npm install`（128 packages）、
-`config.example.json` 初始化均完成；没有启动服务，没有接触生产数据。
+历史实测：内置 qq-bridge 源码复制、`npm install`、
+`config.example.json` 初始化均完成；没有启动服务，没有接触生产数据。当前版本以安装包内 `vendor/qq-bridge` 为准。
 
 ## SnowLuma 内置运行包
 
@@ -101,6 +101,8 @@ qq-bridge v0.2.0-r4（含 Memory V3）
 已存在 SnowLuma 目录时跳过，不覆盖用户数据。
 
 上游 SnowLuma 仓库已闭源，管理器不再提供在线组件更新。需要升级时手动停止服务、替换运行目录，并保留 `config/`、`data/`。
+
+安装包内置 SnowLuma 运行包属于再分发场景；现有授权文本未明确覆盖打包再分发，发布安装包前需要确认 SnowLumaDevs 的单独书面许可。
 
 ## 需要手动完成
 

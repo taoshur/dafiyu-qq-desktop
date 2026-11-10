@@ -43,7 +43,8 @@ upstream `LICENSE` and the respective projects' licenses before use.
 - Upstream: https://github.com/SnowLuma/SnowLuma
 - License: https://github.com/SnowLuma/SnowLuma/blob/main/LICENSE
 - EULA: https://github.com/SnowLuma/SnowLuma/blob/main/EULA.md
-- This repository does **not** bundle SnowLuma source or native binaries.
+- This repository does **not** commit SnowLuma source or native binaries to Git.
+- The Windows installer produced from this repository may include the unmodified official SnowLuma runtime for first-run deployment. That is a redistribution scenario; the written permission currently documented below does **not** explicitly cover packaging/redistribution. Obtain separate written permission from SnowLumaDevs before distributing such an installer.
 - SnowLumaDevs granted written permission on 2026-10-29 for this project to:
   - publish publicly on a non-commercial basis;
   - let users actively start/stop their own unmodified official SnowLuma installation;
@@ -52,9 +53,14 @@ upstream `LICENSE` and the respective projects' licenses before use.
     LICENSE/EULA, automatically download the unmodified complete official
     release from the official SnowLuma channel and perform local installation
     and basic configuration.
+  - This permission does **not** cover packaging the runtime into an installer
+    or redistributing it. Bundling SnowLuma in the installer requires separate
+    written permission.
 - The permission does **not** cover modifying SnowLuma code/native components,
   self-hosting mirrors, packaging/redistributing, or commercial use. SnowLuma
   remains under its own LICENSE/EULA; this project's license does not override it.
+- The current installer includes a SnowLuma runtime; confirm separate
+  redistribution permission before publishing or sharing that installer.
 - The installer must retain SnowLumaDevs attribution, official links, and the
   complete LICENSE/EULA.
 

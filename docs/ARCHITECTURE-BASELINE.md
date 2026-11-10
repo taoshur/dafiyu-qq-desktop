@@ -1,5 +1,7 @@
 # Architecture Baseline (Phase 0)
 
+> 历史基线，记录 0.7.1 时期的架构约束，不代表当前 1.2.1 版本。当前安装与文件说明见 `README.md`、`docs/CONFIG-INVENTORY.md`、`docs/WINDOWS-BUILD.md`。
+
 Date: 2026-10-29
 
 ## Release snapshot

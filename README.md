@@ -96,7 +96,7 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 - **首次设置**：分步向导弹窗；SnowLuma 密码只作为一次 bootstrap 环境变量传入
 - **新手教程**：聚光灯逐步引导，覆盖服务启动、记忆审核和正确退出；不会代替你执行危险操作
 - **称呼设置**：首次向导询问“大肥鱼对您的称呼”，可在配置页修改；默认“爸爸”，只用于界面问候
-- **环境安装**：检测 SnowLuma / qq-bridge / DSH、系统依赖和官方来源；qq-bridge 源码随安装包内置，SnowLuma 从官方来源自动下载（需先确认 LICENSE/EULA），DSH 提供手动安装指引
+- **环境安装**：检测 SnowLuma / qq-bridge / DSH、系统依赖和官方来源；qq-bridge 源码和 SnowLuma 运行包随安装包内置，DSH 提供手动安装指引
 - **新手提示词**：首次设置/环境页可复制一段交给 DeepSeek 的部署提示词，限定官方来源、许可边界和凭据安全
 - **安全基线**：`contextIsolation`、sandbox、固定 IPC 白名单、无 Node 渲染进程、令牌不进入 URL/页面
 
@@ -274,9 +274,10 @@ SnowLuma 由 **SnowLumaDevs** 开发，官方项目：
 - 以非商业方式公开发布；
 - 允许用户主动启动、停止其**自行安装或由本项目安装的官方未修改完整发行版** SnowLuma；
 - 允许内嵌访问本机 SnowLuma WebUI；
-- **2026-10-29 补充授权**：在非商业用途下，经用户主动确认并接受 LICENSE、EULA 后，可从 SnowLuma 官方发布渠道自动下载未修改的完整发行版，并完成本地安装及基础配置。
+- **2026-10-29 补充授权（历史）**：在非商业用途下，经用户主动确认并接受 LICENSE、EULA 后，可从 SnowLuma 官方发布渠道自动下载未修改的完整发行版，并完成本地安装及基础配置。该在线下载入口已因上游闭源停止使用。
+  - 该授权文本**不包含把运行包打包进安装包再分发的授权**；安装包附带 SnowLuma 运行时，需要另行取得 SnowLumaDevs 对再分发的书面许可。
 
-该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像、打包再分发或商业使用。
+该授权**不包括**修改 SnowLuma 代码或原生组件、自建镜像、打包再分发或商业使用。当前安装包内置运行包属于再分发场景，发布前应确认已获得单独授权。
 安装/下载时必须保留 SnowLumaDevs 署名、官方链接及完整 LICENSE、EULA。
 超出上述范围需要另行申请书面授权。SnowLuma 仍适用其自身 LICENSE/EULA，不受本项目的许可覆盖。
 
@@ -475,7 +476,7 @@ QQ 消息
 - 安装层 `install-task.js` 使用显式状态机
 - 计划层 `install-catalog.js` 固定官方来源、版本、SHA256、安装能力
 - 安装状态与服务运行状态分离；安装完成不会自动启动服务
-- qq-bridge 源码随安装包内置（含 Memory V3/V4）；SnowLuma 从官方 Releases 自动下载（必须先确认 LICENSE/EULA）；DSH 缺少可验证静默安装方式，明确标为手动安装
+- qq-bridge 源码和 SnowLuma 运行包随安装包内置（含 Memory V3/V4）；SnowLuma 运行包再分发需确认官方许可；DSH 缺少可验证静默安装方式，明确标为手动安装
 
 ```text
 IDLE → CHECKING → DOWNLOADING → INSTALLING → CONFIGURING → VERIFYING → COMPLETED

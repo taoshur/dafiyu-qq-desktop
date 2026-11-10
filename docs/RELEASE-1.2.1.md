@@ -9,6 +9,7 @@
 - 移除对应 IPC 接口和自动检查
 - 保留安装包内置的 SnowLuma 2.4.0 运行包
 - 后续更新 SnowLuma 需要手动替换运行目录
+- SnowLuma 运行包随安装包分发仍需遵守官方 EULA；现有授权文本未明确覆盖“打包再分发”，发布前应确认 SnowLumaDevs 的单独书面许可
 
 qqbridge 组件更新保持不变。
 
