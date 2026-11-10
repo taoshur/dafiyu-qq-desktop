@@ -150,14 +150,6 @@ test('all-update orchestration updates qqbridge before manager installer', () =>
 });
 
 
-test('SnowLuma differentiated component update is wired', () => {
-  const backups = fs.readFileSync(path.join(renderer, 'pages', 'backups.js'), 'utf8');
-  assert.ok(app.includes('snowLumaCheck'));
-  assert.ok(app.includes('snowLumaUpdate'));
-  assert.ok(backups.includes('component-update-snowluma'));
-  assert.ok(backups.includes('snowLumaComponentPanel'));
-});
-
 
 test('light theme recent log preview has readable background', () => {
   const css = fs.readFileSync(path.join(renderer, 'styles.css'), 'utf8');

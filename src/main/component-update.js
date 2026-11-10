@@ -445,5 +445,5 @@ async function updateSnowLuma(root, { repoRoot, log = () => {}, onProgress = () 
   }
 }
 
-module.exports = { check, update, bridgePids, checkSnowLuma, updateSnowLuma };
+module.exports = { check, update, bridgePids };
 

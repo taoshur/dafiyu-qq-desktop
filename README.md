@@ -39,6 +39,8 @@ Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bri
 
 > 源码构建安装包前，需要把官方 SnowLuma Windows 运行包解压到 `vendor/SnowLuma`。该运行时目录不提交到 Git；正式安装包会包含它。
 
+> 上游 SnowLuma 仓库已闭源，管理器不再提供 SnowLuma 在线组件更新；安装包内置固定的 SnowLuma 2.4.0 运行包，后续需要更新时应手动替换运行目录。
+
 ## 最近更新
 
 - **1.1.11**：安装包内置 SnowLuma 运行包；首次运行自动部署

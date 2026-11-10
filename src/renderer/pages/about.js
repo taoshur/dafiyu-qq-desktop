@@ -42,5 +42,5 @@ function aboutPage() {
     </section>
     <div id="update-live">${updatePanel()}</div>
     <div id="component-live">${componentPanel()}</div>
-    <div id="snowluma-component-live">${snowLumaComponentPanel()}</div>`;
+`;
 }
