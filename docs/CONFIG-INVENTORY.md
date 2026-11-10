@@ -69,7 +69,7 @@ QQ / SnowLuma 的登录凭据、cookie、accessToken
 | qqbridge 示例 | `<QQ_BRIDGE>\config.example.json` | 字段结构参考，不含用户密钥 |
 | qqbridge 角色 | `<QQ_BRIDGE>\roles\*.md` | 角色卡 |
 | qqbridge 状态 | `<QQ_BRIDGE>\state` | 数据库、日志、token，不要编辑 |
-| SnowLuma | `C:\SnowLuma` | QQ 运行时 |
+| SnowLuma | `C:\SnowLuma` | QQ 运行时；安装包首次运行自动部署，已存在则保留 |
 | SnowLuma 配置 | `C:\SnowLuma\config\*.json` | WebUI、OneBot、外观 |
 | SnowLuma 数据 | `C:\SnowLuma\data` | 消息/身份数据库，不要手工编辑 |
 | SnowLuma 日志 | `C:\SnowLuma\logs` | 排障用 |
@@ -83,6 +83,36 @@ QQ_BRIDGE = C:\Users\<用户>\qq-bridge
 SNOWLUMA  = C:\SnowLuma
 MANAGER   = %APPDATA%\dafiyu-desktop
 DSH_PROFILE = %USERPROFILE%\.dsh\profiles\desktop
+```
+
+### 1.1 安装包内置 SnowLuma 运行包
+
+安装包带有：
+
+```text
+<安装目录>\resources\SnowLuma
+```
+
+管理器首次启动时，如果 `snowlumaRoot` 不存在运行文件，会把内置运行包复制到：
+
+```text
+C:\Users\<用户>\SnowLuma
+```
+
+规则：
+
+- 只复制运行文件：`index.mjs`、`client/`、`native/`、`node.exe`、EULA/PRIVACY 等
+- 不复制 `config/`、`data/`、`logs/`
+- 目标已存在时跳过，不覆盖用户 QQ 登录态和配置
+- 上游仓库已闭源，管理器不再提供 SnowLuma 在线组件更新
+- SnowLuma 需要升级时，停止服务后手动替换运行目录，保留 `config/` 和 `data/`
+- 源码构建安装包前，需要把官方 SnowLuma Windows 运行包放到 `vendor/SnowLuma`；该目录不提交到 Git
+
+对应代码：
+
+```text
+src/main/bundled-snowluma.js
+package.json -> build.extraResources vendor/SnowLuma
 ```
 
 ---

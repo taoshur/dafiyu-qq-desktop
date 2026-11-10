@@ -5,7 +5,8 @@
 - Electron 45.0.0（主进程是管理器，渲染进程无 Node 权限）
 - 主进程：`src/main`；preload：`src/preload`；界面：`src/renderer`
 - 数据库：Node 内置 `node:sqlite`，只读打开生产 `memory.db`；审核只在隔离测试库
-- 不打包 SnowLuma / qq-bridge / DSH；它们作为外部依赖，通过路径配置连接
+- 安装包内置 SnowLuma 运行包和 qq-bridge 源码；DSH 仍作为外部依赖，通过路径配置连接
+- 安装包不包含 SnowLuma 的 config/data/logs，也不包含 DSH
 - 用户数据：`%APPDATA%\dafiyu-desktop`
   - `config/config.json`：桌面自己的路径与开关
   - `logs/app.log`：桌面日志
@@ -35,7 +36,8 @@ npm run build    # dist/Dafiyu-Control-Center-Setup.exe
   - `build.electronVersion = "45.0.0"`
 - 图标：`build/icon.ico`（由 `deepseek-chan.png` 生成）
 - 未配置代码签名；安装包会显示未知发布者
-- 产物大小约 122 MB（Electron 运行时占主要部分）
+- 构建前需要把官方 SnowLuma Windows 运行包放到 `vendor/SnowLuma`（不提交到 Git）
+- 产物大小约 153 MB（Electron + SnowLuma 运行包）
 
 ## 4. 已实际验证
 
@@ -86,16 +88,17 @@ npm run build    # dist/Dafiyu-Control-Center-Setup.exe
 3. 机器人回复尚未进入 Memory V3（只在 social-v2/DSH 会话中）。
 4. `config.json` 的模型/API Key/语音/QQ 配置目前只读脱敏，不提供写入。
 5. 安装包未签名，Windows SmartScreen 可能提示。
-6. 安装后首次启动需要确认外部依赖路径（qq-bridge/SnowLuma/DSH）。
+6. 安装后首次启动会自动部署内置 SnowLuma；仍需确认 DSH 路径并完成 QQ 登录。
 7. 卸载保留用户数据是刻意的；不会删除记忆/配置。
-8. 安装包包含 Electron 运行时，体积较大。
+8. 安装包包含 Electron 运行时和 SnowLuma 运行包，体积较大。
 
 ## 8. 依赖与分发注意
 
 - Electron / electron-builder 为 MIT；`node:sqlite` 随 Electron/Node 提供，无额外原生模块
-- SnowLuma、qq-bridge、DSH、角色素材的再分发许可未在本轮确认；当前安装包**不包含**它们
+- SnowLuma 运行包随安装包分发，仍受其官方 EULA / Source-Available Non-Commercial License 约束；qq-bridge 以 MIT 源码内置；DSH 和角色素材不包含
 - 分享给其他用户时需要：
   - 独立用户数据目录（已具备）
   - 首次运行向导/外部依赖检查（部分具备）
   - 不内置维护者的 API Key、QQ 登录态、聊天记录（当前未内置）
   - 对可分发组件单独做许可审查
+  - SnowLuma 更新改为手动替换运行目录，管理器不再在线更新

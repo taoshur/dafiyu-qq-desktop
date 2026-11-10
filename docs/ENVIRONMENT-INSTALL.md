@@ -4,7 +4,7 @@
 
 | 组件 | 检测 | 自动安装 | 说明 |
 | --- | --- | --- | --- |
-| SnowLuma | 可执行文件、release.json 版本、config/webui.json、5099/3000/3001 | **是，官方 win-x64 完整包** | 必须先由用户接受 LICENSE/EULA；下载官方未修改完整发行版，SHA256 校验，解压，不修改代码/原生组件，不自建镜像，不打包再分发 |
+| SnowLuma | 可执行文件、release.json 版本、config/webui.json、5099/3000/3001 | **否，安装包内置运行包** | 首次启动自动从 `resources/SnowLuma` 部署到用户目录；不包含 config/data/logs；上游闭源后不再在线更新 |
 | qq-bridge | package.json、src/bridge.js、config.json、state/console-token、3100/3080 | **是，安装包内置定制源码** | 内置 v0.2.0-r4 + Memory V3；复制到用户目录后执行 `npm install`，不覆盖非空目录 |
 | DSH | DeepSeek Harness.exe、`~/.dsh`、运行端口 | **否** | 官方仓库没有可用于静默安装的 Release 资产；需要官方桌面安装包和首次初始化 |
 
@@ -19,8 +19,8 @@
 
 - 检查 Windows/CPU/Node/npm/Git/Python 与组件状态
 - 状态区分：未安装、已安装未配置、已配置未运行、正常运行、版本不兼容、未知
-- SnowLuma/qq-bridge 缺失时提供官方来源安装；DSH 显示官方安装页面和手动步骤
-- SnowLuma 安装前必须勾选接受官方 LICENSE/EULA；UI 显示官方链接
+- SnowLuma 正常由安装包首次运行自动部署；qq-bridge 缺失时使用内置源码安装；DSH 显示官方安装页面和手动步骤
+- SnowLuma 运行包内含官方 EULA/PRIVACY；首次使用仍需遵守其许可
 - 安装进度、实际下载字节数/百分比、日志、取消、失败重试
 - “重新检测”只读，不会启动/停止任何服务
 
@@ -74,33 +74,37 @@ qq-bridge v0.2.0-r4（含 Memory V3）
 本机实测：内置 v0.2.1-r1 源码复制、`npm install`（128 packages）、
 `config.example.json` 初始化均完成；没有启动服务，没有接触生产数据。
 
-## SnowLuma 自动安装
+## SnowLuma 内置运行包
 
-固定官方来源：
+安装包内置：
 
 ```text
-https://github.com/SnowLuma/SnowLuma/releases/download/v2.2.1/SnowLuma-v2.2.1-win-x64.zip
-SHA256 09A3FBBF42EA805C4D61B5E67BEC2A46EF341FA803F211D78C40796CB7F535DC
+<安装目录>\resources\SnowLuma
 ```
 
-前置条件：
+首次运行管理器时，如果 `snowlumaRoot` 不存在运行文件，会复制：
 
-- 用户必须主动勾选接受 SnowLuma LICENSE / EULA
-- 仅非商业用途
-- 只下载官方未修改完整发行版
-- 不自建镜像、不打包再分发、不修改代码或原生组件
+- `index.mjs`
+- `client/`
+- `native/`
+- `node.exe`
+- `EULA.md` / `PRIVACY.md`
 
-下载后：
+不会复制：
 
-- SHA256 校验
-- 解压到目标目录
-- 验证 `node.exe`、`index.mjs`、`launcher.bat`、`EULA.md`
-- 保留官方 LICENSE/EULA 和 SnowLumaDevs 署名
-- 不自动启动服务；WebUI 初始密码在首次启动/登录时生成
+- `config/`
+- `data/`
+- `logs/`
+
+因此不会带上开发者的 QQ 登录态、聊天数据或配置。
+
+已存在 SnowLuma 目录时跳过，不覆盖用户数据。
+
+上游 SnowLuma 仓库已闭源，管理器不再提供在线组件更新。需要升级时手动停止服务、替换运行目录，并保留 `config/`、`data/`。
 
 ## 需要手动完成
 
-- SnowLuma：可从官方 Releases 自动下载 Windows 完整包；首次启动后按官方 WebUI 登录流程配置
+- SnowLuma：使用安装包内置运行包；首次启动后按官方 WebUI 登录流程配置
 - DSH：安装官方桌面应用并完成首次启动
 - qq-bridge：填写 `config.json` 的 DSH/SnowLuma/账号配置；bridge 首次启动自行生成 `state/console-token`
 - 所有凭据由用户输入/本机生成，桌面只读取必要的本机凭据
@@ -108,7 +112,7 @@ SHA256 09A3FBBF42EA805C4D61B5E67BEC2A46EF341FA803F211D78C40796CB7F535DC
 ## 已知限制
 
 - DSH 的“一键安装”未实现，也不会用假成功状态伪装
-- SnowLuma 自动安装只下载官方未修改完整包；不能修改代码/原生组件、自建镜像或打包再分发
+- SnowLuma 使用安装包内置运行包；不包含 config/data/logs；上游闭源后不提供在线更新
 - qq-bridge 源码内置，但依赖仍需 npm 联网安装；首次安装需要 Node/npm，UI 不保证成功
 - 取消下载/安装会终止子进程并清理临时目录，但不删除已存在的用户目录
 - 安装任务在应用异常退出后不会自动续跑；下次启动清理超过 24 小时的临时目录，需重新检测/重试
