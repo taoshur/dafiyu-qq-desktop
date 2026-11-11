@@ -1,6 +1,6 @@
 # Dafiyu Control Center
 
-**English** | [简体中文](README.zh-CN.md)
+**English** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Русский](README.ru.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
 <p align="center">
   <b>A Windows desktop control plane for SnowLuma + qq-bridge + DeepSeek Harness.</b><br/>

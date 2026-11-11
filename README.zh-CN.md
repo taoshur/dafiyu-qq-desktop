@@ -1,6 +1,6 @@
 # 大肥鱼桌面控制中心
 
-[English](README.md) | **简体中文**
+[English](README.md) | **简体中文** | [日本語](README.ja.md) | [Français](README.fr.md) | [Русский](README.ru.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
 Windows 11 上的 QQ 机器人桌面控制台，用于管理 **SnowLuma + qq-bridge + DeepSeek Harness（DSH）** 三件套。
 
